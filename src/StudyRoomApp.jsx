@@ -32,8 +32,9 @@ const mockParticipants = [
   { id: "6", name: "渡辺さん", isVideoOn: true, isMuted: false },
 ];
 
+const POMODORO_DURATION_SECONDS = 25 * 60; // 25 minutes in seconds
 export default function StudyRoomApp() {
-  const [timeLeft, setTimeLeft] = useState(25 * 60); // 25 minutes in seconds
+  const [timeLeft, setTimeLeft] = useState(POMODORO_DURATION_SECONDS);
   const [isRunning, setIsRunning] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState(null);
 
