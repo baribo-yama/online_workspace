@@ -159,10 +159,10 @@ export const useSharedTimer = (roomId) => {
 
     console.log("タイマー開始処理:", { roomId, timer });
 
-    try {
-      const roomRef = doc(db, "rooms", roomId);
-      console.log("更新対象パス:", roomRef.path);
+    const roomRef = doc(db, "rooms", roomId);
+    console.log("更新対象パス:", roomRef.path);
 
+    try {
       if (timer.isRunning) {
         // 停止処理
         console.log("タイマーを停止します");

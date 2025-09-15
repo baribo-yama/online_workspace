@@ -1,5 +1,3 @@
-
-
 // カメラ撮影コンポーネント
 import { useEffect, useState } from 'react';
 import { Camera, CameraOff, Download, Trash2, AlertCircle } from 'lucide-react';
