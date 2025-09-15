@@ -24,6 +24,7 @@ npm run dev
 
 以下の環境変数を`.env`ファイルに設定する必要があります：
 
+### Firebase設定
 - `VITE_FIREBASE_API_KEY`: Firebase API キー
 - `VITE_FIREBASE_AUTH_DOMAIN`: Firebase Auth ドメイン
 - `VITE_FIREBASE_PROJECT_ID`: Firebase プロジェクト ID
@@ -32,11 +33,19 @@ npm run dev
 - `VITE_FIREBASE_APP_ID`: Firebase アプリ ID
 - `VITE_FIREBASE_MEASUREMENT_ID`: Firebase 測定 ID
 
+### LiveKit設定（ビデオ通話機能）
+- `VITE_LIVEKIT_URL`: LiveKit サーバーのURL
+- `VITE_LIVEKIT_API_KEY`: LiveKit API キー
+- `VITE_LIVEKIT_API_SECRET`: LiveKit API シークレット
+
+LiveKitアカウントは [https://livekit.io/](https://livekit.io/) で無料で作成できます。
+
 ## 機能
 
 - オンライン自習室の作成・参加
 - ポモドーロタイマー（25分間の集中タイマー）
 - リアルタイムで参加者数を表示
+- 参加者同士でのリアルタイム音声・映像通話（LiveKit使用）
 
 ## 技術スタック
 

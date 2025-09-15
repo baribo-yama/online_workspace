@@ -1,45 +1,99 @@
 // src/pages/Home.jsx
 import { useEffect, useState } from "react";
-import { collection, addDoc, onSnapshot, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, query, orderBy, limit, onSnapshot } from "firebase/firestore";
 import { db } from "../firebase";
 import { useNavigate } from "react-router-dom";
 import { defaultRoom } from "../models/firestore";
-import { Users } from "lucide-react";
+import { Users, RefreshCw } from "lucide-react";
 import PomodoroTimer from "../components/PomodoroTimer";
 
 function Home() {
-  const [rooms, setRooms] = useState([]);
   const [title, setTitle] = useState("");
   const [name, setName] = useState("");
+  const [rooms, setRooms] = useState([]);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
+  // 名前をローカルストレージから復元
   useEffect(() => {
-    const unsubscribe = onSnapshot(collection(db, "rooms"), (snapshot) => {
-      const roomsData = snapshot.docs.map((doc) => ({
+    const savedName = localStorage.getItem("userName");
+    if (savedName) {
+      setName(savedName);
+    }
+  }, []);
+
+  // 部屋一覧をリアルタイムで取得（シンプル版）
+  useEffect(() => {
+    const roomsQuery = query(
+      collection(db, "rooms"),
+      orderBy("createdAt", "desc"),
+      limit(10)
+    );
+
+    const unsubscribe = onSnapshot(roomsQuery, (snapshot) => {
+      const roomsData = snapshot.docs.map(doc => ({
         id: doc.id,
-        ...doc.data(),
+        ...doc.data()
       }));
       setRooms(roomsData);
+      setLoading(false);
+    }, (error) => {
+      console.error("部屋一覧取得エラー:", error);
+      setLoading(false);
     });
+
     return () => unsubscribe();
   }, []);
 
-  const createRoom = async () => {
-    if (!title.trim()) return alert("部屋のタイトルを入力してください");
-    if (!name.trim()) return alert("名前を入力してください");
+  // 名前が変更されたらローカルストレージに保存
+  const handleNameChange = (e) => {
+    const newName = e.target.value;
+    setName(newName);
+    if (newName.trim()) {
+      localStorage.setItem("userName", newName.trim());
+    }
+  };
 
-    const docRef = await addDoc(collection(db, "rooms"), {
-      ...defaultRoom,
-      title: title,
-      createdAt: serverTimestamp(),
-    });
-    setTitle("");
-    navigate(`/room/${docRef.id}`, { state: { name } });
+  // シンプルな部屋作成
+  const createRoom = async () => {
+    if (!title.trim()) {
+      alert("部屋のタイトルを入力してください");
+      return;
+    }
+    if (!name.trim()) {
+      alert("名前を入力してください");
+      return;
+    }
+
+    // 現在の部屋数をチェック（シンプル）
+    if (rooms.length >= 3) {
+      alert("現在、同時に存在できる部屋数の上限（3部屋）に達しています。\nしばらく時間をおいてからお試しください。");
+      return;
+    }
+
+    try {
+      const docRef = await addDoc(collection(db, "rooms"), {
+        ...defaultRoom,
+        title: title.trim(),
+        createdAt: serverTimestamp(),
+      });
+
+      console.log("部屋作成成功:", docRef.id);
+      setTitle("");
+      navigate(`/room/${docRef.id}`, { state: { name: name.trim() } });
+    } catch (error) {
+      console.error("部屋作成エラー:", error);
+      alert("部屋の作成に失敗しました。もう一度お試しください。");
+    }
   };
 
   const joinRoom = (roomId) => {
-    if (!name.trim()) return alert("名前を入力してください");
-    navigate(`/room/${roomId}`, { state: { name } });
+    if (!name.trim()) {
+      alert("名前を入力してください");
+      return;
+    }
+    console.log("部屋に参加:", { roomId, name: name.trim() });
+    navigate(`/room/${roomId}`, { state: { name: name.trim() } });
   };
 
   return (
@@ -49,17 +103,9 @@ function Home() {
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-white mb-2">オンライン自習室</h1>
           <p className="text-gray-400">集中して学習できる環境を選んでください</p>
-        </div>
-
-        {/* 部屋を作成ボタン */}
-        <div className="mb-6">
-          <button
-            onClick={createRoom}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg shadow-lg hover:shadow-blue-500/25 transition-all duration-200 flex items-center justify-center gap-2"
-          >
-            <Users className="w-5 h-5" />
-            部屋を作成
-          </button>
+          <p className="text-gray-400 text-sm mt-1">
+            現在の部屋数: {rooms.length}/3 (MVP制限)
+          </p>
         </div>
 
         {/* 作成する部屋のタイトル入力 */}
@@ -76,22 +122,54 @@ function Home() {
         <div className="mb-6">
           <input
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={handleNameChange}
             placeholder="あなたの名前"
             className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
+          {name && (
+            <p className="text-xs text-gray-400 mt-1">
+              名前は自動的に保存されます
+            </p>
+          )}
+        </div>
+
+        {/* 部屋を作成ボタン */}
+        <div className="mb-6">
+          <button
+            onClick={createRoom}
+            disabled={rooms.length >= 3}
+            className={`w-full font-semibold py-3 px-4 rounded-lg shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${
+              rooms.length < 3
+                ? 'bg-blue-600 hover:bg-blue-700 text-white hover:shadow-blue-500/25'
+                : 'bg-gray-600 text-gray-300 cursor-not-allowed'
+            }`}
+          >
+            <Users className="w-5 h-5" />
+            部屋を作成
+          </button>
+          {rooms.length >= 3 && (
+            <div className="mt-2 p-3 bg-red-900/50 border border-red-600 rounded text-red-200 text-sm">
+              同時に存在できる部屋数の上限（3部屋）に達しています
+            </div>
+          )}
         </div>
 
         {/* 部屋一覧 */}
         <div className="space-y-4">
-          {rooms.map((room) => (
+          {loading && (
+            <div className="text-center py-8">
+              <p className="text-gray-400">部屋一覧を読み込み中...</p>
+            </div>
+          )}
+
+          {!loading && rooms.length > 0 && rooms.map((room) => (
             <div
               key={room.id}
               className="bg-gray-700 border border-gray-600 rounded-lg p-4 hover:shadow-lg hover:shadow-blue-500/20 transition-all duration-200 cursor-pointer"
               onClick={() => joinRoom(room.id)}
             >
               <div className="flex items-center justify-between mb-2">
-                <h3 className="text-lg text-white font-semibold">{room.title || "No Title"}</h3>
+                <h3 className="text-lg text-white font-semibold">{room.title || "無題の部屋"}</h3>
                 <span className="bg-green-600 text-white text-xs px-2 py-1 rounded-full">
                   アクティブ
                 </span>
@@ -99,20 +177,22 @@ function Home() {
               <div className="flex items-center justify-between text-sm text-gray-300">
                 <div className="flex items-center gap-1">
                   <Users className="w-4 h-4" />
-                  <span>{room.participantsCount || 0}/20</span>
+                  <span>{room.participantsCount || 0}/5</span>
                 </div>
                 <span className="bg-gray-600 text-gray-300 text-xs px-2 py-1 rounded">
-                  数学
+                  {room.subject || "一般"}
                 </span>
-              </div>
-              <div className="mt-2 w-full bg-gray-600 rounded-full h-2">
-                <div
-                  className="bg-blue-500 h-2 rounded-full transition-all duration-300"
-                  style={{ width: `${((room.participantsCount || 0) / 20) * 100}%` }}
-                />
               </div>
             </div>
           ))}
+
+          {!loading && rooms.length === 0 && (
+            <div className="text-center py-8">
+              <Users className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+              <p className="text-gray-400">現在アクティブな部屋がありません</p>
+              <p className="text-gray-500 text-sm mt-1">新しい部屋を作成してみましょう</p>
+            </div>
+          )}
         </div>
       </div>
 
