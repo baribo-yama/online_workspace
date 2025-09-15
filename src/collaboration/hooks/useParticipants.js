@@ -159,13 +159,31 @@ export const useParticipants = (roomId, userName) => {
           }
         }
 
-        console.log("新しい参加者として追加中:", userName);
+        // 最初の参加者かどうかをチェック（ホスト判定）
+        const isFirstParticipant = existingParticipants.length === 0;
+
+        console.log("新しい参加者として追加中:", userName, "ホスト:", isFirstParticipant);
         const docRef = await addDoc(collection(db, "rooms", roomId, "participants"), {
-          ...defaultParticipant(userName),
+          ...defaultParticipant(userName, isFirstParticipant),
           joinedAt: serverTimestamp(),
         });
         participantId = docRef.id;
         console.log("新しい参加者ID:", participantId);
+
+        // 最初の参加者（ホスト）の場合、部屋のhostIdを設定
+        if (isFirstParticipant) {
+          try {
+            const { updateDoc } = await import("firebase/firestore");
+            await updateDoc(doc(db, "rooms", roomId), {
+              hostId: participantId,
+              createdBy: userName,
+            });
+            console.log("ホストIDを設定:", participantId);
+          } catch (error) {
+            console.error("ホストID設定エラー:", error);
+          }
+        }
+
         if (!isUnmountingRef.current) {
           setMyParticipantId(docRef.id);
         }

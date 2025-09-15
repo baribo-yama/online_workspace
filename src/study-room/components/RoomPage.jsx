@@ -24,6 +24,9 @@ function RoomPage() {
   // 参加者管理フックを使用
   const { participants, participantsLoading, myParticipantId, leaveRoom } = useParticipants(roomId, userName);
 
+  // ホスト判定
+  const isHost = room?.hostId === myParticipantId;
+
   // 部屋情報の取得
   useEffect(() => {
     console.log("部屋データ取得開始:", roomId);
@@ -32,8 +35,22 @@ function RoomPage() {
     const unsubscribe = onSnapshot(roomDocRef, (doc) => {
       console.log("部屋データ更新:", doc.exists(), doc.data());
       if (doc.exists()) {
-        setRoom(doc.data());
+        const roomData = doc.data();
+        setRoom(roomData);
         setLoading(false);
+
+        // ゲーム状態の監視
+        const gameStatus = roomData.game?.status || "idle";
+        console.log("ゲーム状態:", gameStatus);
+
+        // ゲームが開始されたら自動的にゲーム画面を表示
+        if (gameStatus === "playing") {
+          console.log("ゲーム開始 - 自動表示");
+          setShowTestGame(true);
+        } else if (gameStatus === "idle") {
+          console.log("ゲーム終了 - 自動非表示");
+          setShowTestGame(false);
+        }
       } else {
         console.log("部屋が見つかりません:", roomId);
         alert("部屋が見つかりません");
@@ -141,20 +158,42 @@ function RoomPage() {
           myParticipantId={myParticipantId}
         />
 
-        {/* ゲームボタン */}
-        <div className="mt-4">
-          <button
-            onClick={startTestGame}
-            className="bg-orange-600 hover:bg-orange-700 px-3 py-1 rounded text-white text-sm font-medium transition-colors flex items-center gap-2"
-          >
-            🎯 ゲーム
-          </button>
-        </div>
+        {/* ゲームボタン（ホストのみ、休憩時間中のみ表示、ゲーム未開始時のみ） */}
+        {isHost && room?.timer?.mode === 'break' && room?.game?.status !== 'playing' && (
+          <div className="mt-4">
+            <button
+              onClick={startTestGame}
+              className="bg-orange-600 hover:bg-orange-700 px-3 py-1 rounded text-white text-sm font-medium transition-colors flex items-center gap-2"
+            >
+              🎯 ゲーム開始
+            </button>
+          </div>
+        )}
+
+        {/* ゲーム中表示 */}
+        {room?.game?.status === 'playing' && (
+          <div className="mt-4 p-2 bg-green-900/20 border border-green-500 rounded text-green-200 text-sm">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold">🎮 ゲーム中</span>
+            </div>
+            <p className="text-xs mt-1">全員がゲームに参加しています</p>
+          </div>
+        )}
+
+        {/* ホスト情報表示 */}
+        {isHost && (
+          <div className="mt-4 p-2 bg-yellow-900/20 border border-yellow-500 rounded text-yellow-200 text-sm">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold">👑 あなたがホストです</span>
+            </div>
+            <p className="text-xs mt-1">タイマーとゲームの制御ができます</p>
+          </div>
+        )}
       </div>
 
       {/* 右半分 - 共有ポモドーロタイマー */}
       <div className="w-1/2 bg-gray-900 p-6">
-        <SharedTimer roomId={roomId} />
+        <SharedTimer roomId={roomId} isHost={isHost} />
       </div>
 
       {/* テスト用ゲームオーバーレイ */}
@@ -171,15 +210,25 @@ function RoomPage() {
             </div>
 
             <ShootingGame
-              targetImage={null}
-              onGameEnd={handleGameEnd}
-              gameConfig={{
-                gameTime: 30000, // 30秒
-                targetCount: 10,
-                targetSize: 80,
-                spawnRate: 1200
-              }}
+              roomId={roomId}
+              userName={userName}
+              isHost={isHost}
             />
+
+            <div className="text-center mt-4">
+              {isHost ? (
+                <button
+                  onClick={() => setShowTestGame(false)}
+                  className="text-gray-400 hover:text-white transition-colors"
+                >
+                  ゲームを終了
+                </button>
+              ) : (
+                <p className="text-gray-400 text-sm">
+                  ホストがゲームを終了するまでお待ちください
+                </p>
+              )}
+            </div>
           </div>
         </div>
       )}

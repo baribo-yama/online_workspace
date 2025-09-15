@@ -2,8 +2,8 @@
 import { Clock, Play, Pause, RotateCcw, Coffee } from "lucide-react";
 import { useSharedTimer } from "../hooks/useSharedTimer";
 
-function SharedTimer({ roomId }) {
-  const { timer, isLoading, startTimer, resetTimer, switchMode } = useSharedTimer(roomId);
+function SharedTimer({ roomId, isHost = false }) {
+  const { timer, isLoading, startTimer, resetTimer, switchMode, isAutoCycle } = useSharedTimer(roomId);
 
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
@@ -36,6 +36,13 @@ function SharedTimer({ roomId }) {
           {timer?.mode === 'work' ? '🍅 作業時間' : '☕ 休憩時間'}
         </div>
         <p className="text-gray-400 text-sm mt-2">サイクル: {timer?.cycle || 0}</p>
+        {isAutoCycle && (
+          <div className="mt-2">
+            <div className="inline-block px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800">
+              🔄 自動サイクル中
+            </div>
+          </div>
+        )}
       </div>
 
       <div className="text-center mb-8">
@@ -56,58 +63,68 @@ function SharedTimer({ roomId }) {
       </div>
 
       <div className="flex gap-3 justify-center mb-8">
-        {!timer?.isRunning ? (
-          <button
-            onClick={startTimer}
-            className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition-colors flex items-center gap-2"
-          >
-            <Play className="w-4 h-4" />
-            開始
-          </button>
+        {isHost ? (
+          <>
+            {!timer?.isRunning ? (
+              <button
+                onClick={startTimer}
+                className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition-colors flex items-center gap-2"
+              >
+                <Play className="w-4 h-4" />
+                {isAutoCycle ? "自動サイクル開始" : "開始"}
+              </button>
+            ) : (
+              <button
+                onClick={startTimer}
+                className="bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-2 rounded-lg transition-colors flex items-center gap-2"
+              >
+                <Pause className="w-4 h-4" />
+                {isAutoCycle ? "自動サイクル停止" : "一時停止"}
+              </button>
+            )}
+
+            <button
+              onClick={resetTimer}
+              className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg transition-colors flex items-center gap-2"
+            >
+              <RotateCcw className="w-4 h-4" />
+              リセット
+            </button>
+          </>
         ) : (
-          <button
-            onClick={startTimer}
-            className="bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-2 rounded-lg transition-colors flex items-center gap-2"
-          >
-            <Pause className="w-4 h-4" />
-            一時停止
-          </button>
+          <div className="text-center text-gray-400">
+            <p className="text-sm">ホストのみタイマーを操作できます</p>
+          </div>
         )}
-
-        <button
-          onClick={resetTimer}
-          className="bg-gray-600 hover:bg-gray-700 text-white px-6 py-2 rounded-lg transition-colors flex items-center gap-2"
-        >
-          <RotateCcw className="w-4 h-4" />
-          リセット
-        </button>
       </div>
 
-      {/* モード切り替えボタン */}
-      <div className="flex gap-2 justify-center mb-4">
-        <button
-          onClick={() => switchMode('work')}
-          className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 text-sm ${
-            timer?.mode === 'work'
-              ? 'bg-blue-600 text-white'
-              : 'bg-blue-500 hover:bg-blue-600 text-white'
-          }`}
-        >
-          <Clock className="w-4 h-4" />
-          作業モード
-        </button>
-        <button
-          onClick={() => switchMode('break')}
-          className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 text-sm ${
-            timer?.mode === 'break'
-              ? 'bg-green-600 text-white'
-              : 'bg-green-500 hover:bg-green-600 text-white'
-          }`}
-        >
-          <Coffee className="w-4 h-4" />
-          休憩モード
-        </button>
-      </div>
+      {/* モード切り替えボタン（ホストのみ） */}
+      {isHost && (
+        <div className="flex gap-2 justify-center mb-4">
+          <button
+            onClick={() => switchMode('work')}
+            className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 text-sm ${
+              timer?.mode === 'work'
+                ? 'bg-blue-600 text-white'
+                : 'bg-blue-500 hover:bg-blue-600 text-white'
+            }`}
+          >
+            <Clock className="w-4 h-4" />
+            作業モード
+          </button>
+          <button
+            onClick={() => switchMode('break')}
+            className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 text-sm ${
+              timer?.mode === 'break'
+                ? 'bg-green-600 text-white'
+                : 'bg-green-500 hover:bg-green-600 text-white'
+            }`}
+          >
+            <Coffee className="w-4 h-4" />
+            休憩モード
+          </button>
+        </div>
+      )}
 
       {timer?.mode === 'work' && (
         <div className="text-center">
