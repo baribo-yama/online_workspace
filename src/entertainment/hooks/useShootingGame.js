@@ -1,178 +1,182 @@
-// シューティングゲームのロジック
-import { useState, useRef, useCallback, useEffect } from 'react';
+// src/entertainment/hooks/useShootingGame.js
+import { useEffect, useRef, useState, useCallback } from "react";
+import { doc, onSnapshot, updateDoc, serverTimestamp } from "firebase/firestore";
+import { db } from "../../shared/services/firebase";
 
-export const useShootingGame = (targetImage, gameConfig = {}) => {
-  const {
-    gameTime = 30000, // 30秒
-    targetCount = 5,   // 同時に表示するターゲット数
-    targetSize = 100,  // ターゲットサイズ
-    spawnRate = 2000   // ターゲット出現間隔（ミリ秒）
-  } = gameConfig;
+export function useShootingGame(roomId, userName) {
+  const wsRef = useRef(null);
+  const [players, setPlayers] = useState({});
+  const [bullets, setBullets] = useState([]);
+  const [gameStatus, setGameStatus] = useState("idle");
+  const [playerId, setPlayerId] = useState(null);
+  const [isConnected, setIsConnected] = useState(false);
 
-  const [gameState, setGameState] = useState('waiting'); // waiting, playing, finished
-  const [score, setScore] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(gameTime / 1000);
-  const [targets, setTargets] = useState([]);
-  const [gameArea, setGameArea] = useState({ width: 800, height: 600 });
+  // プレイヤーID生成（ランダム）
+  useEffect(() => {
+    const generatedId = `${userName}_${Math.random().toString(36).substr(2, 9)}`;
+    setPlayerId(generatedId);
+  }, [userName]);
 
-  const gameAreaRef = useRef(null);
-  const gameTimerRef = useRef(null);
-  const spawnTimerRef = useRef(null);
-  const targetIdCounter = useRef(0);
+  // Firestoreのゲーム状態とタイマー状態を監視
+  useEffect(() => {
+    if (!roomId) return;
 
-  // ゲームエリアのサイズを更新
-  const updateGameArea = useCallback(() => {
-    if (gameAreaRef.current) {
-      const rect = gameAreaRef.current.getBoundingClientRect();
-      setGameArea({
-        width: rect.width,
-        height: rect.height
-      });
-    }
-  }, []);
+    const roomRef = doc(db, "rooms", roomId);
+    const unsubscribe = onSnapshot(roomRef, (doc) => {
+      if (doc.exists()) {
+        const roomData = doc.data();
+        const currentStatus = roomData.game?.status || "idle";
+        const timerMode = roomData.timer?.mode || "work";
 
-  // ランダムな位置を生成
-  const getRandomPosition = useCallback(() => {
-    const margin = targetSize / 2;
-    return {
-      x: Math.random() * (gameArea.width - targetSize - margin * 2) + margin,
-      y: Math.random() * (gameArea.height - targetSize - margin * 2) + margin
-    };
-  }, [gameArea, targetSize]);
+        setGameStatus(currentStatus);
 
-  // 新しいターゲットを生成
-  const spawnTarget = useCallback(() => {
-    console.log('spawnTarget呼び出し:', gameState);
-    if (gameState !== 'playing') return;
+        // 作業時間に戻ったらゲームを自動終了（ホストのみ）
+        if (timerMode === "work" && currentStatus === "playing") {
+          console.log("作業時間開始 - ゲームを自動終了");
+          // ホストのみがゲームを終了できる
+          const roomRef = doc(db, "rooms", roomId);
+          updateDoc(roomRef, {
+            game: {
+              status: "idle",
+              startTime: null,
+              endTime: serverTimestamp(),
+              lastUpdated: serverTimestamp()
+            }
+          }).catch(error => {
+            console.error("ゲーム自動終了エラー:", error);
+          });
+        }
 
-    setTargets(prev => {
-      // 最大数に達している場合は古いものを削除
-      const newTargets = prev.length >= targetCount
-        ? prev.slice(1)
-        : prev;
-
-      const position = getRandomPosition();
-      const newTarget = {
-        id: targetIdCounter.current++,
-        x: position.x,
-        y: position.y,
-        size: targetSize,
-        rotation: Math.random() * 360,
-        createdAt: Date.now()
-      };
-
-      console.log('新しいターゲット生成:', newTarget);
-      return [...newTargets, newTarget];
+        console.log("ゲーム状態更新:", currentStatus, "タイマーモード:", timerMode);
+      }
     });
-  }, [gameState, targetCount, getRandomPosition, targetSize]);
 
-  // ターゲットをクリック
-  const hitTarget = useCallback((targetId) => {
-    setTargets(prev => prev.filter(target => target.id !== targetId));
-    setScore(prev => prev + 10);
-  }, []);
+    return () => unsubscribe();
+  }, [roomId]);
+
+  // WebSocket接続/切断の管理
+  useEffect(() => {
+    console.log("WebSocket接続管理:", { gameStatus, playerId, isConnected });
+
+    if (gameStatus === "playing" && playerId && !isConnected) {
+      console.log("WebSocket接続開始");
+      connectWebSocket();
+    } else if (gameStatus === "idle" && isConnected) {
+      console.log("WebSocket接続終了");
+      disconnectWebSocket();
+    }
+  }, [gameStatus, playerId, isConnected]);
+
+  const connectWebSocket = () => {
+    if (wsRef.current) return;
+
+    // Use environment variable for WebSocket URL, fallback to localhost
+    const wsUrl = import.meta.env.VITE_WEBSOCKET_URL || "ws://localhost:8080";
+    console.log("WebSocket接続先:", wsUrl);
+    const ws = new WebSocket(wsUrl);
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      console.log("WebSocket 接続成功");
+      setIsConnected(true);
+      // サーバーに参加通知
+      ws.send(
+        JSON.stringify({ type: "join", roomId, playerId })
+      );
+    };
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === "stateUpdate") {
+        setPlayers(data.players);
+        setBullets(data.bullets);
+      }
+    };
+
+    ws.onclose = () => {
+      console.log("WebSocket 接続終了");
+      setIsConnected(false);
+      wsRef.current = null;
+    };
+
+    ws.onerror = (error) => {
+      console.error("WebSocket エラー:", error);
+      setIsConnected(false);
+    };
+  };
+
+  const disconnectWebSocket = () => {
+    if (wsRef.current) {
+      wsRef.current.close();
+      wsRef.current = null;
+      setIsConnected(false);
+    }
+  };
+
+  // プレイヤー移動（速度ベース）
+  const move = useCallback((direction) => {
+    if (wsRef.current && wsRef.current.readyState === 1 && isConnected) {
+      wsRef.current.send(
+        JSON.stringify({ type: "move", roomId, playerId, direction })
+      );
+    }
+  }, [roomId, playerId, isConnected]);
 
   // ゲーム開始
-  const startGame = useCallback(() => {
-    console.log('ゲーム開始:', { gameArea, targetCount, targetSize });
-    setGameState('playing');
-    setScore(0);
-    setTimeLeft(gameTime / 1000);
-    setTargets([]);
-    targetIdCounter.current = 0;
+  const startGame = async () => {
+    if (!roomId) return;
 
-    // 初期ターゲットを生成
-    for (let i = 0; i < Math.min(3, targetCount); i++) {
-      setTimeout(() => {
-        console.log(`ターゲット${i + 1}を生成中...`);
-        spawnTarget();
-      }, i * 500);
-    }
-
-    // ゲームタイマー
-    gameTimerRef.current = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          return 0;
+    try {
+      const roomRef = doc(db, "rooms", roomId);
+      await updateDoc(roomRef, {
+        game: {
+          status: "playing",
+          startTime: serverTimestamp(),
+          endTime: null,
+          lastUpdated: serverTimestamp()
         }
-        return prev - 1;
       });
-    }, 1000);
-
-    // ターゲット生成タイマー
-    spawnTimerRef.current = setInterval(spawnTarget, spawnRate);
-
-    // ゲーム終了タイマー
-    setTimeout(() => {
-      setGameState('finished');
-    }, gameTime);
-
-  }, [gameTime, targetCount, spawnTarget, spawnRate]);
+      console.log("ゲーム開始");
+    } catch (error) {
+      console.error("ゲーム開始エラー:", error);
+    }
+  };
 
   // ゲーム終了
-  const endGame = useCallback(() => {
-    setGameState('finished');
-    if (gameTimerRef.current) {
-      clearInterval(gameTimerRef.current);
-      gameTimerRef.current = null;
-    }
-    if (spawnTimerRef.current) {
-      clearInterval(spawnTimerRef.current);
-      spawnTimerRef.current = null;
-    }
-  }, []);
+  const endGame = async () => {
+    if (!roomId) return;
 
-  // ゲームリセット
-  const resetGame = useCallback(() => {
-    endGame();
-    setGameState('waiting');
-    setScore(0);
-    setTimeLeft(gameTime / 1000);
-    setTargets([]);
-  }, [endGame, gameTime]);
-
-  // ゲーム状態が変わったときのクリーンアップ
-  useEffect(() => {
-    if (gameState === 'finished') {
-      endGame();
+    try {
+      const roomRef = doc(db, "rooms", roomId);
+      await updateDoc(roomRef, {
+        game: {
+          status: "idle",
+          startTime: null,
+          endTime: serverTimestamp(),
+          lastUpdated: serverTimestamp()
+        }
+      });
+      console.log("ゲーム終了");
+    } catch (error) {
+      console.error("ゲーム終了エラー:", error);
     }
-  }, [gameState, endGame]);
+  };
 
-  // コンポーネントのクリーンアップ
+  // クリーンアップ
   useEffect(() => {
     return () => {
-      if (gameTimerRef.current) {
-        clearInterval(gameTimerRef.current);
-      }
-      if (spawnTimerRef.current) {
-        clearInterval(spawnTimerRef.current);
-      }
+      disconnectWebSocket();
     };
   }, []);
 
-  // ウィンドウリサイズ対応
-  useEffect(() => {
-    updateGameArea();
-    window.addEventListener('resize', updateGameArea);
-    return () => window.removeEventListener('resize', updateGameArea);
-  }, [updateGameArea]);
-
   return {
-    // 状態
-    gameState,
-    score,
-    timeLeft,
-    targets,
-    gameArea,
-
-    // Refs
-    gameAreaRef,
-
-    // アクション
+    players,
+    bullets,
+    move,
+    gameStatus,
+    playerId,
+    isConnected,
     startGame,
-    endGame,
-    resetGame,
-    hitTarget,
-    updateGameArea
+    endGame
   };
-};
+}

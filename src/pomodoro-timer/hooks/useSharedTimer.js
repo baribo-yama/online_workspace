@@ -12,6 +12,7 @@ import {
 export const useSharedTimer = (roomId) => {
   const [timer, setTimer] = useState(createInitialTimer());
   const [isLoading, setIsLoading] = useState(true);
+  const [isAutoCycle, setIsAutoCycle] = useState(false);
 
   console.log("useSharedTimer レンダリング:", { roomId, timer });
 
@@ -45,8 +46,8 @@ export const useSharedTimer = (roomId) => {
             const elapsed = Math.floor((Date.now() - startTime) / 1000);
             currentTimeLeft = Math.max(0, timerData.timeLeft - elapsed);
 
-            // タイマーが0になったら自動停止
-            if (currentTimeLeft === 0 && timerData.isRunning) {
+            // タイマーが0になったら自動停止（自動サイクル中は除く）
+            if (currentTimeLeft === 0 && timerData.isRunning && !timerData.isAutoCycle) {
               console.log('タイマーが0になりました。自動停止します。');
               isRunning = false;
               // Firestoreでタイマーを停止
@@ -64,6 +65,9 @@ export const useSharedTimer = (roomId) => {
                   console.error("タイマー自動停止エラー:", error);
                 }
               }, 0);
+            } else if (currentTimeLeft === 0 && timerData.isRunning && timerData.isAutoCycle) {
+              console.log('タイマーが0になりました。自動サイクル中なので停止しません。');
+              isRunning = true; // 自動サイクル中は実行中を維持
             }
           }
 
@@ -74,6 +78,11 @@ export const useSharedTimer = (roomId) => {
             cycle: timerData.cycle || 0,
             startTime: timerData.startTime
           });
+
+          // Firestoreから自動サイクル状態を読み取り
+          const autoCycleState = timerData.isAutoCycle || false;
+          console.log("Firestoreから自動サイクル状態を読み取り:", autoCycleState);
+          setIsAutoCycle(autoCycleState);
         } else {
           // タイマーデータが存在しない場合は初期状態を設定
           console.log("タイマーデータが存在しません。初期化します。");
@@ -100,13 +109,36 @@ export const useSharedTimer = (roomId) => {
 
   // 時間切れの自動モード切り替え
   useEffect(() => {
-    if (!roomId || timer.timeLeft > 0 || !timer.isRunning) return;
+    console.log("自動モード切り替えチェック:", {
+      roomId: !!roomId,
+      timeLeft: timer.timeLeft,
+      isRunning: timer.isRunning,
+      isAutoCycle: isAutoCycle,
+      mode: timer.mode,
+      cycle: timer.cycle,
+      condition: !roomId || timer.timeLeft > 0 || !timer.isRunning || !isAutoCycle
+    });
+
+    if (!roomId || timer.timeLeft > 0 || !timer.isRunning || !isAutoCycle) {
+      console.log("自動モード切り替え条件を満たしていません");
+      return;
+    }
+
+    console.log("自動モード切り替え条件満たす:", {
+      timeLeft: timer.timeLeft,
+      isRunning: timer.isRunning,
+      isAutoCycle: isAutoCycle,
+      mode: timer.mode,
+      cycle: timer.cycle
+    });
 
     const switchMode = async () => {
       try {
         const nextMode = switchTimerMode(timer.mode, timer.cycle);
         const nextDuration = getModeDuration(nextMode);
         const newCycle = timer.mode === "work" ? timer.cycle + 1 : timer.cycle;
+
+        console.log(`自動モード切り替え実行: ${timer.mode} → ${nextMode} (サイクル: ${newCycle})`);
 
         const roomRef = doc(db, "rooms", roomId);
         await updateDoc(roomRef, {
@@ -115,24 +147,28 @@ export const useSharedTimer = (roomId) => {
             mode: nextMode,
             timeLeft: nextDuration,
             cycle: newCycle,
-            isRunning: false,
-            startTime: null,
+            isRunning: true, // 自動サイクル中は継続的に実行
+            startTime: serverTimestamp(),
             pausedAt: null,
+            isAutoCycle: true, // 自動サイクル状態を維持
             lastUpdated: serverTimestamp()
           }
         });
+
+        console.log("自動モード切り替え完了");
       } catch (error) {
         console.error("モード切り替えエラー:", error);
       }
     };
 
-    switchMode();
-  }, [timer.timeLeft, timer.isRunning, timer.mode, timer.cycle, roomId]);
+    // 少し遅延を入れて確実に実行
+    setTimeout(switchMode, 100);
+  }, [timer.timeLeft, timer.isRunning, timer.mode, timer.cycle, roomId, isAutoCycle]);
 
   // ローカル更新用のタイマー（表示のスムーズさのため）
   useEffect(() => {
-    if (!timer.isRunning || timer.timeLeft <= 0) {
-      console.log("ローカルタイマー停止:", { isRunning: timer.isRunning, timeLeft: timer.timeLeft });
+    if (!timer.isRunning || (timer.timeLeft <= 0 && !isAutoCycle)) {
+      console.log("ローカルタイマー停止:", { isRunning: timer.isRunning, timeLeft: timer.timeLeft, isAutoCycle });
       return;
     }
 
@@ -140,8 +176,14 @@ export const useSharedTimer = (roomId) => {
     const interval = setInterval(() => {
       setTimer(prev => {
         if (prev.timeLeft <= 1) {
-          console.log("ローカルタイマー終了");
-          return { ...prev, timeLeft: 0, isRunning: false };
+          console.log("ローカルタイマー終了", {
+            timeLeft: prev.timeLeft,
+            isRunning: prev.isRunning,
+            mode: prev.mode,
+            isAutoCycle: isAutoCycle
+          });
+          // 自動サイクル中はisRunningをtrueのままにする
+          return { ...prev, timeLeft: 0, isRunning: isAutoCycle ? true : false };
         }
         return { ...prev, timeLeft: prev.timeLeft - 1 };
       });
@@ -166,17 +208,21 @@ export const useSharedTimer = (roomId) => {
       if (timer.isRunning) {
         // 停止処理
         console.log("タイマーを停止します");
+        setIsAutoCycle(false);
         await updateDoc(roomRef, {
           timer: {
             ...timer,
             isRunning: false,
             pausedAt: serverTimestamp(),
+            isAutoCycle: false, // Firestoreに自動サイクル状態を保存
             lastUpdated: serverTimestamp()
           }
         });
       } else {
         // 開始処理
         console.log("タイマーを開始します");
+        console.log("自動サイクルを有効にします");
+        setIsAutoCycle(true);
         await updateDoc(roomRef, {
           timer: {
             ...timer,
@@ -184,9 +230,11 @@ export const useSharedTimer = (roomId) => {
             startTime: serverTimestamp(),
             timeLeft: timer.timeLeft || getModeDuration(timer.mode),
             pausedAt: null,
+            isAutoCycle: true, // Firestoreに自動サイクル状態を保存
             lastUpdated: serverTimestamp()
           }
         });
+        console.log("タイマー開始完了、自動サイクル有効");
       }
       console.log("タイマー更新完了");
     } catch (error) {
@@ -205,6 +253,7 @@ export const useSharedTimer = (roomId) => {
     if (!roomId) return;
 
     try {
+      setIsAutoCycle(false);
       const roomRef = doc(db, "rooms", roomId);
       const resetTimerData = createInitialTimer();
 
@@ -212,6 +261,7 @@ export const useSharedTimer = (roomId) => {
         timer: {
           ...resetTimerData,
           timeLeft: getModeDuration(resetTimerData.mode),
+          isAutoCycle: false, // リセット時は自動サイクルを停止
           lastUpdated: serverTimestamp()
         }
       });
@@ -230,6 +280,7 @@ export const useSharedTimer = (roomId) => {
     console.log("モード切り替え処理:", { roomId, currentMode: timer.mode, newMode });
 
     try {
+      setIsAutoCycle(false); // 手動モード切り替え時は自動サイクルを停止
       const roomRef = doc(db, "rooms", roomId);
       const newDuration = getModeDuration(newMode);
       const newCycle = newMode === "work" ? timer.cycle + 1 : timer.cycle;
@@ -243,6 +294,7 @@ export const useSharedTimer = (roomId) => {
           isRunning: false,
           startTime: null,
           pausedAt: null,
+          isAutoCycle: false, // 手動モード切り替え時は自動サイクルを停止
           lastUpdated: serverTimestamp()
         }
       });
@@ -257,6 +309,7 @@ export const useSharedTimer = (roomId) => {
     isLoading,
     startTimer,
     resetTimer,
-    switchMode
+    switchMode,
+    isAutoCycle
   };
 };
