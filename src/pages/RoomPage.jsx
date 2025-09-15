@@ -6,6 +6,8 @@ import {
   collection,
   addDoc,
   updateDoc,
+  getDoc, // Added for duplicate check
+  getDocs, // Added for duplicate check
   serverTimestamp,
   onSnapshot,
   query,
@@ -16,7 +18,7 @@ import { db } from "../firebase";
 import { useEffect, useState, useRef } from "react";
 import { defaultParticipant } from "../models/firestore";
 import { ArrowLeft, Users, LogOut, X, Home, Trash2 } from "lucide-react";
-import EnhancedPomodoroTimer from "../components/EnhancedPomodoroTimer";
+import PomodoroTimer from "../components/PomodoroTimer";
 import ShootingGame from "../features/shooting-game/ShootingGame";
 
 function RoomPage() {
@@ -33,13 +35,6 @@ function RoomPage() {
   const [participants, setParticipants] = useState([]);
   const [participantsLoading, setParticipantsLoading] = useState(true);
   const [showTestGame, setShowTestGame] = useState(false);
-  const [roomTimer, setRoomTimer] = useState({
-    timeLeft: 25 * 60,
-    isRunning: false,
-    mode: 'work',
-    cycle: 0,
-    startTime: null
-  });
   const isUnmountingRef = useRef(false);
 
   useEffect(() => {
@@ -95,72 +90,35 @@ function RoomPage() {
         return true;
       });
 
-      console.log("アクティブ参加者:", activeParticipants.length, "人");
-      setParticipants(activeParticipants);
+      // 同じ名前の参加者の重複を除去（最新の参加者のみを保持）
+      const uniqueParticipants = [];
+      const seenNames = new Set();
+
+      // 参加時間でソート（新しい順）
+      const sortedParticipants = activeParticipants.sort((a, b) => {
+        const timeA = a.joinedAt?.toDate ? a.joinedAt.toDate().getTime() : a.joinedAt || 0;
+        const timeB = b.joinedAt?.toDate ? b.joinedAt.toDate().getTime() : b.joinedAt || 0;
+        return timeB - timeA; // 新しい順
+      });
+
+      sortedParticipants.forEach(participant => {
+        if (!seenNames.has(participant.name)) {
+          seenNames.add(participant.name);
+          uniqueParticipants.push(participant);
+        } else {
+          // 重複する古い参加者を削除
+          console.log("重複する参加者を削除:", participant.name, participant.id);
+          deleteDoc(doc(db, "rooms", roomId, "participants", participant.id))
+            .catch(error => console.error("重複参加者削除エラー:", error));
+        }
+      });
+
+      console.log("ユニーク参加者:", uniqueParticipants.length, "人");
+      setParticipants(uniqueParticipants);
       setParticipantsLoading(false);
     }, (error) => {
       console.error("参加者データ取得エラー:", error);
       setParticipantsLoading(false);
-    });
-
-    return () => unsubscribe();
-  }, [roomId]);
-
-  // 部屋のタイマー状態を監視
-  useEffect(() => {
-    if (!roomId) return;
-
-    const roomDocRef = doc(db, "rooms", roomId);
-    const unsubscribe = onSnapshot(roomDocRef, (doc) => {
-      if (doc.exists()) {
-        const roomData = doc.data();
-        if (roomData.timer) {
-          const timerData = roomData.timer;
-
-          // タイマーが実行中の場合、経過時間を計算
-          let currentTimeLeft = timerData.timeLeft;
-          let isRunning = timerData.isRunning || false;
-
-          if (timerData.isRunning && timerData.startTime) {
-            const startTime = timerData.startTime.toDate ?
-              timerData.startTime.toDate().getTime() :
-              timerData.startTime;
-            const elapsed = Math.floor((Date.now() - startTime) / 1000);
-            currentTimeLeft = Math.max(0, timerData.timeLeft - elapsed);
-
-            // タイマーが0になったら自動停止
-            if (currentTimeLeft === 0 && timerData.isRunning) {
-              console.log('タイマーが0になりました。自動停止します。');
-              isRunning = false;
-              // Firestoreでタイマーを停止（非同期で実行）
-              setTimeout(async () => {
-                try {
-                  await updateDoc(doc(db, "rooms", roomId), {
-                    timer: {
-                      ...timerData,
-                      isRunning: false,
-                      startTime: null,
-                      lastUpdated: serverTimestamp()
-                    }
-                  });
-                } catch (error) {
-                  console.error("タイマー自動停止エラー:", error);
-                }
-              }, 0);
-            }
-          }
-
-          setRoomTimer({
-            timeLeft: currentTimeLeft,
-            isRunning: isRunning,
-            mode: timerData.mode || 'work',
-            cycle: timerData.cycle || 0,
-            startTime: timerData.startTime
-          });
-        }
-      }
-    }, (error) => {
-      console.error("タイマー状態取得エラー:", error);
     });
 
     return () => unsubscribe();
@@ -179,11 +137,19 @@ function RoomPage() {
 
         // 状態をリセット
         setMyParticipantId(null);
+
+        // 削除完了を待ってからページ遷移
+        setTimeout(() => {
+          navigate("/");
+        }, 100);
       } catch (error) {
         console.error("退出処理でエラーが発生しました:", error);
+        // エラーが発生してもページ遷移
+        navigate("/");
       }
+    } else {
+      navigate("/");
     }
-    navigate("/");
   };
 
   const endRoom = async () => {
@@ -214,54 +180,6 @@ function RoomPage() {
     setShowTestGame(false);
   };
 
-  // タイマー制御関数
-  const updateRoomTimer = async (timerUpdate) => {
-    try {
-      await updateDoc(doc(db, "rooms", roomId), {
-        timer: {
-          ...roomTimer,
-          ...timerUpdate,
-          lastUpdated: serverTimestamp()
-        }
-      });
-    } catch (error) {
-      console.error("タイマー更新エラー:", error);
-    }
-  };
-
-  const startTimer = () => {
-    updateRoomTimer({
-      isRunning: true,
-      startTime: serverTimestamp()
-    });
-  };
-
-  const pauseTimer = () => {
-    updateRoomTimer({
-      isRunning: false,
-      startTime: null
-    });
-  };
-
-  const resetTimer = () => {
-    updateRoomTimer({
-      timeLeft: roomTimer.mode === 'work' ? 25 * 60 : 5 * 60,
-      isRunning: false,
-      startTime: null
-    });
-  };
-
-  const switchMode = (newMode) => {
-    const newTimeLeft = newMode === 'work' ? 25 * 60 : 5 * 60;
-    updateRoomTimer({
-      mode: newMode,
-      timeLeft: newTimeLeft,
-      isRunning: false,
-      startTime: null,
-      cycle: newMode === 'work' ? roomTimer.cycle + 1 : roomTimer.cycle
-    });
-  };
-
   // 部屋情報と参加者登録（シンプル版）
   useEffect(() => {
     let participantId = null;
@@ -286,15 +204,62 @@ function RoomPage() {
         setLoading(false);
       });
 
-      // 参加者として追加
+      // 参加者として追加（重複チェック付き）
       try {
-        console.log("参加者として追加中:", userName);
+        // 既存の参加者IDをチェック
+        const existingParticipantId = localStorage.getItem(`participantId_${roomId}`);
+
+        if (existingParticipantId) {
+          // 既存の参加者IDがある場合、それが有効かチェック
+          try {
+            const existingDoc = await getDoc(doc(db, "rooms", roomId, "participants", existingParticipantId));
+            if (existingDoc.exists()) {
+              console.log("既存の参加者IDを使用:", existingParticipantId);
+              participantId = existingParticipantId;
+              if (!isUnmountingRef.current) {
+                setMyParticipantId(existingParticipantId);
+              }
+              return; // 既存の参加者IDを使用して終了
+            } else {
+              console.log("既存の参加者IDが無効。新しい参加者を作成");
+              localStorage.removeItem(`participantId_${roomId}`);
+            }
+          } catch (error) {
+            console.log("既存参加者IDのチェックエラー:", error);
+            localStorage.removeItem(`participantId_${roomId}`);
+          }
+        }
+
+        // 同じ名前の既存参加者をチェックして削除
+        const existingParticipantsQuery = query(
+          collection(db, "rooms", roomId, "participants"),
+          orderBy("joinedAt", "desc")
+        );
+
+        const existingSnapshot = await getDocs(existingParticipantsQuery);
+        const existingParticipants = existingSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+
+        // 同じ名前の参加者を削除
+        const duplicateParticipants = existingParticipants.filter(p => p.name === userName);
+        for (const duplicate of duplicateParticipants) {
+          try {
+            await deleteDoc(doc(db, "rooms", roomId, "participants", duplicate.id));
+            console.log("重複する既存参加者を削除:", duplicate.name, duplicate.id);
+          } catch (error) {
+            console.error("重複参加者削除エラー:", error);
+          }
+        }
+
+        console.log("新しい参加者として追加中:", userName);
         const docRef = await addDoc(collection(db, "rooms", roomId, "participants"), {
           ...defaultParticipant(userName),
           joinedAt: serverTimestamp(),
         });
         participantId = docRef.id;
-        console.log("参加者ID:", participantId);
+        console.log("新しい参加者ID:", participantId);
         if (!isUnmountingRef.current) {
           setMyParticipantId(docRef.id);
         }
@@ -490,14 +455,7 @@ function RoomPage() {
 
       {/* 右半分 - ポモドーロタイマー */}
       <div className="w-1/2 bg-gray-900 p-6">
-        <EnhancedPomodoroTimer
-          timer={roomTimer}
-          onStart={startTimer}
-          onPause={pauseTimer}
-          onReset={resetTimer}
-          onModeChange={switchMode}
-          onGameStart={() => setShowTestGame(true)}
-        />
+        <PomodoroTimer roomId={roomId} />
       </div>
 
       {/* テスト用ゲームオーバーレイ */}

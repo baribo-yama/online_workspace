@@ -3,27 +3,32 @@ import { useState, useEffect } from "react";
 import { Clock, Play, Pause, RotateCcw, Coffee, Target } from "lucide-react";
 import ShootingGame from "../features/shooting-game/ShootingGame";
 
-function EnhancedPomodoroTimer({
-  timer,
-  onStart,
-  onPause,
-  onReset,
-  onModeChange,
-  onGameStart
-}) {
-  const [localMode, setLocalMode] = useState('work'); // ゲームモード用のローカル状態
+function EnhancedPomodoroTimer() {
+  const [timeLeft, setTimeLeft] = useState(25 * 60); // 25分
+  const [isRunning, setIsRunning] = useState(false);
+  const [mode, setMode] = useState('work'); // 'work', 'break', 'game'
+  const [cycle, setCycle] = useState(0);
 
-  // タイマーが0になった時の処理
+  // ポモドーロタイマーロジック
   useEffect(() => {
-    if (timer && timer.timeLeft === 0 && timer.isRunning) {
-      console.log('タイマーが0になりました。モード切り替え:', timer.mode);
-      if (timer.mode === 'work') {
-        onModeChange('break');
-      } else if (timer.mode === 'break') {
-        onModeChange('work');
+    let interval = null;
+    if (isRunning && timeLeft > 0) {
+      interval = setInterval(() => {
+        setTimeLeft((time) => time - 1);
+      }, 1000);
+    } else if (timeLeft === 0) {
+      setIsRunning(false);
+      if (mode === 'work') {
+        setMode('break');
+        setTimeLeft(5 * 60); // 5分休憩
+        setCycle(c => c + 1);
+      } else if (mode === 'break') {
+        setMode('work');
+        setTimeLeft(25 * 60); // 25分作業
       }
     }
-  }, [timer, onModeChange]);
+    return () => clearInterval(interval);
+  }, [isRunning, timeLeft, mode]);
 
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
@@ -31,23 +36,24 @@ function EnhancedPomodoroTimer({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const startTimer = () => onStart();
-  const pauseTimer = () => onPause();
-  const resetTimer = () => onReset();
+  const startTimer = () => setIsRunning(true);
+  const pauseTimer = () => setIsRunning(false);
+  const resetTimer = () => {
+    setIsRunning(false);
+    setTimeLeft(mode === 'work' ? 25 * 60 : 5 * 60);
+  };
 
   const startTestGame = () => {
-    setLocalMode('game');
-    onGameStart();
+    setMode('game');
   };
 
   const handleGameEnd = (score) => {
     console.log(`ゲーム終了！スコア: ${score}`);
-    setLocalMode('work');
-    onModeChange('break');
+    setMode('break');
   };
 
   // ゲームモード時の画面
-  if (localMode === 'game') {
+  if (mode === 'game') {
     return (
       <div className="flex flex-col h-full bg-gray-900">
         <div className="text-center mb-6">
@@ -74,7 +80,7 @@ function EnhancedPomodoroTimer({
 
         <div className="text-center mt-4">
           <button
-            onClick={() => setLocalMode('work')}
+            onClick={() => setMode('break')}
             className="text-gray-400 hover:text-white transition-colors"
           >
             ゲームを終了して休憩に戻る
@@ -90,36 +96,36 @@ function EnhancedPomodoroTimer({
       <div className="text-center mb-8">
         <h2 className="text-2xl font-bold text-white mb-2">ポモドーロタイマー</h2>
         <div className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
-          timer?.mode === 'work'
+          mode === 'work'
             ? 'bg-blue-100 text-blue-800'
             : 'bg-green-100 text-green-800'
         }`}>
-          {timer?.mode === 'work' ? '🍅 作業時間' : '☕ 休憩時間'}
+          {mode === 'work' ? '🍅 作業時間' : '☕ 休憩時間'}
         </div>
-        <p className="text-gray-400 text-sm mt-2">サイクル: {timer?.cycle || 0}</p>
+        <p className="text-gray-400 text-sm mt-2">サイクル: {cycle}</p>
       </div>
 
       <div className="text-center mb-8">
         <div className="text-6xl font-mono text-white mb-4">
-          {formatTime(timer?.timeLeft || 0)}
+          {formatTime(timeLeft)}
         </div>
 
         <div className={`w-full h-2 rounded-full mb-6 ${
-          timer?.mode === 'work' ? 'bg-blue-200' : 'bg-green-200'
+          mode === 'work' ? 'bg-blue-200' : 'bg-green-200'
         }`}>
           <div
             className={`h-full rounded-full transition-all duration-1000 ${
-              timer?.mode === 'work' ? 'bg-blue-500' : 'bg-green-500'
+              mode === 'work' ? 'bg-blue-500' : 'bg-green-500'
             }`}
             style={{
-              width: `${((timer?.mode === 'work' ? 25*60 : 5*60) - (timer?.timeLeft || 0)) / (timer?.mode === 'work' ? 25*60 : 5*60) * 100}%`
+              width: `${((mode === 'work' ? 25*60 : 5*60) - timeLeft) / (mode === 'work' ? 25*60 : 5*60) * 100}%`
             }}
           />
         </div>
       </div>
 
       <div className="flex gap-3 justify-center mb-8">
-        {!timer?.isRunning ? (
+        {!isRunning ? (
           <button
             onClick={startTimer}
             className="bg-green-600 hover:bg-green-700 text-white px-6 py-2 rounded-lg transition-colors flex items-center gap-2"
@@ -146,25 +152,7 @@ function EnhancedPomodoroTimer({
         </button>
       </div>
 
-      {/* デバッグ用ボタン */}
-      <div className="flex gap-2 justify-center mb-4">
-        <button
-          onClick={() => onModeChange('work')}
-          className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2 text-sm"
-        >
-          <Clock className="w-4 h-4" />
-          作業モード
-        </button>
-        <button
-          onClick={() => onModeChange('break')}
-          className="bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-lg transition-colors flex items-center gap-2 text-sm"
-        >
-          <Coffee className="w-4 h-4" />
-          休憩モード
-        </button>
-      </div>
-
-      {timer?.mode === 'break' && (
+      {mode === 'break' && (
         <div className="text-center">
           <p className="text-gray-300 mb-4">休憩時間です！ゲームで気分転換しませんか？</p>
           <button
@@ -177,7 +165,7 @@ function EnhancedPomodoroTimer({
         </div>
       )}
 
-      {timer?.mode === 'work' && (
+      {mode === 'work' && (
         <div className="text-center">
           <p className="text-gray-300 text-sm">
             集中して作業しましょう！🔥
