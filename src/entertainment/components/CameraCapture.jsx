@@ -1,9 +1,7 @@
-
-
 // カメラ撮影コンポーネント
 import { useEffect, useState } from 'react';
 import { Camera, CameraOff, Download, Trash2, AlertCircle } from 'lucide-react';
-import { useCamera } from '../../hooks/game/useCamera';
+import { useCamera } from '../hooks/useCamera';
 
 function CameraCapture({ onPhotoCapture, autoStart = true }) {
   const {

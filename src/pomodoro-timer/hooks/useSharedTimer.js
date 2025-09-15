@@ -1,20 +1,19 @@
+// 共有ポモドーロタイマーのフック
 import { useState, useEffect } from "react";
-import { Clock, Play, Pause, RotateCcw } from "lucide-react";
 import { doc, onSnapshot, updateDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "../firebase";
+import { db } from "../../shared/services/firebase";
 import {
   calculateTimerState,
-  updateTimerState,
   switchTimerMode,
   getModeDuration,
   createInitialTimer
-} from "../models/firestore";
+} from "../../shared/services/firestore";
 
-function PomodoroTimer({ roomId }) {
+export const useSharedTimer = (roomId) => {
   const [timer, setTimer] = useState(createInitialTimer());
   const [isLoading, setIsLoading] = useState(true);
 
-  console.log("PomodoroTimer レンダリング:", { roomId, timer });
+  console.log("useSharedTimer レンダリング:", { roomId, timer });
 
   // Firestoreからタイマー状態をリアルタイム購読
   useEffect(() => {
@@ -151,14 +150,8 @@ function PomodoroTimer({ roomId }) {
     return () => clearInterval(interval);
   }, [timer.isRunning, timer.timeLeft]);
 
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-  };
-
   // タイマー開始処理
-  const handleStart = async () => {
+  const startTimer = async () => {
     if (!roomId) {
       console.log("roomIdがありません。タイマー開始できません。");
       return;
@@ -208,17 +201,17 @@ function PomodoroTimer({ roomId }) {
   };
 
   // タイマーリセット処理
-  const handleReset = async () => {
+  const resetTimer = async () => {
     if (!roomId) return;
 
     try {
       const roomRef = doc(db, "rooms", roomId);
-      const resetTimer = createInitialTimer();
+      const resetTimerData = createInitialTimer();
 
       await updateDoc(roomRef, {
         timer: {
-          ...resetTimer,
-          timeLeft: getModeDuration(resetTimer.mode),
+          ...resetTimerData,
+          timeLeft: getModeDuration(resetTimerData.mode),
           lastUpdated: serverTimestamp()
         }
       });
@@ -227,104 +220,43 @@ function PomodoroTimer({ roomId }) {
     }
   };
 
-  const progress = ((getModeDuration(timer.mode) - timer.timeLeft) / getModeDuration(timer.mode)) * 100;
+  // モード切り替え処理
+  const switchMode = async (newMode) => {
+    if (!roomId) {
+      console.log("roomIdがありません。モード切り替えできません。");
+      return;
+    }
 
-  if (isLoading) {
-    return (
-      <div className="text-center space-y-8">
-        <div className="w-72 h-72 rounded-full border-8 border-gray-700 flex items-center justify-center">
-          <div className="text-white">読み込み中...</div>
-        </div>
-      </div>
-    );
-  }
+    console.log("モード切り替え処理:", { roomId, currentMode: timer.mode, newMode });
 
-  return (
-    <div className="text-center space-y-8">
-        <div>
-          <h2 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
-            ポモドーロタイマー
-          </h2>
-          <p className="text-gray-300 text-lg">
-            {timer.mode === "work" ? "25分間集中して学習しましょう" :
-             timer.mode === "break" ? "5分間休憩しましょう" :
-             "15分間長めの休憩をとりましょう"}
-          </p>
-          <div className="text-sm text-gray-400 mt-1">
-            サイクル: {timer.cycle} | モード: {
-              timer.mode === "work" ? "🍅 作業時間" :
-              timer.mode === "break" ? "☕ 短い休憩" :
-              "🛋️ 長い休憩"
-            }
-          </div>
-        </div>
+    try {
+      const roomRef = doc(db, "rooms", roomId);
+      const newDuration = getModeDuration(newMode);
+      const newCycle = newMode === "work" ? timer.cycle + 1 : timer.cycle;
 
-        {/* タイマー表示 */}
-        <div className="relative">
-          <div className="w-72 h-72 rounded-full border-8 border-gray-700 flex items-center justify-center relative overflow-hidden shadow-2xl shadow-blue-500/20">
-            {/* プログレスリング */}
-            <div
-              className="absolute inset-0 rounded-full border-8 border-transparent"
-              style={{
-                background: `conic-gradient(from 0deg, ${
-                  timer.mode === "work" ? "#3b82f6" :
-                  timer.mode === "break" ? "#10b981" :
-                  "#8b5cf6"
-                } ${progress}%, transparent ${progress}%)`,
-                mask: "radial-gradient(circle, transparent 50%, black 50%)",
-                WebkitMask: "radial-gradient(circle, transparent 50%, black 50%)",
-              }}
-            />
-            <div className="text-7xl font-mono font-bold text-white z-10 drop-shadow-lg filter drop-shadow-[0_0_10px_rgba(59,130,246,0.5)]">
-              {formatTime(timer.timeLeft)}
-            </div>
-          </div>
-        </div>
+      await updateDoc(roomRef, {
+        timer: {
+          ...timer,
+          mode: newMode,
+          timeLeft: newDuration,
+          cycle: newCycle,
+          isRunning: false,
+          startTime: null,
+          pausedAt: null,
+          lastUpdated: serverTimestamp()
+        }
+      });
+      console.log("モード切り替え完了");
+    } catch (error) {
+      console.error("モード切り替えエラー:", error);
+    }
+  };
 
-        {/* タイマーコントロール */}
-        <div className="flex gap-4 justify-center">
-          <button
-            onClick={handleStart}
-            disabled={isLoading}
-            className={`px-8 py-3 text-lg font-semibold rounded-lg shadow-lg transition-all duration-200 flex items-center gap-2 ${
-              timer.isRunning
-                ? "bg-yellow-600 hover:bg-yellow-700 hover:shadow-yellow-500/25"
-                : "bg-blue-600 hover:bg-blue-700 hover:shadow-blue-500/25"
-            } text-white disabled:opacity-50 disabled:cursor-not-allowed`}
-          >
-            {timer.isRunning ? (
-              <>
-                <Pause className="w-5 h-5" />
-                一時停止
-              </>
-            ) : (
-              <>
-                <Play className="w-5 h-5" />
-                開始
-              </>
-            )}
-          </button>
-          <button
-            onClick={handleReset}
-            disabled={isLoading}
-            className="bg-gray-700 hover:bg-gray-600 border border-gray-600 text-white px-8 py-3 text-lg font-semibold rounded-lg shadow-lg transition-all duration-200 flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <RotateCcw className="w-5 h-5" />
-            リセット
-          </button>
-        </div>
-
-        {/* タイマーステータス */}
-        <div className="flex items-center justify-center gap-2 text-gray-300 text-lg">
-          <Clock className="w-5 h-5" />
-          <span className="font-medium">
-            {timer.isRunning ?
-              (timer.mode === "work" ? "集中時間中..." : "休憩時間中...") :
-              timer.timeLeft === 0 ? "完了！" : "準備完了"}
-          </span>
-        </div>
-      </div>
-  );
-}
-
-export default PomodoroTimer;
+  return {
+    timer,
+    isLoading,
+    startTimer,
+    resetTimer,
+    switchMode
+  };
+};
