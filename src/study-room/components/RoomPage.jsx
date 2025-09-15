@@ -7,7 +7,7 @@ import { Home, Trash2 } from "lucide-react";
 import SharedTimer from "../../pomodoro-timer/components/SharedTimer";
 import ParticipantList from "../../collaboration/components/ParticipantList";
 import { useParticipants } from "../../collaboration/hooks/useParticipants";
-import ShootingGame from "../../entertainment/components/ShootingGame";
+import FaceObstacleGame from "../../entertainment/components/FaceObstacleGame";
 
 function RoomPage() {
   const { roomId } = useParams();
@@ -20,6 +20,7 @@ function RoomPage() {
   const [room, setRoom] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showTestGame, setShowTestGame] = useState(false);
+  const [gameType, setGameType] = useState("face"); // "face" only
 
   // 参加者管理フックを使用
   const { participants, participantsLoading, myParticipantId, leaveRoom } = useParticipants(roomId, userName);
@@ -86,16 +87,6 @@ function RoomPage() {
     }
   };
 
-  // テスト用ゲーム開始
-  const startTestGame = () => {
-    setShowTestGame(true);
-  };
-
-  // ゲーム終了時の処理
-  const handleGameEnd = (score) => {
-    console.log(`テストゲーム終了！スコア: ${score}`);
-    setShowTestGame(false);
-  };
 
   if (loading) {
     console.log("ローディング画面を表示中");
@@ -160,13 +151,18 @@ function RoomPage() {
 
         {/* ゲームボタン（ホストのみ、休憩時間中のみ表示、ゲーム未開始時のみ） */}
         {isHost && room?.timer?.mode === 'break' && room?.game?.status !== 'playing' && (
-          <div className="mt-4">
-            <button
-              onClick={startTestGame}
-              className="bg-orange-600 hover:bg-orange-700 px-3 py-1 rounded text-white text-sm font-medium transition-colors flex items-center gap-2"
-            >
-              🎯 ゲーム開始
-            </button>
+          <div className="mt-4 space-y-2">
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setGameType("face");
+                  setShowTestGame(true);
+                }}
+                className="bg-purple-600 hover:bg-purple-700 px-3 py-1 rounded text-white text-sm font-medium transition-colors flex items-center gap-2"
+              >
+                🎭 顔障害物ゲーム
+              </button>
+            </div>
           </div>
         )}
 
@@ -202,32 +198,29 @@ function RoomPage() {
           <div className="max-w-4xl w-full mx-4">
             <div className="text-center mb-6">
               <h2 className="text-3xl font-bold text-white mb-2">
-                🎯 シューティングゲーム
+                🎭 顔障害物ゲーム
               </h2>
               <p className="text-gray-300 text-lg">
-                ターゲットをクリックしてスコアを稼ごう！
+                障害物を避けて最後まで生き残ろう！
               </p>
             </div>
 
-            <ShootingGame
+            <FaceObstacleGame
               roomId={roomId}
               userName={userName}
               isHost={isHost}
             />
 
             <div className="text-center mt-4">
-              {isHost ? (
-                <button
-                  onClick={() => setShowTestGame(false)}
-                  className="text-gray-400 hover:text-white transition-colors"
-                >
-                  ゲームを終了
-                </button>
-              ) : (
-                <p className="text-gray-400 text-sm">
-                  ホストがゲームを終了するまでお待ちください
-                </p>
-              )}
+              <button
+                onClick={() => setShowTestGame(false)}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                ゲーム画面を閉じる
+              </button>
+              <p className="text-gray-400 text-xs mt-1">
+                ゲーム自体を終了するには、ゲーム内の「ゲーム終了」ボタンを使用してください
+              </p>
             </div>
           </div>
         </div>

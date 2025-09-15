@@ -1,14 +1,18 @@
 // server/playerManager.js
 function addPlayer(room, playerId, ws) {
+  // ランダムな初期位置を設定
+  const x = Math.random() * 460 + 20; // 20-480の範囲
+  const y = Math.random() * 460 + 20; // 20-480の範囲
+
   room.players[playerId] = {
-    x: 200,
-    y: 400,
+    x: x,
+    y: y,
     isAlive: true,
     velocity: 0,
     lastMove: Date.now()
   };
   room.connections[playerId] = ws;
-  console.log(`プレイヤー参加: ${playerId}`);
+  console.log(`プレイヤー参加: ${playerId} (位置: ${x.toFixed(1)}, ${y.toFixed(1)})`);
 }
 
 function removePlayer(room, playerId) {
@@ -22,7 +26,19 @@ function movePlayer(room, playerId, direction) {
     const player = room.players[playerId];
     const moveSpeed = 3; // 移動速度
 
+    // 従来の左右移動
     if (direction === "left") {
+      player.x = Math.max(0, player.x - moveSpeed);
+    } else if (direction === "right") {
+      player.x = Math.min(480, player.x + moveSpeed);
+    }
+
+    // WASD移動（顔障害物ゲーム用）
+    if (direction === "up") {
+      player.y = Math.max(0, player.y - moveSpeed);
+    } else if (direction === "down") {
+      player.y = Math.min(480, player.y + moveSpeed);
+    } else if (direction === "left") {
       player.x = Math.max(0, player.x - moveSpeed);
     } else if (direction === "right") {
       player.x = Math.min(480, player.x + moveSpeed);

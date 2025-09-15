@@ -43,11 +43,29 @@ LiveKitアカウントは [https://livekit.io/](https://livekit.io/) で無料�
 ### WebSocket設定（ゲーム機能）
 - `VITE_WEBSOCKET_URL`: WebSocketサーバーのURL（デフォルト: `ws://localhost:8080`）
 
-ゲーム機能を使用する場合は、WebSocketサーバーを起動する必要があります：
+**環境変数の設定方法:**
+
+1. **`.env`ファイルを作成**（プロジェクトルートに）:
+```env
+VITE_WEBSOCKET_URL=ws://localhost:8080
+```
+
+2. **異なる環境での設定例**:
+```env
+# 開発環境
+VITE_WEBSOCKET_URL=ws://localhost:8080
+
+# 本番環境（例）
+VITE_WEBSOCKET_URL=wss://your-domain.com:8080
+```
+
+3. **WebSocketサーバーを起動**:
 ```bash
 cd server
 node server.js
 ```
+
+**注意**: 環境変数を変更した場合は、開発サーバーを再起動してください。
 
 ## 機能
 
