@@ -1,7 +1,7 @@
 // シューティングゲームコンポーネント
 import { useEffect, useState } from 'react';
 import { Target, Play, RotateCcw, Trophy, Clock, Zap } from 'lucide-react';
-import { useShootingGame } from '../../hooks/game/useShootingGame';
+import { useShootingGame } from '../hooks/useShootingGame';
 
 function ShootingGame({ targetImage, onGameEnd, gameConfig }) {
   const [showInstructions, setShowInstructions] = useState(true);
