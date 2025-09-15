@@ -70,7 +70,10 @@ export function useShootingGame(roomId, userName) {
   const connectWebSocket = () => {
     if (wsRef.current) return;
 
-    const ws = new WebSocket("ws://localhost:8080");
+    // Use environment variable for WebSocket URL, fallback to localhost
+    const wsUrl = import.meta.env.VITE_WEBSOCKET_URL || "ws://localhost:8080";
+    console.log("WebSocket接続先:", wsUrl);
+    const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
     ws.onopen = () => {
