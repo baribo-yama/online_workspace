@@ -35,8 +35,7 @@ function PomodoroTimer() {
   const progress = ((25 * 60 - timeLeft) / (25 * 60)) * 100;
 
   return (
-    <div className="w-1/2 flex flex-col items-center justify-center p-8 bg-gradient-to-br from-gray-900 via-gray-800 to-blue-900">
-      <div className="text-center space-y-8">
+    <div className="text-center space-y-8">
         <div>
           <h2 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
             ポモドーロタイマー
@@ -97,7 +96,6 @@ function PomodoroTimer() {
           </span>
         </div>
       </div>
-    </div>
   );
 }
 
