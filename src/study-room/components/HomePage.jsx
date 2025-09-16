@@ -1,11 +1,11 @@
 // src/pages/Home.jsx
 import { useEffect, useState } from "react";
 import { collection, addDoc, serverTimestamp, query, orderBy, limit, onSnapshot } from "firebase/firestore";
-import { db } from "../firebase";
+import { db } from "../../shared/services/firebase";
 import { useNavigate } from "react-router-dom";
-import { defaultRoom } from "../models/firestore";
+import { defaultRoom } from "../../shared/services/firestore";
 import { Users, RefreshCw } from "lucide-react";
-import PomodoroTimer from "../components/PomodoroTimer";
+import PersonalTimer from "../../pomodoro-timer/components/PersonalTimer";
 
 function Home() {
   const [title, setTitle] = useState("");
@@ -196,9 +196,9 @@ function Home() {
         </div>
       </div>
 
-      {/* 右側 - ポモドーロタイマー */}
+      {/* 右側 - 個人用ポモドーロタイマー */}
       <div className="w-1/2 flex flex-col items-center justify-center p-8 bg-gradient-to-br from-gray-900 via-gray-800 to-blue-900">
-        <PomodoroTimer />
+        <PersonalTimer />
       </div>
     </div>
   );

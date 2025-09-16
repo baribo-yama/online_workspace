@@ -16,6 +16,7 @@ export const defaultRoom = {
   title: "",
   createdAt: null,
   createdBy: "",
+  hostId: "", // ホストのID
   participantsCount: 0,
   maxParticipants: 5, // MVP制限
   isActive: true,
@@ -31,16 +32,23 @@ export const defaultRoom = {
     totalWorkTime: 0,
     totalBreakTime: 0,
   },
+  game: {
+    status: "idle", // "idle" | "playing"
+    startTime: null,
+    endTime: null,
+    lastUpdated: null,
+  },
 };
 
 // participants の初期形
-export const defaultParticipant = (name = "Guest") => ({
+export const defaultParticipant = (name = "Guest", isHost = false) => ({
   name,
   joinedAt: null,
   status: "online", // "online" | "away" | "offline"
   isCameraOn: false,
   isMicOn: false,
   lastActivity: null,
+  isHost: isHost, // ホストかどうか
 });
 
 // signaling メッセージ初期形
@@ -78,8 +86,8 @@ export const ROOM_CATEGORIES = [
 
 // ポモドーロタイマー設定
 export const POMODORO_SETTINGS = {
-  WORK_DURATION: 25 * 60,    // 作業時間（秒）
-  SHORT_BREAK: 5 * 60,       // 短い休憩（秒）
+  WORK_DURATION: 10,    // 作業時間（秒）デフォルト25 * 60
+  SHORT_BREAK: 10,       // 短い休憩（秒） 5 * 60
   LONG_BREAK: 15 * 60,       // 長い休憩（秒）
 };
 

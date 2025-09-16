@@ -40,11 +40,21 @@ npm run dev
 
 LiveKitアカウントは [https://livekit.io/](https://livekit.io/) で無料で作成できます。
 
+### WebSocket設定（ゲーム機能）
+- `VITE_WEBSOCKET_URL`: WebSocketサーバーのURL（デフォルト: `ws://localhost:8080`）
+
+ゲーム機能を使用する場合は、WebSocketサーバーを起動する必要があります：
+```bash
+cd server
+node server.js
+```
+
 ## 機能
 
 - オンライン自習室の作成・参加
-- ポモドーロタイマー（25分間の集中タイマー）
+- 共有ポモドーロタイマー（自動サイクル機能付き）
 - リアルタイムで参加者数を表示
+- 休憩時間中のマルチプレイヤーゲーム（WebSocket使用）
 - 参加者同士でのリアルタイム音声・映像通話（LiveKit使用）
 
 ## 技術スタック
@@ -52,5 +62,7 @@ LiveKitアカウントは [https://livekit.io/](https://livekit.io/) で無料�
 - React 19.1.1
 - Vite 7.1.4
 - Firebase Firestore
+- WebSocket (Node.js + ws)
 - Tailwind CSS
 - React Router
+- LiveKit (ビデオ通話)
