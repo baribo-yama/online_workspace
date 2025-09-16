@@ -1,6 +1,7 @@
 // 個人用ポモドーロタイマーコンポーネント
 import { Clock, Play, Pause, RotateCcw, Coffee, ZapOff, FastForward } from "lucide-react";
 import { usePersonalTimer, TIMER_STATE } from "../hooks/usePersonalTimer";
+import { motion, AnimatePresence } from "framer-motion";
 
 // 円形タイマーは廃止（棒状タイマーに統一）
 
@@ -126,13 +127,21 @@ function PersonalTimer() {
   }
 
   return (
-    <div className="text-center space-y-8">
-      <div>
-        <h2 className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent mb-2">
-          {getStatusMessage()}
-        </h2>
+    <div className="text-center space-y-8 relative">
+      <div className="relative z-10 h-12 flex items-center justify-center">
+        <AnimatePresence mode="wait">
+          <motion.h2
+            key={getStatusMessage()}
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 20 }}
+            transition={{ duration: 0.2 }}
+            className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent"
+          >
+            {getStatusMessage()}
+          </motion.h2>
+        </AnimatePresence>
       </div>
-
 
       {/* タイマーは常に中央上部に絶対配置で表示 */}
       <div className="relative h-40 flex items-start justify-center">
@@ -142,10 +151,20 @@ function PersonalTimer() {
       </div>
 
       <div className="flex gap-4 justify-center items-center h-32">
-        {renderControls()}
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={state}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.2 }}
+          >
+            {renderControls()}
+          </motion.div>
+        </AnimatePresence>
       </div>
 
-      <div className="text-sm text-gray-400">
+      <div className="text-sm text-gray-400 relative z-10">
         サイクル: {cycle}
       </div>
     </div>
