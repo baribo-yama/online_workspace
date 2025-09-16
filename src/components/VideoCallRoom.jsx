@@ -46,7 +46,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected }) {
   // 参加者リストを更新
   const updateParticipants = useCallback(() => {
     if (!roomRef.current) return;
-    
+
     const allParticipants = [
       roomRef.current.localParticipant,
       ...Array.from(roomRef.current.remoteParticipants.values())
@@ -600,8 +600,8 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected }) {
     }
   }, [isAudioEnabled]);
 
-  // コンポーネントマウント時に接続
-  useEffect(() => {
+    // コンポーネントマウント時に接続
+    useEffect(() => {
     if (import.meta.env.DEV) {
       console.log('VideoCallRoom マウント - 接続開始', { roomId, userName });
     }
@@ -620,8 +620,8 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected }) {
     }
     
     // 状態をリセット
-    hasConnectedRef.current = false;
-    isConnectingRef.current = false;
+        hasConnectedRef.current = false;
+        isConnectingRef.current = false;
     setError(null);
     
     // 接続を開始
@@ -642,20 +642,20 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected }) {
       return () => {
       if (import.meta.env.DEV) {
         console.log('VideoCallRoom アンマウント - 接続切断', { roomId: roomIdRef.current, userName: userNameRef.current });
-      }
+        }
       clearTimeout(timeoutId);
       
       // 音声レベル監視を停止
       stopAudioLevelMonitoring();
       
         if (roomRef.current) {
-        try {
-          roomRef.current.disconnect();
-        } catch (error) {
+          try {
+            roomRef.current.disconnect();
+          } catch (error) {
           console.warn('切断時のエラー:', error);
-        }
+          }
           roomRef.current = null;
-      }
+        }
         hasConnectedRef.current = false;
         isConnectingRef.current = false;
     };
@@ -689,33 +689,16 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected }) {
       
       if (import.meta.env.DEV && videoLogCountRef.current < 5) {
         videoLogCountRef.current++;
-        console.log('ビデオトラックアタッチ成功:', participant.identity, isLocal ? '(ローカル)' : '(リモート)', {
-          trackId: track.sid,
-          hasVideoElement: !!videoElement,
-          videoElementReady: videoElement.readyState
-        });
+        console.log('ビデオトラックアタッチ成功:', participant.identity, isLocal ? '(ローカル)' : '(リモート)');
       }
     } catch (error) {
       console.error('ビデオトラックアタッチエラー:', error, participant.identity);
     }
   }, []);
 
-  // ビデオトラックのイベント処理
+  // リモートビデオトラックのイベント処理
   useEffect(() => {
     if (!roomRef.current) return;
-
-    const handleLocalTrackPublished = (publication, participant) => {
-      if (publication.kind === 'video' && publication.track) {
-        if (import.meta.env.DEV && videoLogCountRef.current < 5) {
-          videoLogCountRef.current++;
-          console.log('LocalTrackPublishedイベントでvideoトラックを検出:', publication.track);
-        }
-        // 少し遅延させてからアタッチ
-        setTimeout(() => {
-          attachVideoTrack(publication.track, participant, true);
-        }, 100);
-      }
-    };
 
     const handleTrackSubscribed = (track, publication, participant) => {
       if (publication.kind === 'video' && track) {
@@ -730,12 +713,10 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected }) {
       }
     };
 
-    roomRef.current.on(RoomEvent.LocalTrackPublished, handleLocalTrackPublished);
     roomRef.current.on(RoomEvent.TrackSubscribed, handleTrackSubscribed);
 
     return () => {
       if (roomRef.current) {
-        roomRef.current.off(RoomEvent.LocalTrackPublished, handleLocalTrackPublished);
         roomRef.current.off(RoomEvent.TrackSubscribed, handleTrackSubscribed);
       }
     };
@@ -749,11 +730,34 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected }) {
     if (localParticipant.videoTrackPublications) {
       for (const publication of localParticipant.videoTrackPublications.values()) {
         if (publication.track) {
+          console.log('既存のローカルビデオトラックをアタッチ:', publication.track);
           attachVideoTrack(publication.track, localParticipant, true);
           break;
         }
       }
     }
+  }, [localParticipant, attachVideoTrack]);
+
+  // ローカルトラック公開イベントの処理
+  useEffect(() => {
+    if (!roomRef.current || !localParticipant) return;
+
+    const handleLocalTrackPublished = (publication, participant) => {
+      if (publication.kind === 'video' && publication.track && participant.identity === localParticipant.identity) {
+        console.log('ローカルビデオトラック公開イベント受信:', publication.track);
+        setTimeout(() => {
+          attachVideoTrack(publication.track, participant, true);
+        }, 100);
+      }
+    };
+
+    roomRef.current.on(RoomEvent.LocalTrackPublished, handleLocalTrackPublished);
+
+    return () => {
+      if (roomRef.current) {
+        roomRef.current.off(RoomEvent.LocalTrackPublished, handleLocalTrackPublished);
+      }
+    };
   }, [localParticipant, attachVideoTrack]);
 
   // リモートビデオトラックの処理
@@ -886,7 +890,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected }) {
                     ref={isLocal ? localVideoRef : (el) => {
                       if (el) {
                         remoteVideoRefs.current.set(participant.identity, el);
-                      } else {
+      } else {
                         remoteVideoRefs.current.delete(participant.identity);
                       }
                     }}
@@ -908,7 +912,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected }) {
                   <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
                     {participant?.identity || 'Unknown'}
                     {isLocal && ' (あなた)'}
-                  </div>
+            </div>
                   
                   {/* 音声レベル表示（ローカル参加者のみ） */}
                   {isLocal && (
@@ -927,39 +931,39 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected }) {
                             }`}
                           />
                         ))}
-                      </div>
+        </div>
                       
                       {/* 話している状態のインジケーター */}
                       {isSpeaking && (
                         <div className="flex items-center gap-1">
                           <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
                           <span className="text-xs text-green-400 font-medium">話し中</span>
-                        </div>
+            </div>
                       )}
-                    </div>
-                  )}
-                  
+        </div>
+      )}
+
                   {/* カメラ・マイク状態表示（ローカル参加者のみ） */}
                   {isLocal && (
                     <div className="absolute top-2 right-2 flex gap-1">
                       {!isVideoEnabled && (
                         <div className="bg-red-500 text-white px-2 py-1 rounded text-xs">
                           <VideoOff className="w-3 h-3" />
-                        </div>
+            </div>
                       )}
                       {!isAudioEnabled && (
                         <div className="bg-red-500 text-white px-2 py-1 rounded text-xs">
                           <MicOff className="w-3 h-3" />
-                        </div>
+        </div>
                       )}
-                    </div>
+      </div>
                   )}
-                </div>
+            </div>
               );
             })}
           </div>
         )}
-      </div>
+        </div>
     </div>
   );
 }
