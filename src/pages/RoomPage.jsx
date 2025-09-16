@@ -18,13 +18,20 @@ import { defaultParticipant } from "../models/firestore";
 import { ArrowLeft, Users, LogOut, X, Home, Trash2 } from "lucide-react";
 import EnhancedPomodoroTimer from "../components/EnhancedPomodoroTimer";
 import ShootingGame from "../features/shooting-game/ShootingGame";
+import VideoCallRoom from "../components/VideoCallRoom";
 
 function RoomPage() {
   const { roomId } = useParams();
   const { state } = useLocation();
   const userName = state?.name || localStorage.getItem("userName") || "Guest";
 
-  console.log("RoomPage レンダリング開始:", { roomId, userName, state });
+  // デバッグログを削減（開発時のみ）
+  const renderCountRef = useRef(0);
+  renderCountRef.current++;
+  
+  if (import.meta.env.DEV && renderCountRef.current <= 5) {
+    console.log("RoomPage レンダリング開始:", { roomId, userName, state, renderCount: renderCountRef.current });
+  }
 
   const navigate = useNavigate();
   const [myParticipantId, setMyParticipantId] = useState(null);
@@ -48,7 +55,11 @@ function RoomPage() {
 
   // 参加者リストの取得（クリーンアップ機能付き）
   useEffect(() => {
-    console.log("参加者データ取得開始:", roomId);
+    if (!roomId || isUnmountingRef.current) return;
+    
+    if (import.meta.env.DEV && renderCountRef.current <= 3) {
+      console.log("参加者データ取得開始:", roomId);
+    }
     const participantsQuery = query(
       collection(db, "rooms", roomId, "participants"),
       orderBy("joinedAt", "asc"),
@@ -56,37 +67,20 @@ function RoomPage() {
     );
 
     const unsubscribe = onSnapshot(participantsQuery, async (snapshot) => {
-      console.log("参加者データ更新:", snapshot.docs.length, "件");
+      if (isUnmountingRef.current) return;
+      
+      if (import.meta.env.DEV && renderCountRef.current <= 3) {
+        console.log("参加者データ更新:", snapshot.docs.length, "件");
+      }
       const participantsData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
 
-      // 古い参加者データをクリーンアップ（5分以上前のデータ）
-      const now = Date.now();
-      const oldParticipants = participantsData.filter(participant => {
-        if (participant.joinedAt) {
-          const joinedTime = participant.joinedAt.toDate ?
-            participant.joinedAt.toDate().getTime() :
-            participant.joinedAt;
-          return (now - joinedTime) > 300000; // 5分以上前
-        }
-        return false;
-      });
-
-      // 古い参加者を削除
-      oldParticipants.forEach(async (participant) => {
-        try {
-          await deleteDoc(doc(db, "rooms", roomId, "participants", participant.id));
-          console.log("古い参加者を削除:", participant.name);
-        } catch (error) {
-          console.error("古い参加者削除エラー:", error);
-        }
-      });
-
-      // アクティブな参加者のみを表示
+      // アクティブな参加者のみを表示（クリーンアップは別途実行）
       const activeParticipants = participantsData.filter(participant => {
         if (participant.joinedAt) {
+          const now = Date.now();
           const joinedTime = participant.joinedAt.toDate ?
             participant.joinedAt.toDate().getTime() :
             participant.joinedAt;
@@ -95,7 +89,9 @@ function RoomPage() {
         return true;
       });
 
-      console.log("アクティブ参加者:", activeParticipants.length, "人");
+      if (import.meta.env.DEV && renderCountRef.current <= 3) {
+        console.log("アクティブ参加者:", activeParticipants.length, "人");
+      }
       setParticipants(activeParticipants);
       setParticipantsLoading(false);
     }, (error) => {
@@ -103,7 +99,10 @@ function RoomPage() {
       setParticipantsLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      isUnmountingRef.current = true;
+      unsubscribe();
+    };
   }, [roomId]);
 
   // 部屋のタイマー状態を監視
@@ -133,20 +132,25 @@ function RoomPage() {
               console.log('タイマーが0になりました。自動停止します。');
               isRunning = false;
               // Firestoreでタイマーを停止（非同期で実行）
-              setTimeout(async () => {
+              const stopTimer = async () => {
                 try {
-                  await updateDoc(doc(db, "rooms", roomId), {
+                  // Firebaseのdoc関数を明示的にインポートして使用
+                  const { doc: firestoreDoc, updateDoc: firestoreUpdateDoc, serverTimestamp: firestoreServerTimestamp } = await import("firebase/firestore");
+                  const roomDocRef = firestoreDoc(db, "rooms", roomId);
+                  await firestoreUpdateDoc(roomDocRef, {
                     timer: {
                       ...timerData,
                       isRunning: false,
                       startTime: null,
-                      lastUpdated: serverTimestamp()
+                      lastUpdated: firestoreServerTimestamp()
                     }
                   });
+                  console.log('タイマー自動停止完了');
                 } catch (error) {
                   console.error("タイマー自動停止エラー:", error);
                 }
-              }, 0);
+              };
+              stopTimer();
             }
           }
 
@@ -203,10 +207,6 @@ function RoomPage() {
     }
   };
 
-  // テスト用ゲーム開始
-  const startTestGame = () => {
-    setShowTestGame(true);
-  };
 
   // ゲーム終了時の処理
   const handleGameEnd = (score) => {
@@ -217,19 +217,23 @@ function RoomPage() {
   // タイマー制御関数
   const updateRoomTimer = async (timerUpdate) => {
     try {
-      await updateDoc(doc(db, "rooms", roomId), {
+      console.log('タイマー更新開始:', timerUpdate);
+      const roomDocRef = doc(db, "rooms", roomId);
+      await updateDoc(roomDocRef, {
         timer: {
           ...roomTimer,
           ...timerUpdate,
           lastUpdated: serverTimestamp()
         }
       });
+      console.log('タイマー更新完了:', timerUpdate);
     } catch (error) {
       console.error("タイマー更新エラー:", error);
     }
   };
 
   const startTimer = () => {
+    console.log('タイマー開始');
     updateRoomTimer({
       isRunning: true,
       startTime: serverTimestamp()
@@ -237,6 +241,7 @@ function RoomPage() {
   };
 
   const pauseTimer = () => {
+    console.log('タイマー一時停止');
     updateRoomTimer({
       isRunning: false,
       startTime: null
@@ -244,21 +249,25 @@ function RoomPage() {
   };
 
   const resetTimer = () => {
+    console.log('タイマーリセット');
+    const newTimeLeft = roomTimer.mode === 'work' ? 25 * 60 : 5 * 60;
     updateRoomTimer({
-      timeLeft: roomTimer.mode === 'work' ? 25 * 60 : 5 * 60,
+      timeLeft: newTimeLeft,
       isRunning: false,
       startTime: null
     });
   };
 
   const switchMode = (newMode) => {
+    console.log('モード切り替え:', newMode);
     const newTimeLeft = newMode === 'work' ? 25 * 60 : 5 * 60;
+    const newCycle = newMode === 'work' ? (roomTimer.cycle || 0) + 1 : (roomTimer.cycle || 0);
     updateRoomTimer({
       mode: newMode,
       timeLeft: newTimeLeft,
       isRunning: false,
       startTime: null,
-      cycle: newMode === 'work' ? roomTimer.cycle + 1 : roomTimer.cycle
+      cycle: newCycle
     });
   };
 
@@ -269,10 +278,14 @@ function RoomPage() {
     isUnmountingRef.current = false;
 
     const initRoom = async () => {
+      if (import.meta.env.DEV && renderCountRef.current <= 3) {
       console.log("部屋データ取得開始:", roomId);
+    }
       // 部屋情報リスナー
       unsubRoom = onSnapshot(doc(db, "rooms", roomId), (doc) => {
-        console.log("部屋データ更新:", doc.exists(), doc.data());
+        if (import.meta.env.DEV && renderCountRef.current <= 3) {
+          console.log("部屋データ更新:", doc.exists(), doc.data());
+        }
         if (doc.exists()) {
           setRoom(doc.data());
           setLoading(false);
@@ -288,13 +301,17 @@ function RoomPage() {
 
       // 参加者として追加
       try {
-        console.log("参加者として追加中:", userName);
+        if (import.meta.env.DEV && renderCountRef.current <= 3) {
+          console.log("参加者として追加中:", userName);
+        }
         const docRef = await addDoc(collection(db, "rooms", roomId, "participants"), {
           ...defaultParticipant(userName),
           joinedAt: serverTimestamp(),
         });
         participantId = docRef.id;
-        console.log("参加者ID:", participantId);
+        if (import.meta.env.DEV && renderCountRef.current <= 3) {
+          console.log("参加者ID:", participantId);
+        }
         if (!isUnmountingRef.current) {
           setMyParticipantId(docRef.id);
         }
@@ -345,10 +362,12 @@ function RoomPage() {
           });
       }
     };
-  }, [roomId, userName]);
+  }, [roomId, userName, navigate]);
 
   if (loading) {
-    console.log("ローディング画面を表示中");
+    if (import.meta.env.DEV && renderCountRef.current <= 3) {
+      console.log("ローディング画面を表示中");
+    }
     return (
       <div className="flex h-screen bg-gray-900 items-center justify-center">
         <div className="text-center">
@@ -359,21 +378,14 @@ function RoomPage() {
     );
   }
 
-  console.log("メインレンダリング開始:", { room, participants, loading, participantsLoading });
+  if (import.meta.env.DEV && renderCountRef.current <= 3) {
+    console.log("メインレンダリング開始:", { room, participants, loading, participantsLoading });
+  }
 
   return (
     <div className="flex h-screen bg-gray-900">
-      {/* 左半分 - 参加者一覧 */}
-      <div className="w-1/2 bg-gray-800 border-r border-gray-700 p-6 flex flex-col">
-        {/* MVP制限情報表示 */}
-        <div className="mb-4 p-3 bg-purple-900/20 border border-purple-500 rounded text-purple-200 text-sm">
-          <div className="flex items-center gap-2 mb-1">
-            <Users className="w-4 h-4" />
-            <span className="font-semibold">MVP版制限</span>
-          </div>
-          <p>最大5人まで参加可能（ホスト含む）</p>
-        </div>
-
+      {/* 左半分 - ビデオ通話エリア */}
+      <div className="w-1/2 bg-gray-800 p-6 flex flex-col">
         {/* ヘッダー */}
         <div className="mb-6">
           <div className="flex gap-2 mb-4">
@@ -412,93 +424,36 @@ function RoomPage() {
           </div>
         </div>
 
-        {/* 参加者セクション */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <h2 className="text-lg font-semibold text-white">参加者</h2>
-              <span className="bg-green-600 text-white text-xs px-2 py-1 rounded-full">
-                {participants?.length || 0}人
-              </span>
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={startTestGame}
-                className="bg-orange-600 hover:bg-orange-700 px-3 py-1 rounded text-white text-sm font-medium transition-colors flex items-center gap-2"
-              >
-                🎯 ゲーム
-              </button>
-            </div>
-          </div>
-
-          <p className="text-gray-400 text-sm mb-6">一緒に勉強している仲間たち</p>
-
-          <div className="space-y-3">
-            {participantsLoading && (
-              <div className="text-center py-4">
-                <p className="text-gray-400 text-sm">参加者を読み込み中...</p>
-              </div>
-            )}
-
-            {!participantsLoading && participants?.map((participant, index) => {
-              const isCurrentUser = participant.id === myParticipantId;
-
-              return (
-                <div
-                  key={participant.id}
-                  className="bg-gray-700 rounded-lg p-4 border border-gray-600 hover:bg-gray-650 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    {/* 参加者のアバター */}
-                    <div className="relative">
-                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 ${
-                        isCurrentUser ? 'bg-blue-500' : 'bg-green-500'
-                      }`}>
-                        {participant.name ? participant.name.charAt(0).toUpperCase() : "U"}
-                      </div>
-                      {/* オンライン状態インジケーター */}
-                      <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full border-2 border-gray-800 bg-green-500" />
-                    </div>
-
-                    {/* 参加者名 */}
-                    <div className="flex-1">
-                      <p className="text-white font-medium">
-                        {participant.name || `ユーザー${index + 1}`}
-                        {isCurrentUser && (
-                          <span className="text-blue-400 text-xs ml-2">(あなた)</span>
-                        )}
-                      </p>
-                      <p className="text-xs flex items-center gap-1 text-green-400">
-                        <div className="w-2 h-2 rounded-full bg-green-400" />
-                        オンライン
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-
-            {!participantsLoading && (!participants || participants.length === 0) && (
-              <div className="text-center py-8">
-                <Users className="w-12 h-12 text-gray-500 mx-auto mb-3" />
-                <p className="text-gray-400">まだ参加者がいません</p>
-              </div>
-            )}
-          </div>
+        {/* ビデオ通話エリア */}
+        <div className="flex-1">
+          <VideoCallRoom
+            key={`${roomId}-${userName}`}
+            roomId={roomId}
+            userName={userName}
+            onRoomDisconnected={(reason) => {
+              console.log('ビデオ通話ルームから切断:', reason);
+              // ホーム画面に戻る
+              navigate('/');
+            }}
+          />
         </div>
       </div>
 
       {/* 右半分 - ポモドーロタイマー */}
-      <div className="w-1/2 bg-gray-900 p-6">
-        <EnhancedPomodoroTimer
-          timer={roomTimer}
-          onStart={startTimer}
-          onPause={pauseTimer}
-          onReset={resetTimer}
-          onModeChange={switchMode}
-          onGameStart={() => setShowTestGame(true)}
-        />
+      <div className="w-1/2 bg-gray-800 border-l border-gray-700 p-6 flex flex-col">
+        {/* ポモドーロタイマー */}
+        <div className="flex-1">
+          <EnhancedPomodoroTimer
+            timer={roomTimer}
+            onStart={startTimer}
+            onPause={pauseTimer}
+            onReset={resetTimer}
+            onModeChange={switchMode}
+            onGameStart={() => setShowTestGame(true)}
+          />
+        </div>
       </div>
+
 
       {/* テスト用ゲームオーバーレイ */}
       {showTestGame && (

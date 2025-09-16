@@ -1,5 +1,5 @@
 // 休憩時間統合型のポモドーロタイマー（カメラ機能なし）
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Clock, Play, Pause, RotateCcw, Coffee, Target } from "lucide-react";
 import ShootingGame from "../features/shooting-game/ShootingGame";
 
@@ -16,14 +16,30 @@ function EnhancedPomodoroTimer({
   // タイマーが0になった時の処理
   useEffect(() => {
     if (timer && timer.timeLeft === 0 && timer.isRunning) {
-      console.log('タイマーが0になりました。モード切り替え:', timer.mode);
+      console.log('EnhancedPomodoroTimer: タイマーが0になりました。モード切り替え:', timer.mode);
       if (timer.mode === 'work') {
+        console.log('作業時間終了 -> 休憩時間に切り替え');
         onModeChange('break');
       } else if (timer.mode === 'break') {
+        console.log('休憩時間終了 -> 作業時間に切り替え');
         onModeChange('work');
       }
     }
   }, [timer, onModeChange]);
+
+  // デバッグ用：タイマー状態のログ出力（削減）
+  const logCountRef = useRef(0);
+  useEffect(() => {
+    if (timer && logCountRef.current < 3) {
+      logCountRef.current++;
+      console.log('EnhancedPomodoroTimer タイマー状態:', {
+        timeLeft: timer.timeLeft,
+        isRunning: timer.isRunning,
+        mode: timer.mode,
+        cycle: timer.cycle
+      });
+    }
+  }, [timer]);
 
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
@@ -31,9 +47,18 @@ function EnhancedPomodoroTimer({
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const startTimer = () => onStart();
-  const pauseTimer = () => onPause();
-  const resetTimer = () => onReset();
+  const startTimer = () => {
+    console.log('EnhancedPomodoroTimer: タイマー開始ボタンが押されました');
+    onStart();
+  };
+  const pauseTimer = () => {
+    console.log('EnhancedPomodoroTimer: タイマー一時停止ボタンが押されました');
+    onPause();
+  };
+  const resetTimer = () => {
+    console.log('EnhancedPomodoroTimer: タイマーリセットボタンが押されました');
+    onReset();
+  };
 
   const startTestGame = () => {
     setLocalMode('game');
