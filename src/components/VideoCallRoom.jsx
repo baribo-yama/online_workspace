@@ -124,7 +124,12 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
       // 既存の音声要素をチェック（重複作成を防ぐ）
       const existingElement = audioElementsRef.current.get(participant.identity);
       if (existingElement) {
-        // 既存の要素の音声ストリームを更新
+        // 既存の要素の音声ストリームを更新（リソースリークを防ぐ）
+        const currentStream = existingElement.srcObject;
+        if (currentStream && currentStream.getTracks().length > 0) {
+          // 既存のトラックを停止してリソースを解放
+          currentStream.getTracks().forEach(track => track.stop());
+        }
         existingElement.srcObject = new MediaStream([track.mediaStreamTrack]);
         if (import.meta.env.DEV) {
           console.log('既存の音声要素を更新:', participant.identity);
@@ -153,14 +158,22 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
         // ブラウザの自動再生制限への対応
         if (error.name === 'NotAllowedError') {
           console.log('音声再生にはユーザーインタラクションが必要です');
-          // ユーザーがページをクリックした時に再生を試行
+          // AbortControllerを使用してイベントリスナーを管理
+          const abortController = new AbortController();
           const handleUserInteraction = () => {
             audioElement.play().catch(e => console.warn('再試行でも音声再生失敗:', e));
-            document.removeEventListener('click', handleUserInteraction);
-            document.removeEventListener('touchstart', handleUserInteraction);
+            abortController.abort(); // イベントリスナーを削除
           };
-          document.addEventListener('click', handleUserInteraction);
-          document.addEventListener('touchstart', handleUserInteraction);
+          
+          // スコープを限定したイベントリスナー（AbortController付き）
+          document.addEventListener('click', handleUserInteraction, { 
+            signal: abortController.signal,
+            once: true 
+          });
+          document.addEventListener('touchstart', handleUserInteraction, { 
+            signal: abortController.signal,
+            once: true 
+          });
         }
       });
 
@@ -618,7 +631,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
           } else if (track.kind === Track.Kind.Audio) {
             // オーディオトラックの処理
             if (import.meta.env.DEV) {
-              console.log('オーディオトラック購読完了:', participant.identity);
+              console.log('connectToRoom内でオーディオトラック購読完了:', participant.identity);
             }
             // リモート参加者の音声トラックを自動的に再生開始
             attachAudioTrack(track, participant);
@@ -707,7 +720,9 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
   const disconnectFromRoom = useCallback(async () => {
     try {
       // 全てのリモート参加者の音声要素をクリーンアップ（メモリリーク防止）
-      audioElementsRef.current.forEach((audioElement, participantIdentity) => {
+      // Array.from()でスナップショットを作成してMap変更時の問題を回避
+      const participantIdentities = Array.from(audioElementsRef.current.keys());
+      participantIdentities.forEach(participantIdentity => {
         cleanupAudioElement(participantIdentity);
       });
 
@@ -893,10 +908,15 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
         }, TRACK_ATTACHMENT_DELAY);
       } else if (publication.kind === 'audio' && track) {
         if (import.meta.env.DEV) {
-          console.log('TrackSubscribedイベントでaudioトラックを検出:', track);
+          console.log('TrackSubscribedイベントでaudioトラックを検出:', track, {
+            participantIdentity: participant.identity,
+            hasMediaStreamTrack: !!track.mediaStreamTrack,
+            trackKind: track.kind
+          });
         }
         // リモート参加者の音声トラックを自動的に再生開始
         setTimeout(() => {
+          console.log('音声トラックアタッチを実行:', participant.identity);
           attachAudioTrack(track, participant);
         }, TRACK_ATTACHMENT_DELAY);
       }
