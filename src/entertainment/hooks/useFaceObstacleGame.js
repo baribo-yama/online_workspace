@@ -104,6 +104,13 @@ export function useFaceObstacleGame(roomId, userName) {
     const wsUrl = getWebSocketUrl();
     console.log("🌐 WebSocket URL:", wsUrl);
 
+    // URLの形式チェック
+    if (!wsUrl.startsWith('wss://') && !wsUrl.startsWith('ws://')) {
+      console.error("❌ 無効なWebSocket URL形式:", wsUrl);
+      setIsConnected(false);
+      return;
+    }
+
     let ws;
     try {
       ws = new WebSocket(wsUrl);
@@ -148,17 +155,30 @@ export function useFaceObstacleGame(roomId, userName) {
     };
 
     ws.onclose = (event) => {
-      console.log("🔌 WebSocket接続終了:", { code: event.code, reason: event.reason });
+      console.log("🔌 WebSocket接続終了:", {
+        code: event.code,
+        reason: event.reason,
+        wasClean: event.wasClean
+      });
       setIsConnected(false);
       wsRef.current = null;
     };
 
     ws.onerror = (error) => {
       console.error("❌ WebSocket エラー:", error);
-      console.error("WebSocketサーバーが起動していない可能性があります。");
-      console.error("サーバーを起動してください: cd server && node server.js");
+      console.error("📊 エラー詳細:");
+      console.error("  - URL:", wsUrl);
+      console.error("  - ReadyState:", ws.readyState);
+      console.error("  - 可能な原因: サーバーが起動していない、ネットワーク問題、CORS問題");
       setIsConnected(false);
     };
+
+    // 接続状態の監視（デバッグ用）
+    setTimeout(() => {
+      if (ws.readyState === WebSocket.CONNECTING) {
+        console.log("⏳ まだ接続中... readyState:", ws.readyState);
+      }
+    }, 5000);
   };
 
   const disconnectWebSocket = () => {
@@ -200,11 +220,7 @@ export function useFaceObstacleGame(roomId, userName) {
     console.log("🎮 ゲーム開始処理開始:", { roomId, playerId, isConnected });
 
     try {
-      // WebSocket接続を確実に確立
-      await ensureWebSocketConnection();
-      console.log("🔗 WebSocket接続確認完了");
-
-      // Firestoreのゲーム状態を更新
+      // Firestoreのゲーム状態を更新（最優先）
       const roomRef = doc(db, "rooms", roomId);
       await updateDoc(roomRef, {
         game: {
@@ -216,20 +232,51 @@ export function useFaceObstacleGame(roomId, userName) {
       });
       console.log("📝 Firestore更新完了");
 
-      // WebSocketサーバーにゲーム開始を通知
-      if (wsRef.current && wsRef.current.readyState === 1) {
-        const message = { type: "startFaceGame", roomId };
-        console.log("📤 WebSocketメッセージ送信:", message);
-        wsRef.current.send(JSON.stringify(message));
-      } else {
-        console.error("❌ WebSocket接続が無効:", {
-          exists: !!wsRef.current,
-          readyState: wsRef.current?.readyState
-        });
+      // WebSocket接続を試行（エラーでも続行）
+      try {
+        await ensureWebSocketConnection();
+        console.log("🔗 WebSocket接続確認完了");
+
+        // WebSocketサーバーにゲーム開始を通知
+        if (wsRef.current && wsRef.current.readyState === 1) {
+          const message = { type: "startFaceGame", roomId };
+          console.log("📤 WebSocketメッセージ送信:", message);
+          wsRef.current.send(JSON.stringify(message));
+        } else {
+          console.warn("⚠️ WebSocket未接続、シングルプレイヤーモード");
+        }
+      } catch (wsError) {
+        console.warn("⚠️ WebSocket接続失敗、シングルプレイヤーモードで続行:", wsError.message);
+        // シングルプレイヤーモード用の障害物生成
+        generateLocalObstacle();
       }
     } catch (error) {
-      console.error("ゲーム開始エラー:", error);
+      console.error("❌ ゲーム開始エラー:", error);
     }
+  };
+
+  // ローカル障害物生成（Fallback用）
+  const generateLocalObstacle = () => {
+    const obstacles = [
+      { color: "#ff6b6b", emoji: "😀", name: "赤い笑顔" },
+      { color: "#4ecdc4", emoji: "😎", name: "青緑のサングラス" },
+      { color: "#45b7d1", emoji: "🤔", name: "青い考え中" },
+    ];
+    const selected = obstacles[Math.floor(Math.random() * obstacles.length)];
+
+    setObstacle({
+      ...selected,
+      x: 100,
+      y: 100,
+      vx: 3,
+      vy: 3,
+      width: 60,
+      height: 60
+    });
+
+    setGameTime(30000); // 30秒
+    startCountdown();
+    console.log("🎮 ローカルゲーム開始:", selected.name);
   };
 
   // ゲーム終了
