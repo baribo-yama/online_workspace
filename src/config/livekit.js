@@ -1,4 +1,18 @@
-// LiveKit設定
+/**
+ * LiveKit設定ファイル
+ * 
+ * リアルタイムビデオ通話機能のためのLiveKit設定を管理
+ * 
+ * 主な機能:
+ * - LiveKitサーバーへの接続設定
+ * - 音声・映像の品質設定
+ * - 接続タイムアウトとリトライ設定
+ * - アクセストークンの生成
+ * 
+ * @fileoverview LiveKit統合設定
+ */
+
+// === LiveKit基本設定 ===
 export const LIVEKIT_CONFIG = {
   // 環境変数から取得（フォールバック付き）
   serverUrl: import.meta.env.VITE_LIVEKIT_URL || 'wss://onlineworkspace-xu7dilqe.livekit.cloud',

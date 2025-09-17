@@ -1,68 +1,140 @@
-# オンライン自習室アプリ
+# Online Workspace - リアルタイム勉強ルーム
 
-React + Vite + Firebase で構築されたオンライン自習室アプリケーションです。
+## 概要
 
-## セットアップ
+Online Workspaceは、LiveKitを使用したリアルタイムビデオ通話機能を搭載した勉強ルームアプリケーションです。複数のユーザーが同じルームで勉強しながら、ポモドーロタイマーやゲーム機能を共有できます。
 
-1. 依存関係をインストール:
-```bash
-npm install
-```
+## 主な機能
 
-2. Firebase設定:
-`.env.example`を`.env`にコピーして、あなたのFirebaseプロジェクトの設定値を入力してください。
-```bash
-cp .env.example .env
-```
+### 🎥 リアルタイムビデオ通話
+- **LiveKit統合**: 高品質なリアルタイムビデオ・音声通話
+- **カメラ・マイク制御**: 個別のオン/オフ切り替え
+- **音声レベル監視**: スピーキングインジケーター
+- **自動再接続**: ネットワーク断線時の自動復旧
 
-3. 開発サーバーを起動:
-```bash
-npm run dev
-```
+### ⏰ 共有ポモドーロタイマー
+- **同期タイマー**: 全参加者でタイマーを共有
+- **ホスト制御**: ホストのみがタイマーを制御可能
+- **モード切り替え**: 作業・休憩・長休憩の自動切り替え
+- **リアルタイム更新**: Firestoreによる状態同期
 
-## 環境変数
+### 🎮 エンターテイメント機能
+- **シューティングゲーム**: 休憩時間中のゲーム
+- **ホスト権限**: ホストのみがゲームを開始可能
+- **自動表示**: ゲーム開始時の自動画面切り替え
 
-以下の環境変数を`.env`ファイルに設定する必要があります：
-
-### Firebase設定
-- `VITE_FIREBASE_API_KEY`: Firebase API キー
-- `VITE_FIREBASE_AUTH_DOMAIN`: Firebase Auth ドメイン
-- `VITE_FIREBASE_PROJECT_ID`: Firebase プロジェクト ID
-- `VITE_FIREBASE_STORAGE_BUCKET`: Firebase ストレージバケット
-- `VITE_FIREBASE_MESSAGING_SENDER_ID`: Firebase メッセージング送信者 ID
-- `VITE_FIREBASE_APP_ID`: Firebase アプリ ID
-- `VITE_FIREBASE_MEASUREMENT_ID`: Firebase 測定 ID
-
-### LiveKit設定（ビデオ通話機能）
-- `VITE_LIVEKIT_URL`: LiveKit サーバーのURL
-- `VITE_LIVEKIT_API_KEY`: LiveKit API キー
-- `VITE_LIVEKIT_API_SECRET`: LiveKit API シークレット
-
-LiveKitアカウントは [https://livekit.io/](https://livekit.io/) で無料で作成できます。
-
-### WebSocket設定（ゲーム機能）
-- `VITE_WEBSOCKET_URL`: WebSocketサーバーのURL（デフォルト: `ws://localhost:8080`）
-
-ゲーム機能を使用する場合は、WebSocketサーバーを起動する必要があります：
-```bash
-cd server
-node server.js
-```
-
-## 機能
-
-- オンライン自習室の作成・参加
-- 共有ポモドーロタイマー（自動サイクル機能付き）
-- リアルタイムで参加者数を表示
-- 休憩時間中のマルチプレイヤーゲーム（WebSocket使用）
-- 参加者同士でのリアルタイム音声・映像通話（LiveKit使用）
+### 👥 参加者管理
+- **ホストシステム**: 最初の参加者が自動的にホスト
+- **リアルタイム参加者リスト**: 参加者の動的な追加・削除
+- **権限管理**: ホストとゲストの権限分離
 
 ## 技術スタック
 
-- React 19.1.1
-- Vite 7.1.4
-- Firebase Firestore
-- WebSocket (Node.js + ws)
-- Tailwind CSS
-- React Router
-- LiveKit (ビデオ通話)
+### フロントエンド
+- **React 18**: メインのUIフレームワーク
+- **Vite**: ビルドツール
+- **Tailwind CSS**: スタイリング
+- **Lucide React**: アイコンライブラリ
+
+### リアルタイム通信
+- **LiveKit**: ビデオ通話機能
+- **Firebase Firestore**: データベースとリアルタイム同期
+- **WebRTC**: ピアツーピア通信
+
+### 開発・デプロイ
+- **Node.js**: サーバーサイド
+- **Express**: Webサーバー
+- **Socket.io**: WebSocket通信
+- **Docker**: コンテナ化（開発環境）
+
+## セットアップ
+
+### 前提条件
+- Node.js 18以上
+- npm または yarn
+- Firebase プロジェクト
+- LiveKit アカウント
+
+### 環境変数の設定
+
+`.env` ファイルを作成し、以下の変数を設定してください：
+
+```env
+# Firebase設定
+VITE_FIREBASE_API_KEY=your_firebase_api_key
+VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your_project_id
+VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+VITE_FIREBASE_APP_ID=your_app_id
+
+# LiveKit設定
+VITE_LIVEKIT_URL=wss://your-livekit-server.com
+VITE_LIVEKIT_API_KEY=your_livekit_api_key
+VITE_LIVEKIT_API_SECRET=your_livekit_api_secret
+```
+
+### インストールと起動
+
+```bash
+# 依存関係のインストール
+npm install
+
+# 開発サーバーの起動
+npm run dev
+
+# サーバーの起動（別ターミナル）
+cd server
+npm install
+npm start
+```
+
+## プロジェクト構造
+
+```
+online_workspace/
+├── src/
+│   ├── components/           # 共通コンポーネント
+│   │   └── VideoCallRoom.jsx # LiveKitビデオ通話コンポーネント
+│   ├── config/              # 設定ファイル
+│   │   └── livekit.js       # LiveKit設定
+│   ├── collaboration/       # 参加者管理
+│   │   ├── components/      # 参加者関連コンポーネント
+│   │   └── hooks/           # 参加者管理フック
+│   ├── study-room/          # 勉強ルーム機能
+│   ├── pomodoro-timer/      # ポモドーロタイマー
+│   ├── entertainment/       # ゲーム機能
+│   └── shared/              # 共有サービス
+├── server/                  # サーバーサイド
+└── README.md
+```
+
+## 主要コンポーネント
+
+### VideoCallRoom
+- LiveKitを使用したリアルタイムビデオ通話
+- カメラ・マイクの制御
+- 音声レベル監視
+- 自動再接続機能
+
+### RoomPage
+- 勉強ルームのメインページ
+- ビデオ通話、タイマー、ゲームの統合
+- ホスト権限の管理
+
+### useParticipants
+- 参加者管理のカスタムフック
+- ホスト権限の自動設定
+- リアルタイム参加者リストの監視
+
+## ライセンス
+
+MIT License
+
+## 貢献
+
+プルリクエストやイシューの報告を歓迎します。
+
+## サポート
+
+問題が発生した場合は、GitHubのIssuesページで報告してください。

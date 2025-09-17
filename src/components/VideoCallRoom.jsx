@@ -1,4 +1,20 @@
-// ビデオ通話ルームコンポーネント
+/**
+ * VideoCallRoom コンポーネント
+ * 
+ * LiveKitを使用したリアルタイムビデオ通話機能を提供するコンポーネント
+ * 
+ * 主な機能:
+ * - リアルタイムビデオ・音声通話
+ * - カメラ・マイクのオン/オフ制御
+ * - 音声レベル監視とスピーキングインジケーター
+ * - 参加者の動的な追加・削除
+ * - 自動再接続機能
+ * 
+ * @param {string} roomId - ルームID
+ * @param {string} userName - ユーザー名
+ * @param {function} onRoomDisconnected - ルーム切断時のコールバック
+ * @param {function} onLeaveRoom - ルーム退出時のコールバック
+ */
 import React, { useEffect, useState, useRef, useCallback, memo } from 'react';
 import { 
   Room, 
@@ -18,32 +34,37 @@ import {
 } from 'lucide-react';
 import { LIVEKIT_CONFIG, generateRoomName, generateParticipantName, generateAccessToken } from '../config/livekit';
 
-function VideoCallRoom({ roomId, userName, onRoomDisconnected }) {
-  const [participants, setParticipants] = useState([]);
-  const [localParticipant, setLocalParticipant] = useState(null);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [error, setError] = useState(null);
-  const [isVideoEnabled, setIsVideoEnabled] = useState(true);
-  const [isAudioEnabled, setIsAudioEnabled] = useState(true);
-  const [audioLevel, setAudioLevel] = useState(0);
-  const [isSpeaking, setIsSpeaking] = useState(false);
+function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
+  // === 状態管理 ===
+  const [participants, setParticipants] = useState([]);           // リモート参加者リスト
+  const [localParticipant, setLocalParticipant] = useState(null); // ローカル参加者情報
+  const [isConnecting, setIsConnecting] = useState(false);        // 接続中フラグ
+  const [error, setError] = useState(null);                      // エラー状態
+  const [isVideoEnabled, setIsVideoEnabled] = useState(true);    // ビデオ有効状態
+  const [isAudioEnabled, setIsAudioEnabled] = useState(true);    // オーディオ有効状態
+  const [audioLevel, setAudioLevel] = useState(0);               // 音声レベル
+  const [isSpeaking, setIsSpeaking] = useState(false);           // スピーキング状態
   
-  const roomRef = useRef(null);
-  const hasConnectedRef = useRef(false);
-  const isConnectingRef = useRef(false);
-  const connectToRoomRef = useRef(null);
-  const audioContextRef = useRef(null);
-  const analyserRef = useRef(null);
-  const animationFrameRef = useRef(null);
-  const startAudioLevelMonitoringRef = useRef(null);
-  const startAudioLevelMonitoringWithTrackRef = useRef(null);
-  const audioMonitoringRetryCountRef = useRef(0);
-  const roomIdRef = useRef(roomId);
-  const userNameRef = useRef(userName);
-  const updateParticipantsLogCountRef = useRef(0);
-  const cameraMicLogCountRef = useRef(0);
+  // === 参照管理 ===
+  const roomRef = useRef(null);                                    // LiveKitルームインスタンス
+  const hasConnectedRef = useRef(false);                          // 接続済みフラグ
+  const isConnectingRef = useRef(false);                          // 接続中フラグ（重複接続防止）
+  const connectToRoomRef = useRef(null);                          // 接続関数の参照
+  const audioContextRef = useRef(null);                           // 音声コンテキスト
+  const analyserRef = useRef(null);                               // 音声分析器
+  const animationFrameRef = useRef(null);                         // アニメーションフレームID
+  const startAudioLevelMonitoringRef = useRef(null);              // 音声レベル監視開始関数
+  const startAudioLevelMonitoringWithTrackRef = useRef(null);     // トラック付き音声レベル監視
+  const audioMonitoringRetryCountRef = useRef(0);                 // 音声監視リトライ回数
+  const roomIdRef = useRef(roomId);                               // ルームID（最新値保持）
+  const userNameRef = useRef(userName);                           // ユーザー名（最新値保持）
+  const updateParticipantsLogCountRef = useRef(0);                // 参加者更新ログカウンター
+  const cameraMicLogCountRef = useRef(0);                         // カメラ・マイクログカウンター
 
-  // 参加者リストを更新
+  /**
+   * 参加者リストを更新する関数
+   * ローカル参加者とリモート参加者を統合して状態を更新
+   */
   const updateParticipants = useCallback(() => {
     if (!roomRef.current) return;
 
@@ -552,13 +573,25 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected }) {
       setLocalParticipant(null);
       setError(null);
       
-      if (onRoomDisconnected) {
+      // onLeaveRoomが提供されている場合はそれを使用、そうでなければonRoomDisconnectedを使用
+      if (onLeaveRoom) {
+        console.log('onLeaveRoomコールバックを実行');
+        await onLeaveRoom();
+      } else if (onRoomDisconnected) {
         onRoomDisconnected('CLIENT_INITIATED');
       }
     } catch (error) {
       console.error('切断エラー:', error);
+      // エラーが発生してもonLeaveRoomを実行
+      if (onLeaveRoom) {
+        try {
+          await onLeaveRoom();
+        } catch (leaveError) {
+          console.error('onLeaveRoom実行エラー:', leaveError);
+        }
+      }
     }
-  }, [onRoomDisconnected]);
+  }, [onRoomDisconnected, onLeaveRoom]);
 
   // ビデオの切り替え（独立）
   const toggleVideo = useCallback(async () => {
