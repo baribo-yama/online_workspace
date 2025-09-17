@@ -28,7 +28,15 @@ export function validateWebSocketUrl(url) {
 
 // デフォルトURLを取得
 export function getDefaultWebSocketUrl() {
-  return isProduction() ? "wss://online-workspace.onrender.com" : "ws://localhost:8080";
+  if (isProduction()) {
+    const prodUrl = import.meta.env.VITE_WEBSOCKET_URL_PROD;
+    if (prodUrl && validateWebSocketUrl(prodUrl)) {
+      return prodUrl;
+    }
+    return "wss://online-workspace.onrender.com";
+  } else {
+    return "ws://localhost:8080";
+  }
 }
 
 // 環境に応じたWebSocket URLを取得
