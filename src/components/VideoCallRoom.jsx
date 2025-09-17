@@ -719,12 +719,10 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
   // ルームから切断
   const disconnectFromRoom = useCallback(async () => {
     try {
-      // 全てのリモート参加者の音声要素をクリーンアップ（メモリリーク防止）
-      // Array.from()でスナップショットを作成してMap変更時の問題を回避
-      const participantIdentities = Array.from(audioElementsRef.current.keys());
-      participantIdentities.forEach(participantIdentity => {
+
+      for (const participantIdentity of audioElementsRef.current.keys()) {
         cleanupAudioElement(participantIdentity);
-      });
+      }
 
       if (roomRef.current) {
         await roomRef.current.disconnect();
@@ -916,7 +914,9 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
         }
         // リモート参加者の音声トラックを自動的に再生開始
         setTimeout(() => {
-          console.log('音声トラックアタッチを実行:', participant.identity);
+          if(import.meta.env.DEV) {
+            console.log('音声トラックアタッチを実行:', participant.identity);
+          }
           attachAudioTrack(track, participant);
         }, TRACK_ATTACHMENT_DELAY);
       }
