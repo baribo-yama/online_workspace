@@ -276,7 +276,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
       } else {
         console.log('音声レベル監視: マイクトラックが見つかりません - 再試行をスケジュール');
         
-        // 再試行回数をチェック（最大3回に減らす）
+        // 再試行回数をチェック（最大3回）
         if (audioMonitoringRetryCountRef.current < 3) {
           audioMonitoringRetryCountRef.current++;
           // 3秒後に再試行
@@ -292,7 +292,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
     } catch (error) {
       console.error('音声レベル監視エラー:', error);
       
-      // 再試行回数をチェック（最大3回に減らす）
+      // 再試行回数をチェック（最大3回）
       if (audioMonitoringRetryCountRef.current < 3) {
         audioMonitoringRetryCountRef.current++;
         // エラーが発生した場合は5秒後に再試行
@@ -593,7 +593,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
     }
   }, [onRoomDisconnected, onLeaveRoom]);
 
-  // ビデオの切り替え（独立）
+  // ビデオの切り替え
   const toggleVideo = useCallback(async () => {
     if (!roomRef.current || !roomRef.current.localParticipant) {
       console.error('ルームまたはローカル参加者が存在しません');
@@ -613,7 +613,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
     }
   }, [isVideoEnabled]);
 
-  // オーディオの切り替え（独立）
+  // オーディオの切り替え
   const toggleAudio = useCallback(async () => {
     if (!roomRef.current || !roomRef.current.localParticipant) {
       console.error('ルームまたはローカル参加者が存在しません');
@@ -668,7 +668,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
       }
     };
     
-    // 少し遅延させて接続を開始
+    // 少し遅延させて接続を開始(接続がかぶらないようにする)
     const timeoutId = setTimeout(initializeConnection, 100);
 
       // クリーンアップ
@@ -828,7 +828,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center h-full bg-gray-900 text-white">
-        <div className="text-red-500 text-6xl mb-4">⚠️</div>
+        <div className="text-red-500 text-6xl mb-4">!</div>
         <h2 className="text-xl font-semibold mb-2 text-red-400">接続エラー</h2>
         <p className="text-gray-300 mb-4 text-center">{error}</p>
           <button
