@@ -128,7 +128,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
         const currentStream = existingElement.srcObject;
         if (currentStream && currentStream.getTracks().length > 0) {
           // 既存のトラックを停止してリソースを解放
-          currentStream.getTracks().forEach(track => track.stop());
+          currentStream.getTracks().forEach(streamTrack => streamTrack.stop());
         }
         existingElement.srcObject = new MediaStream([track.mediaStreamTrack]);
         if (import.meta.env.DEV) {
@@ -914,7 +914,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
         }
         // リモート参加者の音声トラックを自動的に再生開始
         setTimeout(() => {
-          if(import.meta.env.DEV) {
+          if (import.meta.env.DEV) {
             console.log('音声トラックアタッチを実行:', participant.identity);
           }
           attachAudioTrack(track, participant);
