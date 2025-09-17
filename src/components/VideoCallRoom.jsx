@@ -124,12 +124,10 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
       // 既存の音声要素をチェック（重複作成を防ぐ）
       const existingElement = audioElementsRef.current.get(participant.identity);
       if (existingElement) {
-        // 既存の要素の音声ストリームを更新（リソースリークを防ぐ）
-        const currentStream = existingElement.srcObject;
-        if (currentStream && currentStream.getTracks().length > 0) {
-          // 既存のトラックを停止してリソースを解放
-          currentStream.getTracks().forEach(streamTrack => streamTrack.stop());
-        }
+        // 既存の要素の音声ストリームを更新
+        // 注意: リモート参加者のMediaStreamTrackに対してstop()を呼ぶと、
+        // そのトラックを利用している他のコンポーネントにも影響を与えるため、
+        // srcObjectを直接置き換えるのみとする
         existingElement.srcObject = new MediaStream([track.mediaStreamTrack]);
         if (import.meta.env.DEV) {
           console.log('既存の音声要素を更新:', participant.identity);
@@ -198,6 +196,10 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
    * 参加者が退出した際や、音声トラックが非購読された際に
    * 音声要素を適切に削除してメモリリークを防ぎます。
    * 
+   * 注意: リモート参加者のMediaStreamTrackに対してstop()を呼ぶと、
+   * そのトラックを利用している他のコンポーネントにも影響を与えるため、
+   * 音声要素の削除のみを行います。
+   * 
    * @param {string} participantIdentity - 参加者のID
    */
   const cleanupAudioElement = useCallback((participantIdentity) => {
@@ -205,7 +207,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
     if (audioElement) {
       // 音声の再生を停止
       audioElement.pause();
-      // 音声ストリームをクリア
+      // 音声ストリームをクリア（リモートトラックは停止しない）
       audioElement.srcObject = null;
       // DOMから音声要素を削除
       if (audioElement.parentNode) {
@@ -719,11 +721,9 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
   // ルームから切断
   const disconnectFromRoom = useCallback(async () => {
     try {
-
       for (const participantIdentity of audioElementsRef.current.keys()) {
         cleanupAudioElement(participantIdentity);
       }
-
       if (roomRef.current) {
         await roomRef.current.disconnect();
         roomRef.current = null;
@@ -733,7 +733,6 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
       setParticipants([]);
       setLocalParticipant(null);
       setError(null);
-      
       // onLeaveRoomが提供されている場合はそれを使用、そうでなければonRoomDisconnectedを使用
       if (onLeaveRoom) {
         console.log('onLeaveRoomコールバックを実行');
@@ -904,7 +903,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
         setTimeout(() => {
           attachVideoTrack(track, participant, false);
         }, TRACK_ATTACHMENT_DELAY);
-      } else if (publication.kind === 'audio' && track) {
+      } else if (publication.kind === Track.Kind.Audio && track) {
         if (import.meta.env.DEV) {
           console.log('TrackSubscribedイベントでaudioトラックを検出:', track, {
             participantIdentity: participant.identity,
