@@ -1,4 +1,18 @@
-// src/pages/RoomPage.jsx
+/**
+ * RoomPage コンポーネント
+ * 
+ * 勉強ルームのメインページコンポーネント
+ * LiveKitビデオ通話、ポモドーロタイマー、ゲーム機能を統合
+ * 
+ * 主な機能:
+ * - リアルタイムビデオ通話（LiveKit）
+ * - 共有ポモドーロタイマー
+ * - 参加者管理とホスト権限
+ * - エンターテイメントゲーム
+ * - 部屋の終了と退出
+ * 
+ * @component
+ */
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { doc, deleteDoc, onSnapshot } from "firebase/firestore";
 import { db } from "../../shared/services/firebase";
@@ -8,23 +22,28 @@ import SharedTimer from "../../pomodoro-timer/components/SharedTimer";
 import ParticipantList from "../../collaboration/components/ParticipantList";
 import { useParticipants } from "../../collaboration/hooks/useParticipants";
 import ShootingGame from "../../entertainment/components/ShootingGame";
+import VideoCallRoom from "../../components/VideoCallRoom";
 
 function RoomPage() {
-  const { roomId } = useParams();
-  const { state } = useLocation();
-  const userName = state?.name || localStorage.getItem("userName") || "Guest";
+  // === ルーティング情報の取得 ===
+  const { roomId } = useParams();                                    // URLからルームIDを取得
+  const { state } = useLocation();                                   // ナビゲーション状態
+  const userName = state?.name || localStorage.getItem("userName") || "Guest"; // ユーザー名の取得
 
   console.log("RoomPage レンダリング開始:", { roomId, userName, state });
 
+  // === ナビゲーション ===
   const navigate = useNavigate();
-  const [room, setRoom] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [showTestGame, setShowTestGame] = useState(false);
 
-  // 参加者管理フックを使用
+  // === 状態管理 ===
+  const [room, setRoom] = useState(null);                            // ルーム情報
+  const [loading, setLoading] = useState(true);                      // ローディング状態
+  const [showTestGame, setShowTestGame] = useState(false);           // ゲーム表示フラグ
+
+  // === 参加者管理フック ===
   const { participants, participantsLoading, myParticipantId, leaveRoom } = useParticipants(roomId, userName);
 
-  // ホスト判定
+  // === ホスト権限の判定 ===
   const isHost = room?.hostId === myParticipantId;
 
   // 部屋情報の取得
@@ -65,8 +84,23 @@ function RoomPage() {
   }, [roomId, navigate]);
 
   const handleLeaveRoom = async () => {
-    await leaveRoom();
-    navigate("/");
+    try {
+      console.log("ルームから退出中...");
+      
+      // 参加者データから退出
+      await leaveRoom();
+      
+      // 少し遅延させてからホームページに戻る（LiveKit切断処理の完了を待つ）
+      setTimeout(() => {
+        console.log("ホームページに戻ります");
+        navigate("/");
+      }, 500);
+      
+    } catch (error) {
+      console.error("ルーム退出エラー:", error);
+      // エラーが発生してもホームページに戻る
+      navigate("/");
+    }
   };
 
   const endRoom = async () => {
@@ -93,7 +127,7 @@ function RoomPage() {
 
   // ゲーム終了時の処理
   const handleGameEnd = (score) => {
-    console.log(`テストゲーム終了！スコア: ${score}`);
+    console.log(`テストゲーム終了！スコア: ${score}`);//設定されてるけど使われてないらしい
     setShowTestGame(false);
   };
 
@@ -113,18 +147,10 @@ function RoomPage() {
 
   return (
     <div className="flex h-screen bg-gray-900">
-      {/* 左半分 - 参加者一覧 */}
-      <div className="w-1/2 bg-gray-800 border-r border-gray-700 p-6 flex flex-col">
-        {/* MVP制限情報表示 */}
-        <div className="mb-4 p-3 bg-purple-900/20 border border-purple-500 rounded text-purple-200 text-sm">
-          <div className="flex items-center gap-2 mb-1">
-            <span className="font-semibold">MVP版制限</span>
-          </div>
-          <p>最大5人まで参加可能（ホスト含む）</p>
-        </div>
-
+      {/* 左半分 - ヘッダー + 参加者一覧 + LiveKitビデオ通話 */}
+      <div className="w-1/2 bg-gray-800 border-r border-gray-700 flex flex-col">
         {/* ヘッダー */}
-        <div className="mb-6">
+        <div className="p-6 border-b border-gray-700">
           <div className="flex gap-2 mb-4">
             <button
               onClick={handleLeaveRoom}
@@ -151,49 +177,67 @@ function RoomPage() {
           </p>
         </div>
 
-        {/* 参加者セクション */}
-        <ParticipantList
-          participants={participants}
-          participantsLoading={participantsLoading}
-          myParticipantId={myParticipantId}
-        />
+        {/* 参加者一覧 */}
+        <div className="p-6 border-b border-gray-700">
+          <ParticipantList
+            participants={participants}
+            participantsLoading={participantsLoading}
+            myParticipantId={myParticipantId}
+          />
+        </div>
 
-        {/* ゲームボタン（ホストのみ、休憩時間中のみ表示、ゲーム未開始時のみ） */}
-        {isHost && room?.timer?.mode === 'break' && room?.game?.status !== 'playing' && (
-          <div className="mt-4">
-            <button
-              onClick={startTestGame}
-              className="bg-orange-600 hover:bg-orange-700 px-3 py-1 rounded text-white text-sm font-medium transition-colors flex items-center gap-2"
-            >
-              🎯 ゲーム開始
-            </button>
-          </div>
-        )}
-
-        {/* ゲーム中表示 */}
-        {room?.game?.status === 'playing' && (
-          <div className="mt-4 p-2 bg-green-900/20 border border-green-500 rounded text-green-200 text-sm">
-            <div className="flex items-center gap-2">
-              <span className="font-semibold">🎮 ゲーム中</span>
-            </div>
-            <p className="text-xs mt-1">全員がゲームに参加しています</p>
-          </div>
-        )}
-
-        {/* ホスト情報表示 */}
-        {isHost && (
-          <div className="mt-4 p-2 bg-yellow-900/20 border border-yellow-500 rounded text-yellow-200 text-sm">
-            <div className="flex items-center gap-2">
-              <span className="font-semibold">👑 あなたがホストです</span>
-            </div>
-            <p className="text-xs mt-1">タイマーとゲームの制御ができます</p>
-          </div>
-        )}
+        {/* LiveKitビデオ通話 */}
+        <div className="flex-1">
+          <VideoCallRoom
+            roomId={roomId}
+            userName={userName}
+            participants={participants}
+            onLeaveRoom={handleLeaveRoom}
+          />
+        </div>
       </div>
 
-      {/* 右半分 - 共有ポモドーロタイマー */}
-      <div className="w-1/2 bg-gray-900 p-6">
-        <SharedTimer roomId={roomId} isHost={isHost} />
+      {/* 右半分 - ポモドーロタイマーとゲーム機能のみ */}
+      <div className="w-1/2 bg-gray-800 p-6 flex flex-col">
+        {/* ポモドーロタイマー */}
+        <div className="flex-1 mb-6">
+          <SharedTimer roomId={roomId} isHost={isHost} />
+        </div>
+
+        {/* ゲーム機能セクション */}
+        <div className="space-y-4">
+          {/* ゲームボタン（ホストのみ、休憩時間中のみ表示、ゲーム未開始時のみ） */}
+          {isHost && room?.timer?.mode === 'break' && room?.game?.status !== 'playing' && (
+            <div>
+              <button
+                onClick={startTestGame}
+                className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded text-white font-medium transition-colors flex items-center gap-2 w-full justify-center"
+              >
+                🎯 ゲーム開始
+              </button>
+            </div>
+          )}
+
+          {/* ゲーム中表示 */}
+          {room?.game?.status === 'playing' && (
+            <div className="p-3 bg-green-900/20 border border-green-500 rounded text-green-200 text-sm">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold">🎮 ゲーム中</span>
+              </div>
+              <p className="text-xs mt-1">全員がゲームに参加しています</p>
+            </div>
+          )}
+
+          {/* ホスト情報表示 */}
+          {isHost && (
+            <div className="p-3 bg-yellow-900/20 border border-yellow-500 rounded text-yellow-200 text-sm">
+              <div className="flex items-center gap-2">
+                <span className="font-semibold">👑 あなたがホストです</span>
+              </div>
+              <p className="text-xs mt-1">タイマーとゲームの制御ができます</p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* テスト用ゲームオーバーレイ */}

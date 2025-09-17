@@ -1,4 +1,24 @@
-// 参加者管理のフック
+/**
+ * useParticipants カスタムフック
+ * 
+ * 勉強ルームの参加者管理を行うカスタムフック
+ * 
+ * 主な機能:
+ * - 参加者の追加・削除
+ * - ホスト権限の自動設定（最初の参加者がホスト）
+ * - リアルタイム参加者リストの監視
+ * - 参加者の退出処理
+ * - 部屋の終了処理
+ * 
+ * @param {string} roomId - ルームID
+ * @param {string} userName - ユーザー名
+ * @returns {Object} 参加者管理の状態と関数
+ * @returns {Array} participants - 参加者リスト
+ * @returns {boolean} participantsLoading - ローディング状態
+ * @returns {string} myParticipantId - 現在のユーザーの参加者ID
+ * @returns {function} leaveRoom - ルーム退出関数
+ * @returns {function} endRoom - ルーム終了関数（ホストのみ）
+ */
 import { useState, useEffect, useRef } from "react";
 import {
   doc,

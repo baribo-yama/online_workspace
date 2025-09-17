@@ -1,4 +1,19 @@
-// 参加者一覧コンポーネント
+/**
+ * ParticipantList コンポーネント
+ * 
+ * 勉強ルームの参加者一覧を表示するコンポーネント
+ * 
+ * 主な機能:
+ * - 参加者リストの表示
+ * - 現在のユーザーの識別
+ * - 参加者数の表示
+ * - オンライン状態の表示
+ * 
+ * @param {Array} participants - 参加者リスト
+ * @param {boolean} participantsLoading - ローディング状態
+ * @param {string} myParticipantId - 現在のユーザーの参加者ID
+ * @component
+ */
 import { Users } from "lucide-react";
 
 function ParticipantList({ participants, participantsLoading, myParticipantId }) {
@@ -50,10 +65,10 @@ function ParticipantList({ participants, participantsLoading, myParticipantId })
                       <span className="text-blue-400 text-xs ml-2">(あなた)</span>
                     )}
                   </p>
-                  <p className="text-xs flex items-center gap-1 text-green-400">
+                  <div className="text-xs flex items-center gap-1 text-green-400">
                     <div className="w-2 h-2 rounded-full bg-green-400" />
                     オンライン
-                  </p>
+                  </div>
                 </div>
               </div>
             </div>
