@@ -15,6 +15,11 @@ export const WEBSOCKET_CONFIG = {
   MAX_RECONNECT_ATTEMPTS: 5
 };
 
+// 環境判定
+export function isProduction() {
+  return import.meta.env.MODE === 'production';
+}
+
 // WebSocket URLの検証
 export function validateWebSocketUrl(url) {
   if (!url) return false;
@@ -23,7 +28,15 @@ export function validateWebSocketUrl(url) {
 
 // デフォルトURLを取得
 export function getDefaultWebSocketUrl() {
-  return "ws://localhost:8080";
+  if (isProduction()) {
+    const prodUrl = import.meta.env.VITE_WEBSOCKET_URL_PROD;
+    if (prodUrl && validateWebSocketUrl(prodUrl)) {
+      return prodUrl;
+    }
+    return "wss://online-workspace.onrender.com";
+  } else {
+    return "ws://localhost:8080";
+  }
 }
 
 // 環境に応じたWebSocket URLを取得
@@ -31,9 +44,11 @@ export function getWebSocketUrl() {
   const envUrl = import.meta.env.VITE_WEBSOCKET_URL;
 
   if (envUrl && validateWebSocketUrl(envUrl)) {
+    console.log(`WebSocket URL: ${envUrl} (環境: ${import.meta.env.MODE})`);
     return envUrl;
   }
 
-  console.warn("環境変数 VITE_WEBSOCKET_URL が無効または未設定です。デフォルト値を使用します。");
-  return getDefaultWebSocketUrl();
+  const defaultUrl = getDefaultWebSocketUrl();
+  console.warn(`環境変数 VITE_WEBSOCKET_URL が無効または未設定です。デフォルト値を使用: ${defaultUrl}`);
+  return defaultUrl;
 }

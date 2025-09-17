@@ -4,11 +4,14 @@ const { handleGameLoop } = require("./gameLoop");
 const { createRoomState } = require("./state");
 const { addPlayer, removePlayer, movePlayer } = require("./playerManager");
 
-const wss = new WebSocket.Server({ port: 8080 });
+const PORT = process.env.PORT || 8080;
+const wss = new WebSocket.Server({ port: PORT });
 const rooms = {}; // roomIdごとの状態を保持
 
+console.log(`WebSocketサーバーがポート${PORT}で起動しました`);
+
 wss.on("connection", (ws) => {
-  console.log("クライアント接続");
+  // 接続ログは削除（冗長なため）
 
   ws.on("message", (message) => {
     const data = JSON.parse(message.toString());
@@ -35,7 +38,7 @@ wss.on("connection", (ws) => {
   });
 
   ws.on("close", () => {
-    console.log("クライアント切断");
+    // 切断ログは削除（冗長なため）
     // プレイヤー削除処理
     Object.values(rooms).forEach(room => {
       Object.entries(room.connections).forEach(([playerId, connection]) => {
@@ -83,19 +86,17 @@ const PREDEFINED_OBSTACLES = [
 
 // 顔障害物ゲーム開始
 function startFaceGame(roomId) {
-  console.log(`顔障害物ゲーム開始要求: ${roomId}`);
+  console.log(`🎯 ゲーム開始: 部屋${roomId}`);
   const room = rooms[roomId];
 
-  console.log(`部屋状態: ${room ? '存在' : '不存在'}`);
-
   if (!room) {
-    console.log("部屋が存在しません");
+    console.log("❌ 部屋が存在しません");
     return;
   }
 
   // 事前に用意した障害物からランダムで選択
   const selectedObstacle = PREDEFINED_OBSTACLES[Math.floor(Math.random() * PREDEFINED_OBSTACLES.length)];
-  console.log(`選択された障害物: ${selectedObstacle.name}`);
+  console.log(`🎮 障害物生成: ${selectedObstacle.name}`);
 
   // 障害物を初期化
   room.obstacle = {
@@ -110,8 +111,6 @@ function startFaceGame(roomId) {
     height: 60
   };
 
-  console.log(`障害物初期化完了: 位置(${room.obstacle.x}, ${room.obstacle.y})`);
-
   // 全プレイヤーにゲーム開始を通知
   Object.values(room.connections).forEach((ws) => {
     if (ws.readyState === 1) {
@@ -120,9 +119,8 @@ function startFaceGame(roomId) {
         obstacle: room.obstacle,
         gameTime: 5 * 60 * 1000 // 5分
       }));
-      console.log("ゲーム開始通知を送信");
     }
   });
 }
 
-console.log("WebSocket サーバー起動: ws://localhost:8080");
+// 最後の起動メッセージは削除
