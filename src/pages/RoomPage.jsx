@@ -13,6 +13,7 @@ import {
   orderBy
 } from "firebase/firestore";
 import { db } from "../firebase";
+import { doc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { useEffect, useState, useRef } from "react";
 import { defaultParticipant } from "../models/firestore";
 import { ArrowLeft, Users, LogOut, X, Home, Trash2 } from "lucide-react";
@@ -28,7 +29,7 @@ function RoomPage() {
   // デバッグログを削減（開発時のみ）
   const renderCountRef = useRef(0);
   renderCountRef.current++;
-  
+
   if (import.meta.env.DEV && renderCountRef.current <= 5) {
     console.log("RoomPage レンダリング開始:", { roomId, userName, state, renderCount: renderCountRef.current });
   }
@@ -56,7 +57,7 @@ function RoomPage() {
   // 参加者リストの取得（クリーンアップ機能付き）
   useEffect(() => {
     if (!roomId || isUnmountingRef.current) return;
-    
+
     if (import.meta.env.DEV && renderCountRef.current <= 3) {
       console.log("参加者データ取得開始:", roomId);
     }
@@ -68,7 +69,7 @@ function RoomPage() {
 
     const unsubscribe = onSnapshot(participantsQuery, async (snapshot) => {
       if (isUnmountingRef.current) return;
-      
+
       if (import.meta.env.DEV && renderCountRef.current <= 3) {
         console.log("参加者データ更新:", snapshot.docs.length, "件");
       }
@@ -135,14 +136,13 @@ function RoomPage() {
               const stopTimer = async () => {
                 try {
                   // Firebaseのdoc関数を明示的にインポートして使用
-                  const { doc: firestoreDoc, updateDoc: firestoreUpdateDoc, serverTimestamp: firestoreServerTimestamp } = await import("firebase/firestore");
-                  const roomDocRef = firestoreDoc(db, "rooms", roomId);
-                  await firestoreUpdateDoc(roomDocRef, {
+                  const roomDocRef = doc(db, "rooms", roomId);
+                  await updateDoc(roomDocRef, {
                     timer: {
                       ...timerData,
                       isRunning: false,
                       startTime: null,
-                      lastUpdated: firestoreServerTimestamp()
+                      lastUpdated: serverTimestamp()
                     }
                   });
                   console.log('タイマー自動停止完了');

@@ -1,15 +1,15 @@
 /**
  * useParticipants カスタムフック
- * 
+ *
  * 勉強ルームの参加者管理を行うカスタムフック
- * 
+ *
  * 主な機能:
  * - 参加者の追加・削除
  * - ホスト権限の自動設定（最初の参加者がホスト）
  * - リアルタイム参加者リストの監視
  * - 参加者の退出処理
  * - 部屋の終了処理
- * 
+ *
  * @param {string} roomId - ルームID
  * @param {string} userName - ユーザー名
  * @returns {Object} 参加者管理の状態と関数
@@ -34,6 +34,7 @@ import {
   orderBy
 } from "firebase/firestore";
 import { db } from "../../shared/services/firebase";
+import { updateDoc } from "firebase/firestore";
 import { defaultParticipant } from "../../shared/services/firestore";
 
 export const useParticipants = (roomId, userName) => {
@@ -193,7 +194,6 @@ export const useParticipants = (roomId, userName) => {
         // 最初の参加者（ホスト）の場合、部屋のhostIdを設定
         if (isFirstParticipant) {
           try {
-            const { updateDoc } = await import("firebase/firestore");
             await updateDoc(doc(db, "rooms", roomId), {
               hostId: participantId,
               createdBy: userName,

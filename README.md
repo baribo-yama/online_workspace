@@ -109,6 +109,8 @@ online_workspace/
 └── README.md
 ```
 
+**注意**: 環境変数を変更した場合は、開発サーバーを再起動してください。
+
 ## 主要コンポーネント
 
 ### VideoCallRoom

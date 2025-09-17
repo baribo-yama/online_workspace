@@ -1,0 +1,39 @@
+// src/shared/config/websocket.js
+// WebSocket設定
+
+export const WEBSOCKET_CONFIG = {
+  // 環境変数からWebSocket URLを取得、デフォルトはlocalhost
+  URL: import.meta.env.VITE_WEBSOCKET_URL || "ws://localhost:8080",
+
+  // 接続タイムアウト（ミリ秒）
+  CONNECTION_TIMEOUT: 5000,
+
+  // 再接続間隔（ミリ秒）
+  RECONNECT_INTERVAL: 3000,
+
+  // 最大再接続試行回数
+  MAX_RECONNECT_ATTEMPTS: 5
+};
+
+// WebSocket URLの検証
+export function validateWebSocketUrl(url) {
+  if (!url) return false;
+  return url.startsWith('ws://') || url.startsWith('wss://');
+}
+
+// デフォルトURLを取得
+export function getDefaultWebSocketUrl() {
+  return "ws://localhost:8080";
+}
+
+// 環境に応じたWebSocket URLを取得
+export function getWebSocketUrl() {
+  const envUrl = import.meta.env.VITE_WEBSOCKET_URL;
+
+  if (envUrl && validateWebSocketUrl(envUrl)) {
+    return envUrl;
+  }
+
+  console.warn("環境変数 VITE_WEBSOCKET_URL が無効または未設定です。デフォルト値を使用します。");
+  return getDefaultWebSocketUrl();
+}

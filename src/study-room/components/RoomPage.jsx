@@ -1,28 +1,30 @@
 /**
  * RoomPage コンポーネント
- * 
+ *
  * 勉強ルームのメインページコンポーネント
  * LiveKitビデオ通話、ポモドーロタイマー、ゲーム機能を統合
- * 
+ *
  * 主な機能:
  * - リアルタイムビデオ通話（LiveKit）
  * - 共有ポモドーロタイマー
  * - 参加者管理とホスト権限
  * - エンターテイメントゲーム
  * - 部屋の終了と退出
- * 
+ *
  * @component
  */
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { doc, deleteDoc, onSnapshot } from "firebase/firestore";
 import { db } from "../../shared/services/firebase";
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import { Home, Trash2 } from "lucide-react";
 import SharedTimer from "../../pomodoro-timer/components/SharedTimer";
 import ParticipantList from "../../collaboration/components/ParticipantList";
 import { useParticipants } from "../../collaboration/hooks/useParticipants";
-import ShootingGame from "../../entertainment/components/ShootingGame";
-import VideoCallRoom from "../../components/VideoCallRoom";
+
+// 大きなコンポーネントを遅延読み込み
+const FaceObstacleGame = lazy(() => import("../../entertainment/components/FaceObstacleGame"));
+const VideoCallRoom = lazy(() => import("../../components/VideoCallRoom"));
 
 function RoomPage() {
   // === ルーティング情報の取得 ===
@@ -39,6 +41,7 @@ function RoomPage() {
   const [room, setRoom] = useState(null);                            // ルーム情報
   const [loading, setLoading] = useState(true);                      // ローディング状態
   const [showTestGame, setShowTestGame] = useState(false);           // ゲーム表示フラグ
+  const [gameType, setGameType] = useState("face");                  // ゲームタイプ（顔認識ゲーム）
 
   // === 参加者管理フック ===
   const { participants, participantsLoading, myParticipantId, leaveRoom } = useParticipants(roomId, userName);
@@ -86,16 +89,16 @@ function RoomPage() {
   const handleLeaveRoom = async () => {
     try {
       console.log("ルームから退出中...");
-      
+
       // 参加者データから退出
       await leaveRoom();
-      
+
       // 少し遅延させてからホームページに戻る（LiveKit切断処理の完了を待つ）
       setTimeout(() => {
         console.log("ホームページに戻ります");
         navigate("/");
       }, 500);
-      
+
     } catch (error) {
       console.error("ルーム退出エラー:", error);
       // エラーが発生してもホームページに戻る
@@ -118,17 +121,6 @@ function RoomPage() {
         alert("部屋の終了に失敗しました。もう一度お試しください。");
       }
     }
-  };
-
-  // テスト用ゲーム開始
-  const startTestGame = () => {
-    setShowTestGame(true);
-  };
-
-  // ゲーム終了時の処理
-  const handleGameEnd = (score) => {
-    console.log(`テストゲーム終了！スコア: ${score}`);//設定されてるけど使われてないらしい
-    setShowTestGame(false);
   };
 
   if (loading) {
@@ -186,14 +178,60 @@ function RoomPage() {
           />
         </div>
 
+        {/* ゲームボタン（ホストのみ、休憩時間中のみ表示、ゲーム未開始時のみ） */}
+        {isHost && room?.timer?.mode === 'break' && room?.game?.status !== 'playing' && (
+          <div className="mt-4 space-y-2">
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  setGameType("face");
+                  setShowTestGame(true);
+                }}
+                className="bg-purple-600 hover:bg-purple-700 px-3 py-1 rounded text-white text-sm font-medium transition-colors flex items-center gap-2"
+              >
+                🎭 顔障害物ゲーム
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ゲーム中表示 */}
+        {room?.game?.status === 'playing' && (
+          <div className="mt-4 p-2 bg-green-900/20 border border-green-500 rounded text-green-200 text-sm">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold">🎮 ゲーム中</span>
+            </div>
+            <p className="text-xs mt-1">全員がゲームに参加しています</p>
+          </div>
+        )}
+
+        {/* ホスト情報表示 */}
+        {isHost && (
+          <div className="mt-4 p-2 bg-yellow-900/20 border border-yellow-500 rounded text-yellow-200 text-sm">
+            <div className="flex items-center gap-2">
+              <span className="font-semibold">👑 あなたがホストです</span>
+            </div>
+            <p className="text-xs mt-1">タイマーとゲームの制御ができます</p>
+          </div>
+        )}
+
         {/* LiveKitビデオ通話 */}
         <div className="flex-1">
-          <VideoCallRoom
-            roomId={roomId}
-            userName={userName}
-            participants={participants}
-            onLeaveRoom={handleLeaveRoom}
-          />
+          <Suspense fallback={
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-white mx-auto mb-2"></div>
+                <p className="text-white text-sm">ビデオ通話を読み込み中...</p>
+              </div>
+            </div>
+          }>
+            <VideoCallRoom
+              roomId={roomId}
+              userName={userName}
+              participants={participants}
+              onLeaveRoom={handleLeaveRoom}
+            />
+          </Suspense>
         </div>
       </div>
 
@@ -210,7 +248,10 @@ function RoomPage() {
           {isHost && room?.timer?.mode === 'break' && room?.game?.status !== 'playing' && (
             <div>
               <button
-                onClick={startTestGame}
+                onClick={() => {
+                  setGameType("face");
+                  setShowTestGame(true);
+                }}
                 className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded text-white font-medium transition-colors flex items-center gap-2 w-full justify-center"
               >
                 🎯 ゲーム開始
@@ -246,32 +287,38 @@ function RoomPage() {
           <div className="max-w-4xl w-full mx-4">
             <div className="text-center mb-6">
               <h2 className="text-3xl font-bold text-white mb-2">
-                🎯 シューティングゲーム
+                🎭 顔障害物ゲーム
               </h2>
               <p className="text-gray-300 text-lg">
-                ターゲットをクリックしてスコアを稼ごう！
+                障害物を避けて最後まで生き残ろう！
               </p>
             </div>
 
-            <ShootingGame
-              roomId={roomId}
-              userName={userName}
-              isHost={isHost}
-            />
+            <Suspense fallback={
+              <div className="flex items-center justify-center h-96">
+                <div className="text-center">
+                  <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+                  <p className="text-white">ゲームを読み込み中...</p>
+                </div>
+              </div>
+            }>
+              <FaceObstacleGame
+                roomId={roomId}
+                userName={userName}
+                isHost={isHost}
+              />
+            </Suspense>
 
             <div className="text-center mt-4">
-              {isHost ? (
-                <button
-                  onClick={() => setShowTestGame(false)}
-                  className="text-gray-400 hover:text-white transition-colors"
-                >
-                  ゲームを終了
-                </button>
-              ) : (
-                <p className="text-gray-400 text-sm">
-                  ホストがゲームを終了するまでお待ちください
-                </p>
-              )}
+              <button
+                onClick={() => setShowTestGame(false)}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                ゲーム画面を閉じる
+              </button>
+              <p className="text-gray-400 text-xs mt-1">
+                ゲーム自体を終了するには、ゲーム内の「ゲーム終了」ボタンを使用してください
+              </p>
             </div>
           </div>
         </div>
