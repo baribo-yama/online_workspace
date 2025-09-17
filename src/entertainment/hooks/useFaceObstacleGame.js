@@ -99,7 +99,13 @@ export function useFaceObstacleGame(roomId, userName) {
 
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
+      console.log("🎮 WebSocketメッセージ受信:", data);
+      
       if (data.type === "stateUpdate") {
+        console.log("🔄 ゲーム状態更新:", {
+          プレイヤー数: Object.keys(data.players).length,
+          障害物: data.obstacle ? "あり" : "なし"
+        });
         setPlayers(data.players);
         setObstacle(data.obstacle);
 
@@ -107,6 +113,7 @@ export function useFaceObstacleGame(roomId, userName) {
         const aliveCount = Object.values(data.players).filter(p => p.isAlive).length;
         setRemainingPlayers(aliveCount);
       } else if (data.type === "faceGameStart") {
+        console.log("🎯 ゲーム開始受信:", data);
         setObstacle(data.obstacle);
         setGameTime(data.gameTime);
         startCountdown();
@@ -162,9 +169,12 @@ export function useFaceObstacleGame(roomId, userName) {
   const startGame = async () => {
     if (!roomId) return;
 
+    console.log("🎮 ゲーム開始処理開始:", { roomId, playerId, isConnected });
+
     try {
       // WebSocket接続を確実に確立
       await ensureWebSocketConnection();
+      console.log("🔗 WebSocket接続確認完了");
 
       // Firestoreのゲーム状態を更新
       const roomRef = doc(db, "rooms", roomId);
@@ -176,12 +186,18 @@ export function useFaceObstacleGame(roomId, userName) {
           lastUpdated: serverTimestamp()
         }
       });
+      console.log("📝 Firestore更新完了");
 
       // WebSocketサーバーにゲーム開始を通知
       if (wsRef.current && wsRef.current.readyState === 1) {
-        wsRef.current.send(
-          JSON.stringify({ type: "startFaceGame", roomId })
-        );
+        const message = { type: "startFaceGame", roomId };
+        console.log("📤 WebSocketメッセージ送信:", message);
+        wsRef.current.send(JSON.stringify(message));
+      } else {
+        console.error("❌ WebSocket接続が無効:", {
+          exists: !!wsRef.current,
+          readyState: wsRef.current?.readyState
+        });
       }
     } catch (error) {
       console.error("ゲーム開始エラー:", error);
