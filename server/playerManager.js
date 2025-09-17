@@ -12,13 +12,13 @@ function addPlayer(room, playerId, ws) {
     lastMove: Date.now()
   };
   room.connections[playerId] = ws;
-  console.log(`プレイヤー参加: ${playerId} (位置: ${x.toFixed(1)}, ${y.toFixed(1)})`);
+  console.log(`👤 プレイヤー参加: ${playerId}`);
 }
 
 function removePlayer(room, playerId) {
   delete room.players[playerId];
   delete room.connections[playerId];
-  console.log(`プレイヤー退出: ${playerId}`);
+  console.log(`👋 プレイヤー退出: ${playerId}`);
 }
 
 function movePlayer(room, playerId, direction) {
