@@ -1,4 +1,10 @@
-{
-  "build": "npm install",
-  "start": "npm run start"
-}
+services:
+  - type: web
+    name: online-workspace-websocket
+    env: node
+    plan: free
+    buildCommand: cd server && npm install
+    startCommand: cd server && npm start
+    envVars:
+      - key: PORT
+        value: 10000
