@@ -17,7 +17,7 @@ function handleFaceObstacleGame(room) {
     room.obstacle.x += room.obstacle.vx;
     room.obstacle.y += room.obstacle.vy;
 
-    console.log(`障害物位置更新: (${room.obstacle.x}, ${room.obstacle.y})`);
+    // 障害物移動ログは削除（冗長なため）
 
     // 壁に当たったら反射
     if (room.obstacle.x <= 0 || room.obstacle.x + room.obstacle.width >= 500) {
@@ -46,13 +46,13 @@ function handleFaceObstacleGame(room) {
     if (isColliding(player, room.obstacle)) {
       player.isAlive = false;
       stateChanged = true;
-      console.log(`💥 ${playerId} が障害物に当たりました!`);
+      console.log(`💥 ${playerId} が障害物に衝突!`);
     }
   });
 
   // 状態が変更された場合のみ送信
   if (stateChanged) {
-    console.log("状態変更検出 - 送信中");
+    // 状態変更ログは削除（冗長なため）
     broadcast(room);
   }
 }
@@ -90,7 +90,7 @@ function broadcast(room) {
     } : null,
   };
 
-  console.log("送信データ:", JSON.stringify(state, null, 2));
+  // 送信データのデバッグログは削除（冗長なため）
   const stateString = JSON.stringify(state);
 
   Object.values(room.connections).forEach((ws) => {
