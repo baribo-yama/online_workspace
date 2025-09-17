@@ -54,7 +54,6 @@ export default function FaceObstacleGame({ roomId, userName, isHost = false }) {
 
       // 障害物描画（最適化版）
       if (obstacle) {
-        console.log("障害物描画中:", { x: obstacle.x, y: obstacle.y, color: obstacle.color, emoji: obstacle.emoji });
         if (obstacleCanvas) {
           // 事前に描画されたCanvasを使用
           ctx.drawImage(obstacleCanvas, obstacle.x, obstacle.y);

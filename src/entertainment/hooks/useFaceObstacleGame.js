@@ -100,8 +100,8 @@ export function useFaceObstacleGame(roomId, userName) {
     // 環境変数からWebSocket URLを取得
     const wsUrl = getWebSocketUrl();
     console.log("WebSocket接続先:", wsUrl);
-    console.log("環境変数 VITE_WEBSOCKET_URL:", import.meta.env.VITE_WEBSOCKET_URL);
-    console.log("すべての環境変数:", import.meta.env);
+
+
 
     let ws;
     try {
