@@ -5,10 +5,14 @@ const { createRoomState } = require("./state");
 const { addPlayer, removePlayer, movePlayer } = require("./playerManager");
 
 const PORT = process.env.PORT || 8080;
+console.log(`環境変数 PORT: ${process.env.PORT}`);
+console.log(`使用するポート: ${PORT}`);
 const wss = new WebSocket.Server({ port: PORT });
 const rooms = {}; // roomIdごとの状態を保持
 
 console.log(`WebSocketサーバーがポート${PORT}で起動しました`);
+console.log(`Node環境: ${process.env.NODE_ENV || 'development'}`);
+console.log(`プロセスID: ${process.pid}`);
 
 wss.on("connection", (ws) => {
   // 接続ログは削除（冗長なため）
