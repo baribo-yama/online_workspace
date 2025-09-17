@@ -4,6 +4,33 @@ import { doc, onSnapshot, updateDoc, serverTimestamp } from "firebase/firestore"
 import { db } from "../../shared/services/firebase";
 import { getWebSocketUrl, validateWebSocketUrl } from "../../shared/config/websocket";
 
+// ゲーム設定定数
+const GAME_CONFIG = {
+  // 障害物の初期設定
+  OBSTACLE_INITIAL_X: 100,
+  OBSTACLE_INITIAL_Y: 100,
+  OBSTACLE_VELOCITY_X: 3,
+  OBSTACLE_VELOCITY_Y: 3,
+  OBSTACLE_WIDTH: 60,
+  OBSTACLE_HEIGHT: 60,
+
+  // ゲーム時間設定
+  GAME_DURATION: 30000, // 30秒（ミリ秒）
+
+  // WebSocket設定
+  CONNECTION_TIMEOUT: 10000, // 10秒
+  MAX_CONNECTION_RETRIES: 100,
+  RETRY_INTERVAL: 100, // 100ms
+  CONNECTION_CHECK_DELAY: 5000 // 5秒
+};
+
+// 障害物の種類定義
+const OBSTACLE_TYPES = [
+  { color: "#ff6b6b", emoji: "😀", name: "赤い笑顔" },
+  { color: "#4ecdc4", emoji: "😎", name: "青緑のサングラス" },
+  { color: "#45b7d1", emoji: "🤔", name: "青い考え中" },
+];
+
 export function useFaceObstacleGame(roomId, userName) {
   const wsRef = useRef(null);
   const [players, setPlayers] = useState({});
@@ -68,15 +95,23 @@ export function useFaceObstacleGame(roomId, userName) {
       const timeout = setTimeout(() => {
         console.error("❌ WebSocket接続タイムアウト");
         reject(new Error("WebSocket接続タイムアウト"));
-      }, 10000); // 10秒でタイムアウト
+      }, GAME_CONFIG.CONNECTION_TIMEOUT);
+
+      let retryCount = 0;
+      const maxRetries = GAME_CONFIG.MAX_CONNECTION_RETRIES;
 
       const checkConnection = () => {
         if (wsRef.current && wsRef.current.readyState === 1) {
           console.log("✅ WebSocket接続完了");
           clearTimeout(timeout);
           resolve();
+        } else if (retryCount < maxRetries) {
+          retryCount++;
+          setTimeout(checkConnection, GAME_CONFIG.RETRY_INTERVAL);
         } else {
-          setTimeout(checkConnection, 100); // 100msごとにチェック
+          console.error("❌ WebSocket接続リトライ上限到達");
+          clearTimeout(timeout);
+          reject(new Error("WebSocket接続リトライ上限到達"));
         }
       };
 
@@ -174,14 +209,25 @@ export function useFaceObstacleGame(roomId, userName) {
     };
 
     // 接続状態の監視（デバッグ用）
-    setTimeout(() => {
-      if (ws.readyState === WebSocket.CONNECTING) {
+    const connectionCheckTimeout = setTimeout(() => {
+      if (ws && ws.readyState === WebSocket.CONNECTING) {
         console.log("⏳ まだ接続中... readyState:", ws.readyState);
       }
-    }, 5000);
-  };
+    }, GAME_CONFIG.CONNECTION_CHECK_DELAY);
 
-  const disconnectWebSocket = () => {
+    // WebSocketが閉じられた時やエラー時にタイムアウトもクリア
+    const originalOnClose = ws.onclose;
+    ws.onclose = (event) => {
+      clearTimeout(connectionCheckTimeout);
+      originalOnClose.call(ws, event);
+    };
+
+    const originalOnError = ws.onerror;
+    ws.onerror = (error) => {
+      clearTimeout(connectionCheckTimeout);
+      originalOnError.call(ws, error);
+    };
+  };  const disconnectWebSocket = () => {
     if (wsRef.current) {
       wsRef.current.close();
       wsRef.current = null;
@@ -257,24 +303,19 @@ export function useFaceObstacleGame(roomId, userName) {
 
   // ローカル障害物生成（Fallback用）
   const generateLocalObstacle = () => {
-    const obstacles = [
-      { color: "#ff6b6b", emoji: "😀", name: "赤い笑顔" },
-      { color: "#4ecdc4", emoji: "😎", name: "青緑のサングラス" },
-      { color: "#45b7d1", emoji: "🤔", name: "青い考え中" },
-    ];
-    const selected = obstacles[Math.floor(Math.random() * obstacles.length)];
+    const selected = OBSTACLE_TYPES[Math.floor(Math.random() * OBSTACLE_TYPES.length)];
 
     setObstacle({
       ...selected,
-      x: 100,
-      y: 100,
-      vx: 3,
-      vy: 3,
-      width: 60,
-      height: 60
+      x: GAME_CONFIG.OBSTACLE_INITIAL_X,
+      y: GAME_CONFIG.OBSTACLE_INITIAL_Y,
+      vx: GAME_CONFIG.OBSTACLE_VELOCITY_X,
+      vy: GAME_CONFIG.OBSTACLE_VELOCITY_Y,
+      width: GAME_CONFIG.OBSTACLE_WIDTH,
+      height: GAME_CONFIG.OBSTACLE_HEIGHT
     });
 
-    setGameTime(30000); // 30秒
+    setGameTime(GAME_CONFIG.GAME_DURATION);
     startCountdown();
     console.log("🎮 ローカルゲーム開始:", selected.name);
   };
