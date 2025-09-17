@@ -56,51 +56,78 @@ export function useFaceObstacleGame(roomId, userName) {
 
   // 手動でWebSocket接続を確立する関数
   const ensureWebSocketConnection = async () => {
-    if (!isConnected || !wsRef.current || wsRef.current.readyState !== 1) {
-      connectWebSocket();
-      // 接続完了を待つ
-      await new Promise(resolve => setTimeout(resolve, 2000));
+    console.log("🔄 WebSocket接続確認開始...");
+
+    if (isConnected && wsRef.current && wsRef.current.readyState === 1) {
+      console.log("✅ WebSocket既に接続済み");
+      return;
     }
+
+    console.log("🔗 新しいWebSocket接続を開始...");
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        console.error("❌ WebSocket接続タイムアウト");
+        reject(new Error("WebSocket接続タイムアウト"));
+      }, 10000); // 10秒でタイムアウト
+
+      const checkConnection = () => {
+        if (wsRef.current && wsRef.current.readyState === 1) {
+          console.log("✅ WebSocket接続完了");
+          clearTimeout(timeout);
+          resolve();
+        } else {
+          setTimeout(checkConnection, 100); // 100msごとにチェック
+        }
+      };
+
+      connectWebSocket();
+      checkConnection();
+    });
   };
 
   const connectWebSocket = () => {
+    console.log("🔗 WebSocket接続処理開始...");
+
     if (wsRef.current && wsRef.current.readyState === 1) {
+      console.log("⏭️ 既存の有効な接続があります");
       return;
     }
 
     // 既存の接続を閉じる
     if (wsRef.current) {
+      console.log("🔄 既存の接続をクリーンアップ...");
       wsRef.current.close();
       wsRef.current = null;
     }
 
     // 環境変数からWebSocket URLを取得
     const wsUrl = getWebSocketUrl();
-
-
+    console.log("🌐 WebSocket URL:", wsUrl);
 
     let ws;
     try {
       ws = new WebSocket(wsUrl);
       wsRef.current = ws;
+      console.log("🚀 WebSocket作成完了、接続開始...");
     } catch (error) {
-      console.error("WebSocket作成エラー:", error);
+      console.error("❌ WebSocket作成エラー:", error);
       setIsConnected(false);
       return;
     }
 
     ws.onopen = () => {
+      console.log("✅ WebSocket接続成功!");
       setIsConnected(true);
       // サーバーに参加通知
-      ws.send(
-        JSON.stringify({ type: "join", roomId, playerId })
-      );
+      const joinMessage = { type: "join", roomId, playerId };
+      console.log("📤 参加メッセージ送信:", joinMessage);
+      ws.send(JSON.stringify(joinMessage));
     };
 
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
       console.log("🎮 WebSocketメッセージ受信:", data);
-      
+
       if (data.type === "stateUpdate") {
         console.log("🔄 ゲーム状態更新:", {
           プレイヤー数: Object.keys(data.players).length,
@@ -120,13 +147,14 @@ export function useFaceObstacleGame(roomId, userName) {
       }
     };
 
-    ws.onclose = () => {
+    ws.onclose = (event) => {
+      console.log("🔌 WebSocket接続終了:", { code: event.code, reason: event.reason });
       setIsConnected(false);
       wsRef.current = null;
     };
 
     ws.onerror = (error) => {
-      console.error("WebSocket エラー:", error);
+      console.error("❌ WebSocket エラー:", error);
       console.error("WebSocketサーバーが起動していない可能性があります。");
       console.error("サーバーを起動してください: cd server && node server.js");
       setIsConnected(false);
