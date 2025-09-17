@@ -19,7 +19,6 @@ export const useCamera = () => {
         throw new Error('このブラウザはカメラアクセスをサポートしていません');
       }
 
-      console.log('カメラアクセスを開始します...');
 
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
@@ -30,13 +29,11 @@ export const useCamera = () => {
         audio: false
       });
 
-      console.log('カメラストリーム取得成功:', stream);
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         streamRef.current = stream;
         setIsStreamActive(true);
-        console.log('ビデオ要素にストリームを設定しました');
       }
     } catch (err) {
       console.error('カメラアクセスエラー:', err);
@@ -86,7 +83,6 @@ export const useCamera = () => {
         return null;
       }
 
-      console.log('写真撮影開始 - ビデオサイズ:', video.videoWidth, 'x', video.videoHeight);
 
       // Canvasを作成（既存のcanvasRefを使用するか、新しく作成）
       const canvas = canvasRef.current || document.createElement('canvas');
@@ -116,7 +112,6 @@ export const useCamera = () => {
       // ローカルストレージに保存（セッション用）
       localStorage.setItem('capturedPhoto', JSON.stringify(photoData));
 
-      console.log('写真が撮影されました:', photoData);
       return photoData;
 
     } catch (err) {

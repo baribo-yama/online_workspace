@@ -71,8 +71,6 @@ export default function FaceObstacleGame({ roomId, userName, isHost = false }) {
           ctx.fillText(obstacle.emoji || "😀", obstacle.x + obstacle.width/2, obstacle.y + obstacle.height/2);
           ctx.textAlign = "left";
         }
-      } else {
-        console.log("障害物データなし");
       }
 
       // プレイヤー描画
@@ -168,7 +166,6 @@ export default function FaceObstacleGame({ roomId, userName, isHost = false }) {
   // 障害物を事前にCanvasに描画（軽量版）
   useEffect(() => {
     if (obstacle && obstacle.color && obstacle.emoji) {
-      console.log("障害物の描画開始:", obstacle.name);
 
       // 新しいCanvasを作成
       const canvas = document.createElement('canvas');
@@ -193,9 +190,7 @@ export default function FaceObstacleGame({ roomId, userName, isHost = false }) {
       ctx.fillText(obstacle.emoji, obstacle.width/2, obstacle.height/2);
 
       setObstacleCanvas(canvas);
-      console.log("障害物の描画完了:", obstacle.name);
     } else {
-      console.log("障害物データなし:", { obstacle: !!obstacle });
       setObstacleCanvas(null);
     }
   }, [obstacle]);

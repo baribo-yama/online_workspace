@@ -36,11 +36,8 @@ export function useFaceObstacleGame(roomId, userName) {
 
         // 作業時間に戻ったらゲームを自動終了
         if (timerMode === "work" && currentStatus === "playing") {
-          console.log("作業時間開始 - ゲームを自動終了");
           endGame();
         }
-
-        console.log("ゲーム状態更新:", currentStatus, "タイマーモード:", timerMode);
       }
     });
 
@@ -49,45 +46,25 @@ export function useFaceObstacleGame(roomId, userName) {
 
   // WebSocket接続/切断の管理
   useEffect(() => {
-    console.log("WebSocket接続管理:", { gameStatus, playerId, isConnected });
 
     if (gameStatus === "playing" && playerId && !isConnected) {
-      console.log("WebSocket接続開始");
       connectWebSocket();
     } else if (gameStatus === "idle" && isConnected) {
-      console.log("WebSocket接続終了");
       disconnectWebSocket();
     }
   }, [gameStatus, playerId, isConnected]);
 
   // 手動でWebSocket接続を確立する関数
   const ensureWebSocketConnection = async () => {
-    console.log("WebSocket接続状態確認:", {
-      isConnected,
-      hasWs: !!wsRef.current,
-      readyState: wsRef.current?.readyState
-    });
-
     if (!isConnected || !wsRef.current || wsRef.current.readyState !== 1) {
-      console.log("WebSocket接続を手動で確立中...");
       connectWebSocket();
       // 接続完了を待つ
       await new Promise(resolve => setTimeout(resolve, 2000));
-
-      // 接続状態を再確認
-      console.log("接続後の状態:", {
-        isConnected,
-        hasWs: !!wsRef.current,
-        readyState: wsRef.current?.readyState
-      });
-    } else {
-      console.log("WebSocket接続は既に確立されています");
     }
   };
 
   const connectWebSocket = () => {
     if (wsRef.current && wsRef.current.readyState === 1) {
-      console.log("WebSocket接続は既に確立されています");
       return;
     }
 
@@ -99,7 +76,6 @@ export function useFaceObstacleGame(roomId, userName) {
 
     // 環境変数からWebSocket URLを取得
     const wsUrl = getWebSocketUrl();
-    console.log("WebSocket接続先:", wsUrl);
 
 
 
@@ -107,7 +83,6 @@ export function useFaceObstacleGame(roomId, userName) {
     try {
       ws = new WebSocket(wsUrl);
       wsRef.current = ws;
-      console.log("WebSocket接続を開始しました");
     } catch (error) {
       console.error("WebSocket作成エラー:", error);
       setIsConnected(false);
@@ -115,7 +90,6 @@ export function useFaceObstacleGame(roomId, userName) {
     }
 
     ws.onopen = () => {
-      console.log("WebSocket 接続成功");
       setIsConnected(true);
       // サーバーに参加通知
       ws.send(
@@ -125,9 +99,7 @@ export function useFaceObstacleGame(roomId, userName) {
 
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
-      console.log("WebSocket受信データ:", data);
       if (data.type === "stateUpdate") {
-        console.log("状態更新受信:", { players: data.players, obstacle: data.obstacle });
         setPlayers(data.players);
         setObstacle(data.obstacle);
 
@@ -135,7 +107,6 @@ export function useFaceObstacleGame(roomId, userName) {
         const aliveCount = Object.values(data.players).filter(p => p.isAlive).length;
         setRemainingPlayers(aliveCount);
       } else if (data.type === "faceGameStart") {
-        console.log("顔障害物ゲーム開始");
         setObstacle(data.obstacle);
         setGameTime(data.gameTime);
         startCountdown();
@@ -143,7 +114,6 @@ export function useFaceObstacleGame(roomId, userName) {
     };
 
     ws.onclose = () => {
-      console.log("WebSocket 接続終了");
       setIsConnected(false);
       wsRef.current = null;
     };
@@ -180,17 +150,10 @@ export function useFaceObstacleGame(roomId, userName) {
 
   // プレイヤー移動（WASD）
   const move = useCallback((direction) => {
-    console.log("移動コマンド:", { direction, roomId, playerId, isConnected, wsReady: wsRef.current?.readyState });
     if (wsRef.current && wsRef.current.readyState === 1 && isConnected) {
       wsRef.current.send(
         JSON.stringify({ type: "move", roomId, playerId, direction })
       );
-    } else {
-      console.warn("WebSocket接続が利用できません:", {
-        hasWs: !!wsRef.current,
-        readyState: wsRef.current?.readyState,
-        isConnected
-      });
     }
   }, [roomId, playerId, isConnected]);
 
@@ -216,15 +179,10 @@ export function useFaceObstacleGame(roomId, userName) {
 
       // WebSocketサーバーにゲーム開始を通知
       if (wsRef.current && wsRef.current.readyState === 1) {
-        console.log("WebSocketサーバーにゲーム開始を通知");
         wsRef.current.send(
           JSON.stringify({ type: "startFaceGame", roomId })
         );
-      } else {
-        console.warn("WebSocket接続が利用できません");
       }
-
-      console.log("顔障害物ゲーム開始");
     } catch (error) {
       console.error("ゲーム開始エラー:", error);
     }
@@ -244,7 +202,6 @@ export function useFaceObstacleGame(roomId, userName) {
           lastUpdated: serverTimestamp()
         }
       });
-      console.log("ゲーム終了");
     } catch (error) {
       console.error("ゲーム終了エラー:", error);
     }
