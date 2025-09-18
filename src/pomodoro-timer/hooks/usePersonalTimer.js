@@ -7,11 +7,10 @@ export const TIMER_STATE = {
   POSE: 'pose',
   REST_OR_INIT: 'rest_or_init',
   REST: 'rest',
-  REST_OVER: 'rest_over',
 };
 
-const FOCUS_DURATION = 1 * 60;
-const REST_DURATION = 1 * 60;
+const FOCUS_DURATION = 25 * 60;
+const REST_DURATION = 5 * 60;
 
 export const usePersonalTimer = () => {
   const [state, setState] = useState(TIMER_STATE.INIT);
@@ -19,7 +18,7 @@ export const usePersonalTimer = () => {
   const [cycle, setCycle] = useState(0);
 
   useEffect(() => {
-    const isRunning = state === TIMER_STATE.FOCUS || state === TIMER_STATE.REST || state === TIMER_STATE.REST_OVER;
+    const isRunning = state === TIMER_STATE.FOCUS || state === TIMER_STATE.REST;
 
     if (!isRunning) {
       return;
@@ -36,11 +35,9 @@ export const usePersonalTimer = () => {
     if (timeLeft > 0) return;
 
     if (state === TIMER_STATE.FOCUS) {
-      setState(TIMER_STATE.REST_OR_INIT);
-      setTimeLeft(0);
-      setCycle(c => c + 1);
-    } else if (state === TIMER_STATE.REST) {
-      setState(TIMER_STATE.REST_OVER);
+      setState(TIMER_STATE.REST);
+      setTimeLeft(REST_DURATION); // Start rest timer
+      setCycle(c => c + 1); // Increment cycle
     }
   }, [timeLeft, state]);
 
@@ -69,13 +66,13 @@ export const usePersonalTimer = () => {
   const endSession = () => {
     setState(TIMER_STATE.INIT);
     setTimeLeft(FOCUS_DURATION);
+    setCycle(0);
   };
-  
-  const resetTimer = () => {
-      setState(TIMER_STATE.INIT);
-      setTimeLeft(FOCUS_DURATION);
-      setCycle(0);
-  }
+
+  const resumeFocusFromRest = () => {
+    setState(TIMER_STATE.FOCUS);
+    setTimeLeft(FOCUS_DURATION);
+  };
 
 
   const formatTime = (seconds) => {
@@ -97,16 +94,15 @@ export const usePersonalTimer = () => {
               }
               return 100;
           case TIMER_STATE.REST:
+              if (timeLeft < 0) return 100;
               return (REST_DURATION - timeLeft) / REST_DURATION * 100;
-          case TIMER_STATE.REST_OVER:
-              return 100;
           default:
               return 0;
       }
   }
   
   const getOverProgress = () => {
-      if (state === TIMER_STATE.REST_OVER) {
+      if (state === TIMER_STATE.REST && timeLeft < 0) {
           return (Math.abs(timeLeft) / REST_DURATION) * 100;
       }
       return 0;
@@ -125,6 +121,6 @@ export const usePersonalTimer = () => {
     finishFocus,
     startRest,
     endSession,
-    resetTimer,
+    resumeFocusFromRest,
   };
 };
