@@ -38,7 +38,7 @@ wss.on('connection', (ws) => {
 
 function handleJoin(ws, data) {
   const { roomId, playerId } = data;
-  
+
   // 部屋が存在しない場合は作成
   if (!gameState.rooms[roomId]) {
     gameState.rooms[roomId] = {
@@ -62,7 +62,7 @@ function handleJoin(ws, data) {
 
 function handleMove(ws, data) {
   const { roomId, playerId, x } = data;
-  
+
   if (gameState.rooms[roomId] && gameState.rooms[roomId].players[playerId]) {
     gameState.rooms[roomId].players[playerId].x = x;
     broadcastToRoom(roomId);

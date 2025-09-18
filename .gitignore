@@ -18,6 +18,10 @@ dist-ssr
 .env.development.local
 .env.test.local
 .env.production.local
+# Note: .env.production is included for deployment reference
+
+# Firebase
+.firebase/
 
 # Editor directories and files
 .vscode/*

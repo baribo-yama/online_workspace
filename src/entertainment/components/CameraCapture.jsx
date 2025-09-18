@@ -36,15 +36,12 @@ function CameraCapture({ onPhotoCapture, autoStart = true }) {
   }, [autoStart, loadSavedPhoto, startCamera, stopCamera]);
 
   const handleCapture = async () => {
-    console.log('撮影ボタンが押されました');
-    console.log('カメラの状態:', { isStreamActive, videoRef: !!videoRef.current });
 
     // フラッシュ効果
     setShowFlash(true);
     setTimeout(() => setShowFlash(false), 200);
 
     const photo = capturePhoto();
-    console.log('撮影結果:', photo);
 
     if (photo) {
       // 撮影した写真を一瞬表示
@@ -53,7 +50,6 @@ function CameraCapture({ onPhotoCapture, autoStart = true }) {
         setShowCapturedPreview(false);
         // コールバック実行
         if (onPhotoCapture) {
-          console.log('onPhotoCapture コールバックを実行します');
           onPhotoCapture(photo);
         }
       }, 2000); // 2秒間表示
