@@ -1,55 +1,101 @@
 // server/gameLoop.js
 function handleGameLoop(room) {
-  // 一定確率で弾を生成
-  if (Math.random() < 0.2) {
-    const x = Math.floor(Math.random() * 480);
-    room.bullets.push({ x, y: 0, speed: 5, size: 10 });
+  // 顔障害物ゲームの場合のみ処理
+  if (room.obstacle) {
+    handleFaceObstacleGame(room);
   }
-
-  // 弾を下に落とす
-  room.bullets.forEach((b) => (b.y += b.speed));
-
-  // 衝突判定
-  Object.entries(room.players).forEach(([playerId, player]) => {
-    if (!player.isAlive) return; // 既に死んでいたらスキップ
-
-    room.bullets.forEach((bullet) => {
-      if (isColliding(player, bullet)) {
-        player.isAlive = false; // 当たったら死亡
-        console.log(`💥 ${playerId} hit!`);
-      }
-    });
-  });
-
-  // 画面外の弾を削除
-  room.bullets = room.bullets.filter((b) => b.y < 500);
-
-  // 状態を送信
-  broadcast(room);
 }
 
+function handleFaceObstacleGame(room) {
+  let stateChanged = false;
+
+  // 障害物の動きを更新
+  if (room.obstacle) {
+    const oldX = room.obstacle.x;
+    const oldY = room.obstacle.y;
+
+    room.obstacle.x += room.obstacle.vx;
+    room.obstacle.y += room.obstacle.vy;
+
+    // 障害物移動ログは削除（冗長なため）
+
+    // 壁に当たったら反射
+    if (room.obstacle.x <= 0 || room.obstacle.x + room.obstacle.width >= 500) {
+      room.obstacle.vx = -room.obstacle.vx;
+      stateChanged = true;
+    }
+    if (room.obstacle.y <= 0 || room.obstacle.y + room.obstacle.height >= 500) {
+      room.obstacle.vy = -room.obstacle.vy;
+      stateChanged = true;
+    }
+
+    // 境界内に制限
+    room.obstacle.x = Math.max(0, Math.min(500 - room.obstacle.width, room.obstacle.x));
+    room.obstacle.y = Math.max(0, Math.min(500 - room.obstacle.height, room.obstacle.y));
+
+    // 位置が変更されたかチェック
+    if (oldX !== room.obstacle.x || oldY !== room.obstacle.y) {
+      stateChanged = true;
+    }
+  }
+
+  // プレイヤーと障害物の衝突判定
+  Object.entries(room.players).forEach(([playerId, player]) => {
+    if (!player.isAlive || !room.obstacle) return;
+
+    if (isColliding(player, room.obstacle)) {
+      player.isAlive = false;
+      stateChanged = true;
+      console.log(`💥 ${playerId} が障害物に衝突!`);
+    }
+  });
+
+  // 状態が変更された場合のみ送信
+  if (stateChanged) {
+    // 状態変更ログは削除（冗長なため）
+    broadcast(room);
+  }
+}
+
+
 // 矩形衝突判定
-function isColliding(player, bullet) {
+function isColliding(player, target) {
   const playerSize = 20;
+  const targetWidth = target.width || target.size || 10;
+  const targetHeight = target.height || target.size || 10;
+
   return !(
-    bullet.x > player.x + playerSize || // 右に外れてる
-    bullet.x + bullet.size < player.x || // 左に外れてる
-    bullet.y > player.y + playerSize || // 下に外れてる
-    bullet.y + bullet.size < player.y    // 上に外れてる
+    target.x > player.x + playerSize || // 右に外れてる
+    target.x + targetWidth < player.x || // 左に外れてる
+    target.y > player.y + playerSize || // 下に外れてる
+    target.y + targetHeight < player.y    // 上に外れてる
   );
 }
 
 function broadcast(room) {
+  // 描画に必要なデータを送信
   const state = {
     type: "stateUpdate",
-    roomId: room.roomId,
     players: room.players,
-    bullets: room.bullets,
+    obstacle: room.obstacle ? {
+      x: room.obstacle.x,
+      y: room.obstacle.y,
+      vx: room.obstacle.vx,
+      vy: room.obstacle.vy,
+      width: room.obstacle.width,
+      height: room.obstacle.height,
+      color: room.obstacle.color,
+      emoji: room.obstacle.emoji,
+      name: room.obstacle.name
+    } : null,
   };
+
+  // 送信データのデバッグログは削除（冗長なため）
+  const stateString = JSON.stringify(state);
 
   Object.values(room.connections).forEach((ws) => {
     if (ws.readyState === 1) {
-      ws.send(JSON.stringify(state));
+      ws.send(stateString);
     }
   });
 }
