@@ -19,6 +19,7 @@
     "@livekit/components-styles": "^1.1.6",
     "autoprefixer": "^10.4.21",
     "firebase": "^12.2.1",
+    "framer-motion": "^12.23.13",
     "jose": "^6.1.0",
     "livekit-client": "^2.15.7",
     "lucide-react": "^0.542.0",
