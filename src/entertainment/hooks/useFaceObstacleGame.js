@@ -330,14 +330,14 @@ export function useFaceObstacleGame(roomId, userName) {
   // ローカルプレイヤー生成（Fallback用）
   const generateLocalPlayer = () => {
     if (!playerId) return;
-    
+
     const localPlayer = {
       x: 250, // 中央位置
       y: 250,
       isAlive: true,
       id: playerId
     };
-    
+
     setPlayers({ [playerId]: localPlayer });
     setRemainingPlayers(1);
     console.log("🎮 ローカルプレイヤー生成:", playerId);
