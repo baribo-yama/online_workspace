@@ -5,14 +5,18 @@ export const WEBSOCKET_CONFIG = {
   // 環境変数からWebSocket URLを取得、デフォルトはlocalhost
   URL: import.meta.env.VITE_WEBSOCKET_URL || "ws://localhost:8080",
 
-  // 接続タイムアウト（ミリ秒）
-  CONNECTION_TIMEOUT: 5000,
+  // 接続タイムアウト（ミリ秒）- 本番環境では長めに設定
+  CONNECTION_TIMEOUT: isProduction() ? 15000 : 5000,
 
   // 再接続間隔（ミリ秒）
   RECONNECT_INTERVAL: 3000,
 
   // 最大再接続試行回数
-  MAX_RECONNECT_ATTEMPTS: 5
+  MAX_RECONNECT_ATTEMPTS: 10,
+
+  // ping/pong設定
+  PING_INTERVAL: 30000, // 30秒
+  PONG_TIMEOUT: 10000,  // 10秒
 };
 
 // 環境判定
@@ -33,7 +37,8 @@ export function getDefaultWebSocketUrl() {
     if (prodUrl && validateWebSocketUrl(prodUrl)) {
       return prodUrl;
     }
-    return "wss://online-workspace.onrender.com";
+    // RenderのWebSocketサーバーURL
+    return "wss://online-workspace-websocket.onrender.com";
   } else {
     return "ws://localhost:8080";
   }
