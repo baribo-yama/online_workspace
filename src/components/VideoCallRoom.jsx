@@ -62,6 +62,12 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
   const roomIdRef = useRef(roomId);
   const userNameRef = useRef(userName);
   const audioElementsRef = useRef(new Map());
+  
+  // ビデオ表示管理用のref
+  const localVideoRef = useRef(null);
+  const remoteVideoRefs = useRef(new Map());
+  const videoLogCountRef = useRef(0);
+  const attachedTracksRef = useRef(new Set()); // アタッチ済みトラックを追跡
 
   /**
    * 参加者リストを更新する関数
@@ -191,11 +197,6 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
    * 
    * 参加者が退出した際や、音声トラックが非購読された際に
    * 音声要素を適切に削除してメモリリークを防ぎます。
-   * 
-   * 注意: リモート参加者のMediaStreamTrackに対してstop()を呼ぶと、
-   * そのトラックを利用している他のコンポーネントにも影響を与えるため、
-   * 音声要素の削除のみを行います。
-   * 
    * @param {string} participantIdentity - 参加者のID
    */
   const cleanupAudioElement = useCallback((participantIdentity) => {
@@ -218,13 +219,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
     }
   }, []);
 
-  /**
-   * ローカル参加者のカメラとマイクを有効化する関数
-   * 
-   * LiveKitルームに接続後、ローカル参加者のカメラとマイクを
-   * 有効化して、他の参加者との通信を開始します。
-   * エラーが発生した場合は適切にエラーメッセージを設定します。
-   */
+  // カメラとマイクを有効化
   const enableCameraAndMicrophone = useCallback(async () => {
     if (!roomRef.current) return;
 
@@ -241,17 +236,17 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
         console.warn('マイク有効化エラー:', microphoneError);
       }
 
-      setTimeout(() => {
-        updateParticipants();
-      }, 1000);
+            setTimeout(() => {
+              updateParticipants();
+            }, 1000);
       
-    } catch (mediaError) {
+      } catch (mediaError) {
       console.error('カメラ・マイクアクセスエラー:', mediaError);
         
-      if (mediaError.message && mediaError.message.includes('silence detected')) {
-        updateParticipants();
-        return;
-      }
+        if (mediaError.message && mediaError.message.includes('silence detected')) {
+          updateParticipants();
+          return;
+        }
         
       setError(`メディアアクセスエラー: ${mediaError.message}`);
     }
@@ -316,13 +311,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
     }
   }, []);
 
-  /**
-   * 音声レベル監視を開始する関数（従来の方法）
-   * 
-   * ローカル参加者のマイクトラックを自動検出して
-   * 音声レベル監視を開始します。トラックが見つからない場合は
-   * 最大3回まで再試行します。
-   */
+  // 音声レベル監視を開始（従来の方法）
   const startAudioLevelMonitoring = useCallback(() => {
     if (!roomRef.current || !roomRef.current.localParticipant) {
       console.log('音声レベル監視: ルームまたはローカル参加者が利用できません');
@@ -528,8 +517,8 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
           cleanupAudioElement(participant.identity);
           
           // 退出した参加者のアタッチ済みトラック記録をクリーンアップ
-          const keysToDelete = Array.from(attachedTracksRef.current).filter(key => key.startsWith(participant.identity));
-          keysToDelete.forEach(key => attachedTracksRef.current.delete(key));
+          const keysToDelete = Array.from(attachedTracksRef.current ?? []).filter(key => key.startsWith(participant.identity));
+          keysToDelete.forEach(key => attachedTracksRef.current?.delete(key));
           
           // リモートビデオ要素の参照もクリーンアップ
           remoteVideoRefs.current.delete(participant.identity);
@@ -880,11 +869,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
   }, [roomId, userName, stopAudioLevelMonitoring]); // roomIdとuserNameを依存配列に追加
 
   // === ビデオ表示管理 ===
-  // ビデオ要素の参照管理
-  const localVideoRef = useRef(null);
-  const remoteVideoRefs = useRef(new Map());
-  const videoLogCountRef = useRef(0);
-  const attachedTracksRef = useRef(new Set()); // アタッチ済みトラックを追跡
+  // ビデオ要素の参照管理（上部で定義済み）
 
   /**
    * ビデオトラックをビデオ要素にアタッチする関数
