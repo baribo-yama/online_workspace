@@ -7,7 +7,34 @@ const { addPlayer, removePlayer, movePlayer } = require("./playerManager");
 const PORT = process.env.PORT || 8080;
 console.log(`環境変数 PORT: ${process.env.PORT}`);
 console.log(`使用するポート: ${PORT}`);
-const wss = new WebSocket.Server({ port: PORT });
+
+// WebSocketサーバー設定（本番環境対応）
+const wss = new WebSocket.Server({ 
+  port: PORT,
+  perMessageDeflate: false,
+  // CORS設定
+  verifyClient: (info) => {
+    const origin = info.origin;
+    console.log(`接続試行 - Origin: ${origin}`);
+    
+    // 本番環境での許可するオリジン
+    const allowedOrigins = [
+      'https://online-workspace-1c2a4.web.app',
+      'https://online-workspace-1c2a4.firebaseapp.com',
+      'http://localhost:5173',
+      'http://localhost:4173'
+    ];
+    
+    // 開発環境では全て許可
+    if (process.env.NODE_ENV === 'development') {
+      return true;
+    }
+    
+    // 本番環境では指定したオリジンのみ許可
+    return allowedOrigins.includes(origin);
+  }
+});
+
 const rooms = {}; // roomIdごとの状態を保持
 
 console.log(`WebSocketサーバーがポート${PORT}で起動しました`);

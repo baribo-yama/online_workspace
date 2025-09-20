@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { doc, onSnapshot, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../../shared/services/firebase";
-import { getWebSocketUrl, validateWebSocketUrl } from "../../shared/config/websocket";
+import { getWebSocketUrl, validateWebSocketUrl, isProduction } from "../../shared/config/websocket";
 
 // ゲーム設定定数
 const GAME_CONFIG = {
@@ -138,6 +138,8 @@ export function useFaceObstacleGame(roomId, userName) {
     // 環境変数からWebSocket URLを取得
     const wsUrl = getWebSocketUrl();
     console.log("🌐 WebSocket URL:", wsUrl);
+    console.log("🌐 環境:", import.meta.env.MODE);
+    console.log("🌐 本番環境判定:", isProduction());
 
     // URLの形式チェック
     if (!wsUrl.startsWith('wss://') && !wsUrl.startsWith('ws://')) {
@@ -204,7 +206,9 @@ export function useFaceObstacleGame(roomId, userName) {
       console.error("📊 エラー詳細:");
       console.error("  - URL:", wsUrl);
       console.error("  - ReadyState:", ws.readyState);
-      console.error("  - 可能な原因: サーバーが起動していない、ネットワーク問題、CORS問題");
+      console.error("  - 環境:", import.meta.env.MODE);
+      console.error("  - User Agent:", navigator.userAgent);
+      console.error("  - 可能な原因: サーバーが起動していない、SSL証明書問題、CORS問題、ネットワーク問題");
       setIsConnected(false);
     };
 
@@ -290,11 +294,14 @@ export function useFaceObstacleGame(roomId, userName) {
           wsRef.current.send(JSON.stringify(message));
         } else {
           console.warn("⚠️ WebSocket未接続、シングルプレイヤーモード");
+          generateLocalObstacle();
+          generateLocalPlayer();
         }
       } catch (wsError) {
         console.warn("⚠️ WebSocket接続失敗、シングルプレイヤーモードで続行:", wsError.message);
         // シングルプレイヤーモード用の障害物生成
         generateLocalObstacle();
+        generateLocalPlayer();
       }
     } catch (error) {
       console.error("❌ ゲーム開始エラー:", error);
@@ -317,7 +324,23 @@ export function useFaceObstacleGame(roomId, userName) {
 
     setGameTime(GAME_CONFIG.GAME_DURATION);
     startCountdown();
-    console.log("🎮 ローカルゲーム開始:", selected.name);
+    console.log("🎮 ローカル障害物生成:", selected.name);
+  };
+
+  // ローカルプレイヤー生成（Fallback用）
+  const generateLocalPlayer = () => {
+    if (!playerId) return;
+    
+    const localPlayer = {
+      x: 250, // 中央位置
+      y: 250,
+      isAlive: true,
+      id: playerId
+    };
+    
+    setPlayers({ [playerId]: localPlayer });
+    setRemainingPlayers(1);
+    console.log("🎮 ローカルプレイヤー生成:", playerId);
   };
 
   // ゲーム終了
