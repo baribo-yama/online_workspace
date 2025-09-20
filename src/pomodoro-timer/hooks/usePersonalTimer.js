@@ -1,20 +1,17 @@
-// 個人用ポモドーロタイマーのフック
 import { useState, useEffect } from "react";
+import { 
+  TIMER_STATE, 
+  TIMER_DURATIONS, 
+  formatTime, 
+  calculateProgress, 
+  calculateOverProgress 
+} from "../../shared/utils/timer";
 
-export const TIMER_STATE = {
-  INIT: 'init',
-  FOCUS: 'focus',
-  POSE: 'pose',
-  REST_OR_INIT: 'rest_or_init',
-  REST: 'rest',
-};
-
-const FOCUS_DURATION = 25 * 60;
-const REST_DURATION = 5 * 60;
+export { TIMER_STATE };
 
 export const usePersonalTimer = () => {
   const [state, setState] = useState(TIMER_STATE.INIT);
-  const [timeLeft, setTimeLeft] = useState(FOCUS_DURATION);
+  const [timeLeft, setTimeLeft] = useState(TIMER_DURATIONS.FOCUS);
   const [cycle, setCycle] = useState(0);
 
   useEffect(() => {
@@ -36,14 +33,14 @@ export const usePersonalTimer = () => {
 
     if (state === TIMER_STATE.FOCUS) {
       setState(TIMER_STATE.REST);
-      setTimeLeft(REST_DURATION); // Start rest timer
-      setCycle(c => c + 1); // Increment cycle
+      setTimeLeft(TIMER_DURATIONS.SHORT_BREAK);
+      setCycle(c => c + 1);
     }
   }, [timeLeft, state]);
 
   const startFocus = () => {
     setState(TIMER_STATE.FOCUS);
-    setTimeLeft(FOCUS_DURATION);
+    setTimeLeft(TIMER_DURATIONS.FOCUS);
   };
 
   const pause = () => {
@@ -56,57 +53,49 @@ export const usePersonalTimer = () => {
 
   const finishFocus = () => {
     setState(TIMER_STATE.REST_OR_INIT);
+    setTimeLeft(-1);
   };
 
   const startRest = () => {
     setState(TIMER_STATE.REST);
-    setTimeLeft(REST_DURATION);
+    setTimeLeft(TIMER_DURATIONS.SHORT_BREAK);
   };
 
   const endSession = () => {
     setState(TIMER_STATE.INIT);
-    setTimeLeft(FOCUS_DURATION);
+    setTimeLeft(TIMER_DURATIONS.FOCUS);
     setCycle(0);
   };
 
   const resumeFocusFromRest = () => {
     setState(TIMER_STATE.FOCUS);
-    setTimeLeft(FOCUS_DURATION);
-  };
-
-
-  const formatTime = (seconds) => {
-    const absSeconds = Math.abs(seconds);
-    const mins = Math.floor(absSeconds / 60);
-    const secs = absSeconds % 60;
-    const sign = seconds < 0 ? "-" : "";
-    return `${sign}${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+    setTimeLeft(TIMER_DURATIONS.FOCUS);
   };
 
   const getProgress = () => {
-      switch(state) {
-          case TIMER_STATE.FOCUS:
-          case TIMER_STATE.POSE:
-              return (FOCUS_DURATION - timeLeft) / FOCUS_DURATION * 100;
-          case TIMER_STATE.REST_OR_INIT:
-              if (timeLeft > 0) {
-                  return (FOCUS_DURATION - timeLeft) / FOCUS_DURATION * 100;
-              }
-              return 100;
-          case TIMER_STATE.REST:
-              if (timeLeft < 0) return 100;
-              return (REST_DURATION - timeLeft) / REST_DURATION * 100;
-          default:
-              return 0;
-      }
-  }
+    switch(state) {
+      case TIMER_STATE.FOCUS:
+      case TIMER_STATE.POSE:
+        return calculateProgress(timeLeft, TIMER_DURATIONS.FOCUS);
+      case TIMER_STATE.REST_OR_INIT:
+        if (timeLeft > 0) {
+          return calculateProgress(timeLeft, TIMER_DURATIONS.FOCUS);
+        }
+        return 100;
+      case TIMER_STATE.REST:
+        if (timeLeft < 0) return 100;
+        return calculateProgress(timeLeft, TIMER_DURATIONS.SHORT_BREAK);
+      default:
+        return 0;
+    }
+  };
   
   const getOverProgress = () => {
-      if (state === TIMER_STATE.REST && timeLeft < 0) {
-          return (Math.abs(timeLeft) / REST_DURATION) * 100;
-      }
-      return 0;
-  }
+    if (state === TIMER_STATE.REST && timeLeft < 0) {
+      return calculateOverProgress(timeLeft, TIMER_DURATIONS.SHORT_BREAK);
+    }
+    return 0;
+  };
 
   return {
     state,
