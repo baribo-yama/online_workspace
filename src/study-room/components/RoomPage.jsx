@@ -41,7 +41,7 @@ function RoomPage() {
   const [room, setRoom] = useState(null);                            // ルーム情報
   const [loading, setLoading] = useState(true);                      // ローディング状態
   const [showTestGame, setShowTestGame] = useState(false);           // ゲーム表示フラグ
-  const [gameType, setGameType] = useState("face");                  // ゲームタイプ（顔認識ゲーム）
+  const [gameType, setGameType] = useState("face");                  // ゲームタイプ（顔認識ゲーム）使われてない変数
 
   // === 参加者管理フック ===
   const { participants, participantsLoading, myParticipantId, leaveRoom } = useParticipants(roomId, userName);

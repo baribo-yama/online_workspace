@@ -43,9 +43,9 @@ Online Workspaceは、LiveKitを使用したリアルタイムビデオ通話機
 
 ### 開発・デプロイ
 - **Node.js**: サーバーサイド
-- **Express**: Webサーバー
-- **Socket.io**: WebSocket通信
-- **Docker**: コンテナ化（開発環境）
+- **WebSocket Server**: リアルタイム通信
+- **Firebase Hosting**: フロントエンドのホスティング
+- **Render.com**: WebSocketサーバーのデプロイ
 
 ## セットアップ
 
@@ -69,6 +69,85 @@ VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
 VITE_FIREBASE_APP_ID=your_app_id
 
 # LiveKit設定
+VITE_LIVEKIT_URL=wss://your-livekit-server.com
+VITE_LIVEKIT_API_KEY=your_livekit_api_key
+VITE_LIVEKIT_API_SECRET=your_livekit_api_secret
+
+# WebSocket設定
+VITE_WEBSOCKET_URL=ws://localhost:8080  # 開発環境
+```
+
+### インストールと起動
+
+```bash
+# 依存関係のインストール
+npm install
+
+# 開発サーバーの起動
+npm run dev
+
+# サーバーの起動（別ターミナル）
+cd server
+npm install
+npm start
+```
+
+## デプロイ
+
+### 本番環境のデプロイ手順
+
+#### 1. Firebase Hosting（フロントエンド）
+
+```bash
+# ビルド
+npm run build
+
+# Firebaseにデプロイ
+npx firebase deploy
+```
+
+#### 2. Render.com（WebSocketサーバー）
+
+1. [Render.com](https://render.com/)でアカウント作成
+2. 新しいWeb Serviceを作成
+3. GitHubリポジトリを接続
+4. 以下の設定を適用：
+
+```yaml
+# render.yaml
+services:
+  - type: web
+    name: online-workspace-websocket
+    env: node
+    buildCommand: cd server && npm install
+    startCommand: cd server && node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        fromService:
+          type: web
+          name: online-workspace-websocket
+          property: port
+```
+
+#### 3. 本番環境の環境変数
+
+`.env.production` ファイルを作成：
+
+```env
+# 本番環境WebSocket URL（Renderのデプロイ後に更新）
+VITE_WEBSOCKET_URL=wss://your-app-name.onrender.com
+
+# Firebase設定（開発環境と同じ）
+VITE_FIREBASE_API_KEY=your_firebase_api_key
+VITE_FIREBASE_AUTH_DOMAIN=your_project.firebaseapp.com
+VITE_FIREBASE_PROJECT_ID=your_project_id
+VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
+VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+VITE_FIREBASE_APP_ID=your_app_id
+
+# LiveKit設定（開発環境と同じ）
 VITE_LIVEKIT_URL=wss://your-livekit-server.com
 VITE_LIVEKIT_API_KEY=your_livekit_api_key
 VITE_LIVEKIT_API_SECRET=your_livekit_api_secret
@@ -106,10 +185,16 @@ online_workspace/
 │   ├── entertainment/       # ゲーム機能
 │   └── shared/              # 共有サービス
 ├── server/                  # サーバーサイド
+│   ├── server.js           # WebSocketサーバー
+│   ├── gameLoop.js         # ゲームロジック
+│   └── package.json        # サーバー依存関係
+├── render.yaml             # Render.comデプロイ設定
 └── README.md
 ```
 
-**注意**: 環境変数を変更した場合は、開発サーバーを再起動してください。
+**注意**:
+- 環境変数を変更した場合は、開発サーバーを再起動してください
+- 本番環境では`.env.production`ファイルの設定が自動的に使用されます
 
 ## 主要コンポーネント
 

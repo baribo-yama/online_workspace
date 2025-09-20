@@ -7,15 +7,49 @@ const { addPlayer, removePlayer, movePlayer } = require("./playerManager");
 const PORT = process.env.PORT || 8080;
 console.log(`環境変数 PORT: ${process.env.PORT}`);
 console.log(`使用するポート: ${PORT}`);
-const wss = new WebSocket.Server({ port: PORT });
+
+// WebSocketサーバー設定（本番環境対応）
+const wss = new WebSocket.Server({
+  port: PORT,
+  perMessageDeflate: false,
+});
+
 const rooms = {}; // roomIdごとの状態を保持
 
-console.log(`WebSocketサーバーがポート${PORT}で起動しました`);
-console.log(`Node環境: ${process.env.NODE_ENV || 'development'}`);
-console.log(`プロセスID: ${process.pid}`);
+// サーバー起動時のログ
+console.log(`✅ WebSocketサーバーがポート${PORT}で正常に起動しました`);
+console.log(`   - Node.js環境: ${process.env.NODE_ENV || 'development'}`);
+console.log(`   - プロセスID: ${process.pid}`);
+console.log(`   - サーバーURL: ws://localhost:${PORT}`);
 
-wss.on("connection", (ws) => {
-  // 接続ログは削除（冗長なため）
+// 接続維持のためのPing/Pong
+function heartbeat() {
+  this.isAlive = true;
+}
+
+wss.on("connection", (ws, req) => {
+  // オリジンチェック
+  const origin = req.headers.origin;
+  console.log(`🔌 新しい接続試行 - Origin: ${origin}`);
+
+  const allowedOrigins = [
+    'https://online-workspace-1c2a4.web.app',
+    'https://online-workspace-1c2a4.firebaseapp.com',
+    'http://localhost:5173',
+    'http://localhost:4173',
+    'http://localhost:5175'
+  ];
+
+  if (process.env.NODE_ENV !== 'development' && !allowedOrigins.includes(origin)) {
+    console.log(`❌ 許可されていないオリジンからの接続を拒否: ${origin}`);
+    ws.terminate();
+    return;
+  }
+  console.log(`✅ 許可されたオリジンからの接続: ${origin}`);
+
+  // 接続維持
+  ws.isAlive = true;
+  ws.on('pong', heartbeat);
 
   ws.on("message", (message) => {
     const data = JSON.parse(message.toString());
@@ -52,6 +86,22 @@ wss.on("connection", (ws) => {
       });
     });
   });
+});
+
+// 定期的な接続確認
+const interval = setInterval(() => {
+  wss.clients.forEach((ws) => {
+    if (ws.isAlive === false) {
+      console.log("💔 Pingタイムアウト。接続を終了します。");
+      return ws.terminate();
+    }
+    ws.isAlive = false;
+    ws.ping(() => {});
+  });
+}, 30000); // 30秒ごと
+
+wss.on('close', () => {
+  clearInterval(interval);
 });
 
 // ゲームループ開始
