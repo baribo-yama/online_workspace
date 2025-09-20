@@ -46,7 +46,6 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);    // オーディオ有効状態
   const [audioLevel, setAudioLevel] = useState(0);               // 音声レベル
   const [isSpeaking, setIsSpeaking] = useState(false);           // スピーキング状態
-  const [audioVolume, setAudioVolume] = useState(1.0);           // 音声音量調整用
   
   // === 参照管理 ===
   const roomRef = useRef(null);                                    // LiveKitルームインスタンス
@@ -228,20 +227,6 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
     }
   }, []);
 
-  // 音声音量調整関数
-  const adjustAudioVolume = useCallback((volume) => {
-    setAudioVolume(volume);
-    
-    // 全ての音声要素の音量を調整
-    audioElementsRef.current.forEach((audioElement, participantIdentity) => {
-      if (audioElement && audioElement.volume !== undefined) {
-        audioElement.volume = volume;
-        if (import.meta.env.DEV) {
-          console.log('音声音量調整:', participantIdentity, volume);
-        }
-      }
-    });
-  }, []);
 
   // カメラとマイクを有効化
   const enableCameraAndMicrophone = useCallback(async () => {
@@ -541,19 +526,36 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
       
       // ルームイベントリスナーを設定
       const setupRoomEventListeners = () => {
-        // 参加者が接続された時
+        // 参加者イベントの統合処理
         room.on(RoomEvent.ParticipantConnected, (participant) => {
           if (import.meta.env.DEV) {
             console.log('参加者が接続されました:', participant.identity);
           }
           updateParticipants();
+          
+          // 参加者のビデオトラックが既に存在する場合は即座にアタッチ
+          setTimeout(() => {
+            if (import.meta.env.DEV) {
+              console.log('新規参加者のビデオトラック処理を開始:', participant.identity);
+            }
+            updateParticipants();
+          }, TRACK_ATTACHMENT_DELAY);
         });
 
-        // 参加者が切断された時
         room.on(RoomEvent.ParticipantDisconnected, (participant) => {
           if (import.meta.env.DEV) {
             console.log('参加者が切断されました:', participant.identity);
           }
+          // 退出した参加者のリソースをクリーンアップ
+          cleanupAudioElement(participant.identity);
+          
+          // 退出した参加者のアタッチ済みトラック記録をクリーンアップ
+          const keysToDelete = Array.from(attachedTracksRef.current).filter(key => key.startsWith(participant.identity));
+          keysToDelete.forEach(key => attachedTracksRef.current.delete(key));
+          
+          // リモートビデオ要素の参照もクリーンアップ
+          remoteVideoRefs.current.delete(participant.identity);
+          
           updateParticipants();
         });
 
@@ -600,6 +602,12 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
             if (import.meta.env.DEV) {
               console.log('ビデオトラック公開検出');
             }
+            // ローカルビデオトラックを即座にアタッチ（refを使用）
+            setTimeout(() => {
+              if (attachVideoTrackRef.current) {
+                attachVideoTrackRef.current(publication.track, participant, true);
+              }
+            }, 50); // ローカルトラックは短い遅延で即座にアタッチ
             } else if (publication.kind === 'audio' && publication.track) {
               // オーディオトラックが公開されたときに音声レベル監視を開始
               if (import.meta.env.DEV) {
@@ -622,31 +630,6 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
         updateParticipants();
         });
 
-        // リモート参加者が参加した時
-        room.on(RoomEvent.ParticipantConnected, (participant) => {
-          if (import.meta.env.DEV) {
-            console.log('リモート参加者が参加:', participant.identity);
-          }
-          updateParticipants();
-          
-          // 参加者のビデオトラックが既に存在する場合は即座にアタッチ
-          setTimeout(() => {
-            if (import.meta.env.DEV) {
-              console.log('新規参加者のビデオトラック処理を開始:', participant.identity);
-            }
-            updateParticipants();
-          }, 500);
-        });
-
-        // リモート参加者が退出した時
-        room.on(RoomEvent.ParticipantDisconnected, (participant) => {
-          if (import.meta.env.DEV) {
-            console.log('リモート参加者が退出:', participant.identity);
-          }
-          // 退出した参加者の音声要素をクリーンアップ（メモリリーク防止）
-          cleanupAudioElement(participant.identity);
-          updateParticipants();
-        });
 
         // リモートトラックが購読された時（音声・ビデオの受信開始）
         room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
@@ -664,7 +647,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
               if (attachVideoTrackRef.current) {
                 attachVideoTrackRef.current(track, participant, false);
               }
-            }, 100);
+            }, TRACK_ATTACHMENT_DELAY);
           }
           
           // 音声トラックの処理はここで即座に行う
@@ -702,7 +685,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
           if (track.kind === Track.Kind.Video) {
             setTimeout(() => {
               updateParticipants();
-            }, 100);
+            }, TRACK_ATTACHMENT_DELAY);
           }
         });
 
@@ -909,12 +892,30 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
   const localVideoRef = useRef(null);
   const remoteVideoRefs = useRef(new Map());
   const videoLogCountRef = useRef(0);
+  const attachedTracksRef = useRef(new Set()); // アタッチ済みトラックを追跡
 
   // ビデオトラックをアタッチする関数
   const attachVideoTrack = useCallback((track, participant, isLocal) => {
     if (!track) {
       console.log('トラックが存在しません:', participant.identity);
       return;
+    }
+
+    // 重複アタッチをチェック（ローカルトラックは再アタッチを許可）
+    const trackId = `${participant.identity}-${track.kind}`;
+    if (attachedTracksRef.current.has(trackId) && !isLocal) {
+      if (import.meta.env.DEV) {
+        console.log('リモートトラックは既にアタッチ済み:', trackId);
+      }
+      return;
+    }
+    
+    // ローカルトラックの場合は既存のアタッチをクリア
+    if (isLocal && attachedTracksRef.current.has(trackId)) {
+      if (import.meta.env.DEV) {
+        console.log('ローカルトラックの再アタッチ:', trackId);
+      }
+      attachedTracksRef.current.delete(trackId);
     }
 
     const videoElement = isLocal ? localVideoRef.current : remoteVideoRefs.current.get(participant.identity);
@@ -935,8 +936,8 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
         });
       }
 
-      // 既存のトラックをデタッチ
-      if (videoElement.srcObject) {
+      // ローカルトラックの場合は既存のトラックをデタッチ
+      if (isLocal && videoElement.srcObject) {
         videoElement.srcObject = null;
       }
       
@@ -948,25 +949,37 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
       
       track.attach(videoElement);
       
+      // アタッチ成功を記録
+      attachedTracksRef.current.add(trackId);
+      
       if (import.meta.env.DEV) {
         console.log('ビデオトラックアタッチ成功:', participant.identity, isLocal ? '(ローカル)' : '(リモート)');
       }
     } catch (error) {
       console.error('ビデオトラックアタッチエラー:', error, participant.identity);
       
-      // エラーが発生した場合は少し遅延して再試行
-      setTimeout(() => {
-        try {
-          if (track.mediaStreamTrack && track.mediaStreamTrack.readyState === 'live') {
-            track.attach(videoElement);
-            if (import.meta.env.DEV) {
-              console.log('ビデオトラックアタッチ再試行成功:', participant.identity);
+      // エラーが発生した場合は条件付きで再試行
+      if (track.mediaStreamTrack && track.mediaStreamTrack.readyState === 'live') {
+        // トラックがまだ有効な場合のみ再試行
+        setTimeout(() => {
+          try {
+            // 既にアタッチされているかチェック
+            if (!attachedTracksRef.current.has(trackId) && (!videoElement.srcObject || videoElement.srcObject.getTracks().length === 0)) {
+              track.attach(videoElement);
+              attachedTracksRef.current.add(trackId);
+              if (import.meta.env.DEV) {
+                console.log('ビデオトラックアタッチ再試行成功:', participant.identity);
+              }
+            } else if (import.meta.env.DEV) {
+              console.log('ビデオトラックは既にアタッチ済み:', participant.identity);
             }
+          } catch (retryError) {
+            console.error('ビデオトラックアタッチ再試行エラー:', retryError, participant.identity);
           }
-        } catch (retryError) {
-          console.error('ビデオトラックアタッチ再試行エラー:', retryError, participant.identity);
-        }
-      }, 500);
+        }, TRACK_ATTACHMENT_DELAY * 2); // 統一された遅延時間の2倍
+      } else if (import.meta.env.DEV) {
+        console.log('ビデオトラックが無効なため再試行をスキップ:', participant.identity);
+      }
     }
   }, []);
 
@@ -993,7 +1006,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
         if (import.meta.env.DEV) {
           console.log('TrackSubscribedでvideoトラックを検出:', track);
         }
-        // ビデオトラックを即座にアタッチ（refを使用）
+        // ビデオトラックをアタッチ（単一の遅延で処理）
         setTimeout(() => {
           if (import.meta.env.DEV) {
             console.log('TrackSubscribedでビデオトラックをアタッチ:', participant.identity);
@@ -1001,17 +1014,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
           if (attachVideoTrackRef.current) {
             attachVideoTrackRef.current(track, participant, false);
           }
-        }, 50); // より短い遅延でビデオ要素の準備を待つ
-        
-        // 追加のアタッチ処理（確実性を高める）
-        setTimeout(() => {
-          if (import.meta.env.DEV) {
-            console.log('TrackSubscribedでビデオトラック追加アタッチ:', participant.identity);
-          }
-          if (attachVideoTrackRef.current) {
-            attachVideoTrackRef.current(track, participant, false);
-          }
-        }, 200);
+        }, TRACK_ATTACHMENT_DELAY); // 統一された遅延時間を使用
       } else if (track.kind === Track.Kind.Audio && track) {
         if (import.meta.env.DEV) {
           console.log('TrackSubscribedでaudioトラックを検出:', track, {
@@ -1062,11 +1065,19 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
     const handleLocalTrackPublished = (publication, participant) => {
       if (publication.kind === 'video' && publication.track && participant.identity === localParticipant.identity) {
         console.log('ローカルビデオトラック公開イベント受信:', publication.track);
+        // ローカルトラックは即座にアタッチ（複数回試行）
         setTimeout(() => {
           if (attachVideoTrackRef.current) {
             attachVideoTrackRef.current(publication.track, participant, true);
           }
-        }, 100);
+        }, 50); // ローカルトラックは短い遅延で即座にアタッチ
+        
+        // 追加のアタッチ試行（確実性を高める）
+        setTimeout(() => {
+          if (attachVideoTrackRef.current) {
+            attachVideoTrackRef.current(publication.track, participant, true);
+          }
+        }, 200);
       }
     };
 
@@ -1093,12 +1104,12 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
             if (import.meta.env.DEV) {
               console.log('リモート参加者の既存ビデオトラックをアタッチ:', participant.identity);
             }
-            // より短い遅延でアタッチ（refを使用）
+            // 統一された遅延でアタッチ（refを使用）
             setTimeout(() => {
               if (attachVideoTrackRef.current) {
                 attachVideoTrackRef.current(publication.track, participant, false);
               }
-            }, 100);
+            }, TRACK_ATTACHMENT_DELAY);
             break;
           }
         }
@@ -1152,22 +1163,6 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
         </div>
         
         <div className="flex items-center gap-2">
-          {/* 音量調整スライダー */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-gray-400">音量:</span>
-            <input
-              type="range"
-              min="0"
-              max="1"
-              step="0.1"
-              value={audioVolume}
-              onChange={(e) => adjustAudioVolume(parseFloat(e.target.value))}
-              className="w-16 h-2 bg-gray-600 rounded-lg appearance-none cursor-pointer"
-              title={`音量: ${Math.round(audioVolume * 100)}%`}
-            />
-            <span className="text-xs text-gray-400 w-8">{Math.round(audioVolume * 100)}%</span>
-          </div>
-          
           <button
             onClick={toggleVideo}
             className={`p-2 rounded-lg transition-colors ${
