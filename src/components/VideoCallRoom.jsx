@@ -60,8 +60,6 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
   const audioMonitoringRetryCountRef = useRef(0);                 // 音声監視リトライ回数
   const roomIdRef = useRef(roomId);                               // ルームID（最新値保持）
   const userNameRef = useRef(userName);                           // ユーザー名（最新値保持）
-  const updateParticipantsLogCountRef = useRef(0);                // 参加者更新ログカウンター
-  const cameraMicLogCountRef = useRef(0);                         // カメラ・マイクログカウンター
   const audioElementsRef = useRef(new Map());                     // リモート参加者の音声要素の参照管理
 
   /**
@@ -76,26 +74,14 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
       ...Array.from(roomRef.current.remoteParticipants.values())
     ].filter(p => p);
 
-    // 参加者リストが変更された場合のみ更新
     setParticipants(prevParticipants => {
-      // 参加者数が変更された場合
       if (prevParticipants.length !== allParticipants.length) {
-        if (import.meta.env.DEV && updateParticipantsLogCountRef.current < 10) {
-          updateParticipantsLogCountRef.current++;
-          console.log('参加者リスト更新:', allParticipants.length, '人', 
-            allParticipants.map(p => ({ identity: p.identity, isLocal: p === roomRef.current.localParticipant })));
-        }
         return allParticipants;
       }
       
-      // 参加者のIDが変更された場合
       const prevIds = prevParticipants.map(p => p.identity).sort();
       const newIds = allParticipants.map(p => p.identity).sort();
       if (JSON.stringify(prevIds) !== JSON.stringify(newIds)) {
-        if (import.meta.env.DEV && updateParticipantsLogCountRef.current < 10) {
-          updateParticipantsLogCountRef.current++;
-          console.log('参加者ID変更検出 - リスト更新');
-        }
         return allParticipants;
       }
       
@@ -227,76 +213,29 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
     if (!roomRef.current) return;
 
     try {
-        if (import.meta.env.DEV && cameraMicLogCountRef.current < 10) {
-          cameraMicLogCountRef.current++;
-          console.log('カメラ・マイクアクセス開始');
-        }
-      
-      // カメラとマイクを個別に有効化
       try {
-        if (import.meta.env.DEV && cameraMicLogCountRef.current < 10) {
-          cameraMicLogCountRef.current++;
-          console.log('カメラを有効化中...', {
-            hasLocalParticipant: !!roomRef.current.localParticipant,
-            currentCameraState: roomRef.current.localParticipant?.isCameraEnabled
-          });
-        }
         await roomRef.current.localParticipant.setCameraEnabled(true);
-        if (import.meta.env.DEV && cameraMicLogCountRef.current < 10) {
-          cameraMicLogCountRef.current++;
-          console.log('カメラ有効化成功', {
-            newCameraState: roomRef.current.localParticipant.isCameraEnabled,
-            hasVideoTracks: roomRef.current.localParticipant.videoTracks?.size > 0
-          });
-        }
       } catch (cameraError) {
         console.warn('カメラ有効化エラー:', cameraError);
       }
 
       try {
-        if (import.meta.env.DEV) {
-          console.log('マイクを有効化中...', {
-            hasLocalParticipant: !!roomRef.current.localParticipant,
-            currentMicrophoneState: roomRef.current.localParticipant?.isMicrophoneEnabled
-          });
-        }
         await roomRef.current.localParticipant.setMicrophoneEnabled(true);
-        if (import.meta.env.DEV) {
-          console.log('マイク有効化成功', {
-            newMicrophoneState: roomRef.current.localParticipant.isMicrophoneEnabled,
-            hasAudioTracks: roomRef.current.localParticipant.audioTracks?.size > 0
-          });
-        }
       } catch (microphoneError) {
         console.warn('マイク有効化エラー:', microphoneError);
       }
-      
-        if (import.meta.env.DEV) {
-        console.log('カメラ・マイクアクセス成功');
-        }
 
-      // LocalTrackPublishedイベントでトラックがアタッチされるまで短時間待機
-      // videoTracksコレクションの更新を待つのではなく、イベントベースで処理
-      if (import.meta.env.DEV) {
-        console.log('LocalTrackPublishedイベントを待機中...');
-      }
+      setTimeout(() => {
+        updateParticipants();
+      }, 1000);
       
-      // 参加者リストを更新（LocalTrackPublishedイベントでトラックがアタッチされる）
-          setTimeout(() => {
-              updateParticipants();
-            }, 1000);
-      
-      // 音声レベル監視はLocalTrackPublishedイベントで自動的に開始される
-      
-      } catch (mediaError) {
+    } catch (mediaError) {
       console.error('カメラ・マイクアクセスエラー:', mediaError);
         
-      // 無音検出の場合は警告として扱う
-        if (mediaError.message && mediaError.message.includes('silence detected')) {
-          console.log('音声トラックで無音が検出されました（正常な動作）');
-          updateParticipants();
-          return;
-        }
+      if (mediaError.message && mediaError.message.includes('silence detected')) {
+        updateParticipants();
+        return;
+      }
         
       setError(`メディアアクセスエラー: ${mediaError.message}`);
     }

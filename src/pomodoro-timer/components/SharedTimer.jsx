@@ -1,17 +1,14 @@
 // 共有ポモドーロタイマーコンポーネント
+import { memo } from "react";
 import { Clock, Play, Pause, RotateCcw, Coffee } from "lucide-react";
 import { useSharedTimer } from "../hooks/useSharedTimer";
+import { formatTime, calculateProgress } from "../../shared/utils/timer";
 
-function SharedTimer({ roomId, isHost = false }) {
+const SharedTimer = memo(function SharedTimer({ roomId, isHost = false }) {
   const { timer, isLoading, startTimer, resetTimer, switchMode, isAutoCycle } = useSharedTimer(roomId);
 
-  const formatTime = (seconds) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-  };
-
-  const progress = ((timer?.mode === 'work' ? 25*60 : 5*60) - (timer?.timeLeft || 0)) / (timer?.mode === 'work' ? 25*60 : 5*60) * 100;
+  const duration = timer?.mode === 'work' ? 25*60 : 5*60;
+  const progress = calculateProgress(timer?.timeLeft || 0, duration);
 
   if (isLoading) {
     return (
@@ -143,6 +140,6 @@ function SharedTimer({ roomId, isHost = false }) {
       )}
     </div>
   );
-}
+});
 
 export default SharedTimer;
