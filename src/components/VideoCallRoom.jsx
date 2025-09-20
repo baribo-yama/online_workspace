@@ -213,7 +213,6 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
     }
   }, []);
 
-
   // カメラとマイクを有効化
   const enableCameraAndMicrophone = useCallback(async () => {
     if (!roomRef.current) return;
@@ -477,7 +476,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
             if (import.meta.env.DEV) {
               console.log('新規参加者のビデオトラック処理を開始:', participant.identity);
             }
-            updateParticipants();
+            // updateParticipants()は既に上で呼び出されているため、重複呼び出しを削除
           }, TRACK_ATTACHMENT_DELAY);
         });
 
@@ -964,9 +963,6 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
         }
         // 音声トラックの処理はconnectToRoom内で行うため、
         // ここでは処理しない（重複を避ける）
-        if (import.meta.env.DEV) {
-          console.log('音声トラック処理はconnectToRoom内で実行済み:', participant.identity);
-        }
       }
     };
 
@@ -1004,19 +1000,32 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
     const handleLocalTrackPublished = (publication, participant) => {
       if (publication.kind === 'video' && publication.track && participant.identity === localParticipant.identity) {
         console.log('ローカルビデオトラック公開イベント受信:', publication.track);
-        // ローカルトラックは即座にアタッチ（複数回試行）
-        setTimeout(() => {
-          if (attachVideoTrackRef.current) {
-            attachVideoTrackRef.current(publication.track, participant, true);
-          }
-        }, 50); // ローカルトラックは短い遅延で即座にアタッチ
         
-        // 追加のアタッチ試行（確実性を高める）
-        setTimeout(() => {
-          if (attachVideoTrackRef.current) {
-            attachVideoTrackRef.current(publication.track, participant, true);
-          }
-        }, 200);
+        // 適切なリトライメカニズムでローカルトラックをアタッチ
+        const attachLocalVideoTrack = (retryCount = 0, maxRetries = 3) => {
+          const delay = Math.min(50 + (retryCount * 100), 300); // 50ms, 150ms, 250ms, 300ms
+          
+          setTimeout(() => {
+            if (attachVideoTrackRef.current) {
+              try {
+                attachVideoTrackRef.current(publication.track, participant, true);
+                if (import.meta.env.DEV) {
+                  console.log(`ローカルビデオトラックアタッチ成功 (試行 ${retryCount + 1})`);
+                }
+              } catch (error) {
+                console.warn(`ローカルビデオトラックアタッチ失敗 (試行 ${retryCount + 1}):`, error);
+                if (retryCount < maxRetries - 1) {
+                  attachLocalVideoTrack(retryCount + 1, maxRetries);
+                }
+              }
+            } else if (retryCount < maxRetries - 1) {
+              // attachVideoTrackRefがまだ利用できない場合は再試行
+              attachLocalVideoTrack(retryCount + 1, maxRetries);
+            }
+          }, delay);
+        };
+        
+        attachLocalVideoTrack();
       }
     };
 
