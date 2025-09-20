@@ -14,9 +14,10 @@
  * @param {string} myParticipantId - 現在のユーザーの参加者ID
  * @component
  */
+import { memo } from "react";
 import { Users } from "lucide-react";
 
-function ParticipantList({ participants, participantsLoading, myParticipantId }) {
+const ParticipantList = memo(function ParticipantList({ participants, participantsLoading, myParticipantId }) {
   return (
     <div className="flex-1 overflow-y-auto">
       <div className="flex items-center justify-between mb-4">
@@ -84,6 +85,6 @@ function ParticipantList({ participants, participantsLoading, myParticipantId })
       </div>
     </div>
   );
-}
+});
 
 export default ParticipantList;
