@@ -34,41 +34,43 @@ import { LIVEKIT_CONFIG, generateRoomName, generateParticipantName, generateAcce
 
 
 // Configuration constants
-const TRACK_ATTACHMENT_DELAY = 100; // ms
+const TRACK_ATTACHMENT_DELAY = 100; // ms - リモートトラックのアタッチ遅延
+const LOCAL_TRACK_ATTACHMENT_DELAY = 50; // ms - ローカルトラックのアタッチ遅延
+const RETRY_ATTACHMENT_DELAY = 200; // ms - リトライ時のアタッチ遅延
 const AUDIO_LEVEL_NORMALIZER = 128; // 音声レベル正規化用の除数
 const SPEAKING_THRESHOLD = 3; // 話していると判定する音声レベル閾値
 
 function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
   // State management
-  const [participants, setParticipants] = useState([]);
-  const [localParticipant, setLocalParticipant] = useState(null);
-  const [isConnecting, setIsConnecting] = useState(false);
-  const [error, setError] = useState(null);
-  const [isVideoEnabled, setIsVideoEnabled] = useState(true);
-  const [isAudioEnabled, setIsAudioEnabled] = useState(true);
-  const [audioLevel, setAudioLevel] = useState(0);
-  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [participants, setParticipants] = useState([]); // 参加者リスト
+  const [localParticipant, setLocalParticipant] = useState(null); // ローカル参加者
+  const [isConnecting, setIsConnecting] = useState(false); // 接続中フラグ
+  const [error, setError] = useState(null); // エラー状態
+  const [isVideoEnabled, setIsVideoEnabled] = useState(true); // ビデオ有効状態
+  const [isAudioEnabled, setIsAudioEnabled] = useState(true); // オーディオ有効状態
+  const [audioLevel, setAudioLevel] = useState(0); // 音声レベル
+  const [isSpeaking, setIsSpeaking] = useState(false); // 話している状態
   
   // Refs for DOM elements and function references
-  const roomRef = useRef(null);
-  const hasConnectedRef = useRef(false);
-  const isConnectingRef = useRef(false);
-  const attachVideoTrackRef = useRef(null);
-  const connectToRoomRef = useRef(null);
-  const audioContextRef = useRef(null);
-  const analyserRef = useRef(null);
-  const animationFrameRef = useRef(null);
-  const startAudioLevelMonitoringRef = useRef(null);
-  const startAudioLevelMonitoringWithTrackRef = useRef(null);
-  const audioMonitoringRetryCountRef = useRef(0);
-  const roomIdRef = useRef(roomId);
-  const userNameRef = useRef(userName);
-  const audioElementsRef = useRef(new Map());
+  const roomRef = useRef(null); // LiveKitルームインスタンス
+  const hasConnectedRef = useRef(false); // 接続済みフラグ
+  const isConnectingRef = useRef(false); // 接続中フラグ
+  const attachVideoTrackRef = useRef(null); // ビデオトラックアタッチ関数の参照
+  const connectToRoomRef = useRef(null); // 接続関数の参照
+  const audioContextRef = useRef(null); // Web Audio APIのAudioContext
+  const analyserRef = useRef(null); // 音声レベル分析用のAnalyserNode
+  const animationFrameRef = useRef(null); // 音声レベル監視用のアニメーションフレーム
+  const startAudioLevelMonitoringRef = useRef(null); // 音声レベル監視開始関数の参照
+  const startAudioLevelMonitoringWithTrackRef = useRef(null); // トラック指定音声レベル監視開始関数の参照
+  const audioMonitoringRetryCountRef = useRef(0); // 音声レベル監視の再試行回数
+  const roomIdRef = useRef(roomId); // ルームIDの参照
+  const userNameRef = useRef(userName); // ユーザー名の参照
+  const audioElementsRef = useRef(new Map()); // 音声要素の管理用Map
   
   // ビデオ表示管理用のref
-  const localVideoRef = useRef(null);
-  const remoteVideoRefs = useRef(new Map());
-  const videoLogCountRef = useRef(0);
+  const localVideoRef = useRef(null); // ローカルビデオ要素の参照
+  const remoteVideoRefs = useRef(new Map()); // リモートビデオ要素の管理用Map
+  const videoLogCountRef = useRef(0); // ビデオログ出力回数の制限用
   const attachedTracksRef = useRef(new Set()); // アタッチ済みトラックを追跡
 
   /**
@@ -125,9 +127,13 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
       const existingElement = audioElementsRef.current.get(participant.identity);
       if (existingElement) {
         // 既存の要素の音声ストリームを更新
-        // 注意: リモート参加者のMediaStreamTrackに対してstop()を呼ぶと、
-        // そのトラックを利用している他のコンポーネントにも影響を与えるため、
-        // srcObjectを直接置き換えるのみとする
+        /**
+         * ベストプラクティス:
+         * リモート MediaStreamTrack に対して track.stop() を呼ばないこと。
+         * track.stop() はローカルトラック専用で、リモートトラックに対して呼ぶと
+         * 他参加者のメディアにも影響を与える可能性があるため、
+         * srcObject の解放と DOM 要素の削除のみを行うこと。
+         */
         existingElement.srcObject = new MediaStream([track.mediaStreamTrack]);
         if (import.meta.env.DEV) {
           console.log('既存の音声要素を更新:', participant.identity);
@@ -219,7 +225,12 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
     }
   }, []);
 
-  // カメラとマイクを有効化
+  /**
+   * カメラとマイクを有効化する関数
+   * 
+   * ローカル参加者のカメラとマイクを有効化し、
+   * メディアアクセスエラーの適切な処理を行います。
+   */
   const enableCameraAndMicrophone = useCallback(async () => {
     if (!roomRef.current) return;
 
@@ -236,6 +247,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
         console.warn('マイク有効化エラー:', microphoneError);
       }
 
+            // カメラ・マイク有効化後の参加者リスト更新
             setTimeout(() => {
               updateParticipants();
             }, 1000);
@@ -311,7 +323,12 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
     }
   }, []);
 
-  // 音声レベル監視を開始（従来の方法）
+  /**
+   * 音声レベル監視を開始する関数（従来の方法）
+   * 
+   * ローカル参加者のオーディオトラックを使用して音声レベル監視を開始します。
+   * トラックが利用できない場合は再試行メカニズムを実行します。
+   */
   const startAudioLevelMonitoring = useCallback(() => {
     if (!roomRef.current || !roomRef.current.localParticipant) {
       console.log('音声レベル監視: ルームまたはローカル参加者が利用できません');
@@ -411,13 +428,23 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
       }
   }, []);
 
-  // roomIdとuserNameの参照を更新
+  /**
+   * roomIdとuserNameの参照を更新するuseEffect
+   * 
+   * プロパティの変更時にrefの値を更新し、
+   * 非同期処理で最新の値を参照できるようにします。
+   */
   useEffect(() => {
     roomIdRef.current = roomId;
     userNameRef.current = userName;
   }, [roomId, userName]);
 
-  // startAudioLevelMonitoring関数の参照を設定
+  /**
+   * 音声レベル監視関数の参照を設定するuseEffect
+   * 
+   * 関数の参照をrefに保存し、非同期処理やイベントハンドラーで
+   * 最新の関数を参照できるようにします。
+   */
   useEffect(() => {
     startAudioLevelMonitoringRef.current = startAudioLevelMonitoring;
     startAudioLevelMonitoringWithTrackRef.current = startAudioLevelMonitoringWithTrack;
@@ -566,7 +593,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
               if (attachVideoTrackRef.current) {
                 attachVideoTrackRef.current(publication.track, participant, true);
               }
-            }, 50); // ローカルトラックは短い遅延で即座にアタッチ
+            }, LOCAL_TRACK_ATTACHMENT_DELAY); // ローカルトラックは短い遅延で即座にアタッチ
             } else if (publication.kind === 'audio' && publication.track) {
               // オーディオトラックが公開されたときに音声レベル監視を開始
               if (import.meta.env.DEV) {
@@ -706,7 +733,12 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
     }
   }, [updateParticipants, enableCameraAndMicrophone, attachAudioTrack, cleanupAudioElement]);
 
-  // connectToRoomの参照を設定
+  /**
+   * connectToRoom関数の参照を設定するuseEffect
+   * 
+   * 接続関数の参照をrefに保存し、非同期処理やイベントハンドラーで
+   * 最新の関数を参照できるようにします。
+   */
   useEffect(() => {
     connectToRoomRef.current = connectToRoom;
   }, [connectToRoom]);
@@ -966,14 +998,19 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
           } catch (retryError) {
             console.error('ビデオトラックアタッチ再試行エラー:', retryError, participant.identity);
           }
-        }, TRACK_ATTACHMENT_DELAY * 2); // 統一された遅延時間の2倍
+        }, RETRY_ATTACHMENT_DELAY); // リトライ用の遅延時間
       } else if (import.meta.env.DEV) {
         console.log('ビデオトラックが無効なため再試行をスキップ:', participant.identity);
       }
     }
   }, []);
 
-  // attachVideoTrack関数の参照を設定（初期化順序の問題を回避）
+  /**
+   * attachVideoTrack関数の参照を設定するuseEffect
+   * 
+   * ビデオトラックアタッチ関数の参照をrefに保存し、
+   * 初期化順序の問題を回避して最新の関数を参照できるようにします。
+   */
   useEffect(() => {
     attachVideoTrackRef.current = attachVideoTrack;
   }, [attachVideoTrack]);
@@ -981,7 +1018,12 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
   // TrackSubscribedイベントはconnectToRoom内の統合ハンドラーで処理
 
   // === ローカルビデオトラック管理 ===
-  // ローカルビデオトラックの処理
+  /**
+   * ローカルビデオトラックの処理を行うuseEffect
+   * 
+   * ローカル参加者が変更された際に、既存のビデオトラックを
+   * チェックして適切にアタッチします。
+   */
   useEffect(() => {
     if (!localParticipant || !localVideoRef.current) return;
 
@@ -999,7 +1041,12 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
     }
   }, [localParticipant]);
 
-  // ローカルトラック公開イベントの処理（適切なリトライメカニズム付き）
+  /**
+   * ローカルトラック公開イベントの処理を行うuseEffect
+   * 
+   * ローカルビデオトラックが公開された際に適切なリトライメカニズムで
+   * ビデオトラックをアタッチします。
+   */
   useEffect(() => {
     if (!roomRef.current || !localParticipant) return;
 
@@ -1009,7 +1056,8 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
         
         // 適切なリトライメカニズムでローカルトラックをアタッチ
         const attachLocalVideoTrack = (retryCount = 0, maxRetries = 3) => {
-          const delay = Math.min(50 + (retryCount * 100), 300); // 50ms, 150ms, 250ms, 300ms
+          // 指数バックオフによる遅延計算（50ms, 150ms, 250ms, 300ms）
+          const delay = Math.min(LOCAL_TRACK_ATTACHMENT_DELAY + (retryCount * 100), 300);
           
           setTimeout(() => {
             if (attachVideoTrackRef.current) {
@@ -1045,7 +1093,12 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
   }, [localParticipant]);
 
   // === リモートビデオトラック管理 ===
-  // リモートビデオトラックの処理
+  /**
+   * リモートビデオトラックの処理を行うuseEffect
+   * 
+   * 参加者リストが変更された際に、リモート参加者の
+   * 既存ビデオトラックをチェックして適切にアタッチします。
+   */
   useEffect(() => {
     if (!participants.length) return;
 
@@ -1059,7 +1112,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
             if (import.meta.env.DEV) {
               console.log('リモート参加者の既存ビデオトラックをアタッチ:', participant.identity);
             }
-            // 統一された遅延でアタッチ（refを使用）
+            // リモートトラック用の遅延でアタッチ（refを使用）
             setTimeout(() => {
               if (attachVideoTrackRef.current) {
                 attachVideoTrackRef.current(publication.track, participant, false);
@@ -1073,7 +1126,11 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
   }, [participants, localParticipant]);
 
   // === UI レンダリング ===
-  // ローディング画面
+  /**
+   * ローディング画面のレンダリング
+   * 
+   * 接続中の場合に表示されるローディング画面です。
+   */
   if (isConnecting) {
     return (
       <div className="flex flex-col items-center justify-center h-full bg-gray-900 text-white">
@@ -1085,7 +1142,12 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
     );
   }
 
-  // エラー画面
+  /**
+   * エラー画面のレンダリング
+   * 
+   * エラーが発生した場合に表示されるエラー画面です。
+   * 再接続ボタンも含まれています。
+   */
   if (error) {
     return (
       <div className="flex flex-col items-center justify-center h-full bg-gray-900 text-white">
@@ -1107,7 +1169,12 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
     );
   }
 
-  // メイン画面
+  /**
+   * メイン画面のレンダリング
+   * 
+   * 正常に接続された場合のメインビデオ通話画面です。
+   * 参加者のビデオ表示、コントロールボタン、音声レベル表示を含みます。
+   */
     return (
     <div className="flex flex-col h-full bg-gray-900 text-white">
       {/* ヘッダー */}
@@ -1263,7 +1330,12 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
 }
 
 // === コンポーネント最適化 ===
-// メモ化してパフォーマンスを最適化（propsの変更時のみ再レンダリング）
+/**
+ * メモ化によるパフォーマンス最適化
+ * 
+ * propsの変更時のみ再レンダリングを行うようにメモ化し、
+ * 不要な再レンダリングを防いでパフォーマンスを向上させます。
+ */
 export default memo(VideoCallRoom, (prevProps, nextProps) => {
     return (
     prevProps.roomId === nextProps.roomId &&
