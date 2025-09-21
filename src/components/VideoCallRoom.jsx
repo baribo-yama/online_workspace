@@ -35,6 +35,8 @@ import { LIVEKIT_CONFIG, generateRoomName, generateParticipantName, generateAcce
 
 // Configuration constants
 const TRACK_ATTACHMENT_DELAY = 100; // ms
+const AUDIO_LEVEL_NORMALIZER = 128; // 音声レベル正規化用の除数
+const SPEAKING_THRESHOLD = 3; // 話していると判定する音声レベル閾値
 
 function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
   // State management
@@ -140,10 +142,8 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
       audioElement.muted = false;          // ミュートを解除
       audioElement.volume = 1.0;           // 音量を最大に設定
       
-      // 音声品質の向上設定
-      audioElement.preload = 'auto';       // プリロードを有効化
-      audioElement.crossOrigin = 'anonymous'; // CORS対応
-      audioElement.srcObject = new MediaStream([track.mediaStreamTrack]); // 音声ストリームを設定
+      // 音声ストリームを設定（MediaStreamの場合はpreloadとcrossOriginは効果なし）
+      audioElement.srcObject = new MediaStream([track.mediaStreamTrack]);
       
       // 音声要素をDOMに追加（非表示で管理）
       audioElement.style.display = 'none';
@@ -288,12 +288,12 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
 
         // 音声レベルを計算（0-100の範囲、感度を上げる）
         const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length;
-        const level = Math.min(100, (average / 128) * 100); // 分母を255から128に変更して感度を上げる
+        const level = Math.min(100, (average / AUDIO_LEVEL_NORMALIZER) * 100);
         
         setAudioLevel(level);
         
         // 話しているかどうかを判定（閾値を下げて感度を上げる）
-        const speaking = level > 3; // 閾値を10から3に下げてより敏感に
+        const speaking = level > SPEAKING_THRESHOLD;
         setIsSpeaking(speaking);
 
         animationFrameRef.current = requestAnimationFrame(monitorAudioLevel);
@@ -528,11 +528,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
 
         // トラック購読イベントは下記の統合ハンドラーで処理
 
-        // トラックが購読解除された時
-        room.on(RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
-          console.log('トラックが購読解除されました:', track.kind, participant.identity);
-      updateParticipants();
-        });
+        // トラックが購読解除された時（統合ハンドラーで処理）
 
         // ルームから切断された時
         room.on(RoomEvent.Disconnected, (reason) => {
@@ -628,10 +624,10 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
           }, TRACK_ATTACHMENT_DELAY);
         });
 
-        // リモートトラックが非購読された時（音声・ビデオの受信停止）
+        // 統合トラック非購読イベントハンドラー（音声・ビデオの受信停止）
         room.on(RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
           if (import.meta.env.DEV) {
-            console.log('リモートトラック非購読:', {
+            console.log('トラック購読解除:', {
               trackKind: track.kind,
               participantIdentity: participant.identity,
               publicationKind: publication.kind,
@@ -639,8 +635,8 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
             });
           }
           
+          // 音声トラックが非購読された際に音声要素をクリーンアップ
           if (track.kind === Track.Kind.Audio) {
-            // 音声トラックが非購読された際に音声要素をクリーンアップ
             cleanupAudioElement(participant.identity);
           }
           
@@ -724,9 +720,15 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
    */
   const disconnectFromRoom = useCallback(async () => {
     try {
+      // 音声要素のクリーンアップ
       for (const participantIdentity of audioElementsRef.current.keys()) {
         cleanupAudioElement(participantIdentity);
       }
+      
+      // ビデオ関連のリソースをクリーンアップ
+      attachedTracksRef.current.clear(); // アタッチ済みトラック記録をクリア
+      remoteVideoRefs.current.clear();   // リモートビデオ要素参照をクリア
+      
       if (roomRef.current) {
         await roomRef.current.disconnect();
         roomRef.current = null;
