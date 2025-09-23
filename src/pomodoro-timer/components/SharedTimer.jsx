@@ -22,7 +22,7 @@ const SharedTimer = memo(function SharedTimer({ roomId, isHost = false }) {
     const currentTimeLeft = timer?.timeLeft;
 
     // 直前が1で今が0になった瞬間を検知 → 直前のモードで通知
-    const isZeroTransition = prevTimeLeftRef.current === 1 && currentTimeLeft === 0;
+    const isZeroTransition = prevTimeLeftRef.current > 0 && currentTimeLeft === 0;
 
     if (isZeroTransition && !hasNotifiedRef.current) {
       const modeToNotify = prevModeRef.current || currentMode;

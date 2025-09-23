@@ -109,15 +109,19 @@ export const useSharedTimer = (roomId) => {
         const newCycle = currentMode === "work" ? currentCycle + 1 : currentCycle;
 
         const roomRef = doc(db, "rooms", roomId);
+        // スプレッドで一貫性と可読性を確保
         await updateDoc(roomRef, {
-          "timer.mode": nextMode,
-          "timer.timeLeft": nextDuration,
-          "timer.cycle": newCycle,
-          "timer.isRunning": true, // 自動サイクル中は継続的に実行
-          "timer.startTime": serverTimestamp(),
-          "timer.pausedAt": null,
-          "timer.isAutoCycle": true, // 自動サイクル状態を維持
-          "timer.lastUpdated": serverTimestamp()
+          timer: {
+            ...timer,
+            mode: nextMode,
+            timeLeft: nextDuration,
+            cycle: newCycle,
+            isRunning: true, // 自動サイクル中は継続的に実行
+            startTime: serverTimestamp(),
+            pausedAt: null,
+            isAutoCycle: true, // 自動サイクル状態を維持
+            lastUpdated: serverTimestamp()
+          }
         });
 
       } catch (error) {
