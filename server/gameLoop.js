@@ -1,4 +1,6 @@
 // server/gameLoop.js
+const WebSocket = require("ws");
+
 function handleGameLoop(room) {
   // 顔障害物ゲームの場合のみ処理
   if (room.obstacle) {
@@ -95,7 +97,7 @@ function broadcast(room) {
 
   Object.values(room.connections).forEach((ws) => {
     // WebSocket接続が開いている場合のみ送信
-    if (ws.readyState === 1) {
+    if (ws.readyState === WebSocket.OPEN) {
       try {
         ws.send(stateString);
       } catch (error) {
