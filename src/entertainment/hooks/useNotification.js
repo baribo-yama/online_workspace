@@ -5,13 +5,27 @@ import { useCallback, useRef } from 'react';
  * - 提供API: requestPermission(ダミー), playSound, notifyTimerComplete
  */
 
-export const useNotification = () => {
+/**
+ * 通知フックのオプション
+ * @typedef {Object} UseNotificationOptions
+ * @property {string} [soundUrl] 再生する通知音のURL（既定: DEFAULT_NOTIFICATION_SOUND_URL）
+ */
+
+/** 既定の通知音パス（public配下） */
+export const DEFAULT_NOTIFICATION_SOUND_URL = '/sounds/notification.mp3';
+
+/**
+ * useNotification
+ * @param {UseNotificationOptions} [options]
+ */
+export const useNotification = (options = {}) => {
   // 音声ファイルの参照（遅延読み込み）
   const audioRef = useRef(null);
+  const soundUrl = options.soundUrl || DEFAULT_NOTIFICATION_SOUND_URL;
 
   // 従来互換のためのダミー実装（視覚通知は無効のため何もしない）
   const requestPermission = useCallback(async () => {
-    return;
+    return true;
   }, []);
 
   // デスクトップ通知・トースト通知は使用しない（音のみ）
@@ -46,7 +60,7 @@ export const useNotification = () => {
       }
 
       // 新しい音声要素を作成
-      const audio = new Audio('/sounds/notification.mp3');
+      const audio = new Audio(soundUrl);
       audio.volume = 0.5;
       audioRef.current = audio;
       
@@ -59,7 +73,7 @@ export const useNotification = () => {
       console.warn('音声再生エラー:', error);
       playFallbackSound();
     }
-  }, [playFallbackSound]);
+  }, [playFallbackSound, soundUrl]);
 
   // タイマー完了通知（音のみ）
   const notifyTimerComplete = useCallback((mode) => {
