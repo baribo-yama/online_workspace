@@ -124,27 +124,32 @@ const PREDEFINED_OBSTACLES = [
   {
     color: "#ff6b6b",
     emoji: "😀",
-    name: "赤い笑顔"
+    name: "おじさん1",
+    imageUrl: "/images/obstacles/ojisan_32x32.png"
   },
   {
     color: "#4ecdc4",
     emoji: "😎",
-    name: "青緑のサングラス"
+    name: "おじさん2",
+    imageUrl: "/images/obstacles/ojisan_32x32.png"
   },
   {
     color: "#45b7d1",
     emoji: "🤔",
-    name: "青い考え中"
+    name: "おじさん3",
+    imageUrl: "/images/obstacles/ojisan_32x32.png"
   },
   {
     color: "#96ceb4",
     emoji: "😊",
-    name: "緑の微笑み"
+    name: "おじさん4",
+    imageUrl: "/images/obstacles/ojisan_32x32.png"
   },
   {
     color: "#feca57",
     emoji: "😄",
-    name: "黄色の大笑い"
+    name: "おじさん5",
+    imageUrl: "/images/obstacles/ojisan_32x32.png"
   }
 ];
 
@@ -167,6 +172,7 @@ function startFaceGame(roomId) {
     color: selectedObstacle.color,
     emoji: selectedObstacle.emoji,
     name: selectedObstacle.name,
+    imageUrl: selectedObstacle.imageUrl, // 画像URL追加
     x: 100,
     y: 100,
     vx: 3,
