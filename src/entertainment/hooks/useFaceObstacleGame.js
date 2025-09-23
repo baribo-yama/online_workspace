@@ -17,11 +17,12 @@ const GAME_CONFIG = {
   // ゲーム時間設定
   GAME_DURATION: 30000, // 30秒（ミリ秒）
 
-  // WebSocket設定
-  CONNECTION_TIMEOUT: 10000, // 10秒
-  MAX_CONNECTION_RETRIES: 100,
-  RETRY_INTERVAL: 100, // 100ms
-  CONNECTION_CHECK_DELAY: 5000 // 5秒
+  // WebSocket設定（本番環境対応）
+  CONNECTION_TIMEOUT: isProduction() ? 30000 : 10000, // 本番環境では30秒
+  MAX_CONNECTION_RETRIES: isProduction() ? 20 : 100, // 本番環境では20回
+  RETRY_INTERVAL: isProduction() ? 2000 : 100, // 本番環境では2秒間隔
+  CONNECTION_CHECK_DELAY: 5000, // 5秒
+  LOG_INTERVAL: 5 // ログ出力間隔（n回ごと）
 };
 
 // 障害物の種類定義
@@ -73,10 +74,14 @@ export function useFaceObstacleGame(roomId, userName) {
 
   // WebSocket接続/切断の管理
   useEffect(() => {
-
+    // ゲーム中かつplayerIdが設定されている場合にのみWebSocket接続
     if (gameStatus === "playing" && playerId && !isConnected) {
+      console.log("🔗 ゲーム開始に伴うWebSocket接続開始");
       connectWebSocket();
-    } else if (gameStatus === "idle" && isConnected) {
+    } 
+    // ゲームが終了した場合のみ切断（アイドル状態への変更では切断しない）
+    else if (gameStatus === "idle" && isConnected) {
+      console.log("🔌 ゲーム終了に伴うWebSocket切断");
       disconnectWebSocket();
     }
   }, [gameStatus, playerId, isConnected]);
@@ -85,15 +90,24 @@ export function useFaceObstacleGame(roomId, userName) {
   const ensureWebSocketConnection = async () => {
     console.log("🔄 WebSocket接続確認開始...");
 
-    if (isConnected && wsRef.current && wsRef.current.readyState === 1) {
+    // 既に接続済みの場合は即座に完了
+    if (isConnected && wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
       console.log("✅ WebSocket既に接続済み");
-      return;
+      return Promise.resolve();
     }
 
     console.log("🔗 新しいWebSocket接続を開始...");
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
         console.error("❌ WebSocket接続タイムアウト");
+        // 本番環境では接続失敗時に詳細ログを出力
+        if (isProduction()) {
+          console.error("📊 本番環境接続失敗詳細:");
+          console.error("  - WebSocket URL:", getWebSocketUrl());
+          console.error("  - タイムアウト時間:", GAME_CONFIG.CONNECTION_TIMEOUT);
+          console.error("  - 環境:", import.meta.env.MODE);
+          console.error("  - 現在時刻:", new Date().toISOString());
+        }
         reject(new Error("WebSocket接続タイムアウト"));
       }, GAME_CONFIG.CONNECTION_TIMEOUT);
 
@@ -101,12 +115,15 @@ export function useFaceObstacleGame(roomId, userName) {
       const maxRetries = GAME_CONFIG.MAX_CONNECTION_RETRIES;
 
       const checkConnection = () => {
-        if (wsRef.current && wsRef.current.readyState === 1) {
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
           console.log("✅ WebSocket接続完了");
           clearTimeout(timeout);
           resolve();
         } else if (retryCount < maxRetries) {
           retryCount++;
+          if (retryCount % GAME_CONFIG.LOG_INTERVAL === 0) { // LOG_INTERVAL回ごとにログ出力
+            console.log(`🔄 WebSocket接続確認中... (${retryCount}/${maxRetries})`);
+          }
           setTimeout(checkConnection, GAME_CONFIG.RETRY_INTERVAL);
         } else {
           console.error("❌ WebSocket接続リトライ上限到達");
@@ -115,7 +132,10 @@ export function useFaceObstacleGame(roomId, userName) {
         }
       };
 
-      connectWebSocket();
+      // 既に接続中でない場合のみ新しい接続を開始
+      if (!wsRef.current || wsRef.current.readyState === WebSocket.CLOSED) {
+        connectWebSocket();
+      }
       checkConnection();
     });
   };
@@ -123,14 +143,22 @@ export function useFaceObstacleGame(roomId, userName) {
   const connectWebSocket = () => {
     console.log("🔗 WebSocket接続処理開始...");
 
-    if (wsRef.current && wsRef.current.readyState === 1) {
-      console.log("⏭️ 既存の有効な接続があります");
+    // 既に有効な接続がある場合は何もしない
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      console.log("⏭️ 既存の有効な接続があります - 接続処理をスキップ");
+      setIsConnected(true);
       return;
     }
 
-    // 既存の接続を閉じる
-    if (wsRef.current) {
-      console.log("🔄 既存の接続をクリーンアップ...");
+    // 接続中の場合は待機
+    if (wsRef.current && wsRef.current.readyState === WebSocket.CONNECTING) {
+      console.log("⏳ 既に接続中です - 処理をスキップ");
+      return;
+    }
+
+    // 既存の接続を閉じる（無効な状態の場合のみ）
+    if (wsRef.current && wsRef.current.readyState !== WebSocket.OPEN) {
+      console.log("🔄 無効な接続をクリーンアップ...");
       wsRef.current.close();
       wsRef.current = null;
     }
@@ -208,7 +236,17 @@ export function useFaceObstacleGame(roomId, userName) {
       console.error("  - ReadyState:", ws.readyState);
       console.error("  - 環境:", import.meta.env.MODE);
       console.error("  - User Agent:", navigator.userAgent);
-      console.error("  - 可能な原因: サーバーが起動していない、SSL証明書問題、CORS問題、ネットワーク問題");
+      
+      if (isProduction()) {
+        console.error("🏭 本番環境エラー詳細:");
+        console.error("  - サーバー状態確認が必要");
+        console.error("  - SSL証明書の確認が必要");
+        console.error("  - ネットワーク接続の確認が必要");
+        console.error("  - CORS設定の確認が必要");
+      } else {
+        console.error("  - 可能な原因: サーバーが起動していない、SSL証明書問題、CORS問題、ネットワーク問題");
+      }
+      
       setIsConnected(false);
     };
 
@@ -232,10 +270,21 @@ export function useFaceObstacleGame(roomId, userName) {
       originalOnError.call(ws, error);
     };
   };  const disconnectWebSocket = () => {
+    console.log("🔌 WebSocket切断処理開始");
     if (wsRef.current) {
-      wsRef.current.close();
+      console.log(`📊 切断前の状態: readyState=${wsRef.current.readyState}`);
+      
+      // 接続が開いている場合のみ明示的に閉じる
+      if (wsRef.current.readyState === WebSocket.OPEN || 
+          wsRef.current.readyState === WebSocket.CONNECTING) {
+        wsRef.current.close();
+      }
+      
       wsRef.current = null;
       setIsConnected(false);
+      console.log("✅ WebSocket切断完了");
+    } else {
+      console.log("ℹ️ WebSocket接続なし - 切断処理スキップ");
     }
   };
 
@@ -255,7 +304,7 @@ export function useFaceObstacleGame(roomId, userName) {
 
   // プレイヤー移動（WASD）
   const move = useCallback((direction) => {
-    if (wsRef.current && wsRef.current.readyState === 1 && isConnected) {
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN && isConnected) {
       wsRef.current.send(
         JSON.stringify({ type: "move", roomId, playerId, direction })
       );
@@ -288,7 +337,7 @@ export function useFaceObstacleGame(roomId, userName) {
         console.log("🔗 WebSocket接続確認完了");
 
         // WebSocketサーバーにゲーム開始を通知
-        if (wsRef.current && wsRef.current.readyState === 1) {
+        if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
           const message = { type: "startFaceGame", roomId };
           console.log("📤 WebSocketメッセージ送信:", message);
           wsRef.current.send(JSON.stringify(message));
@@ -299,6 +348,14 @@ export function useFaceObstacleGame(roomId, userName) {
         }
       } catch (wsError) {
         console.warn("⚠️ WebSocket接続失敗、シングルプレイヤーモードで続行:", wsError.message);
+        
+        if (isProduction()) {
+          console.warn("🏭 本番環境でのWebSocket接続失敗:");
+          console.warn("  - サーバーが起動中の可能性があります");
+          console.warn("  - しばらく待ってから再試行してください");
+          console.warn("  - 現在はシングルプレイヤーモードで動作します");
+        }
+        
         // シングルプレイヤーモード用の障害物生成
         generateLocalObstacle();
         generateLocalPlayer();

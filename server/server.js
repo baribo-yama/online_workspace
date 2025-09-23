@@ -20,7 +20,12 @@ const rooms = {}; // roomIdごとの状態を保持
 console.log(`✅ WebSocketサーバーがポート${PORT}で正常に起動しました`);
 console.log(`   - Node.js環境: ${process.env.NODE_ENV || 'development'}`);
 console.log(`   - プロセスID: ${process.pid}`);
-console.log(`   - サーバーURL: ws://localhost:${PORT}`);
+console.log(`   - 起動時刻: ${new Date().toISOString()}`);
+if (process.env.NODE_ENV === 'production') {
+  console.log(`   - 本番環境サーバーURL: wss://online-workspace.onrender.com`);
+} else {
+  console.log(`   - サーバーURL: ws://localhost:${PORT}`);
+}
 
 // 接続維持のためのPing/Pong
 function heartbeat() {
@@ -30,7 +35,12 @@ function heartbeat() {
 wss.on("connection", (ws, req) => {
   // オリジンチェック
   const origin = req.headers.origin;
+  const userAgent = req.headers['user-agent'];
+  const timestamp = new Date().toISOString();
+
   console.log(`🔌 新しい接続試行 - Origin: ${origin}`);
+  console.log(`   - User-Agent: ${userAgent}`);
+  console.log(`   - 接続時刻: ${timestamp}`);
 
   const allowedOrigins = [
     'https://online-workspace-1c2a4.web.app',
@@ -167,12 +177,16 @@ function startFaceGame(roomId) {
 
   // 全プレイヤーにゲーム開始を通知
   Object.values(room.connections).forEach((ws) => {
-    if (ws.readyState === 1) {
-      ws.send(JSON.stringify({
-        type: "faceGameStart",
-        obstacle: room.obstacle,
-        gameTime: 5 * 60 * 1000 // 5分
-      }));
+    if (ws.readyState === WebSocket.OPEN) {
+      try {
+        ws.send(JSON.stringify({
+          type: "faceGameStart",
+          obstacle: room.obstacle,
+          gameTime: 5 * 60 * 1000 // 5分
+        }));
+      } catch (error) {
+        console.error("❌ ゲーム開始メッセージ送信エラー:", error);
+      }
     }
   });
 }
