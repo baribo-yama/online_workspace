@@ -31,10 +31,10 @@ import {
   onSnapshot,
   query,
   limit,
-  orderBy
+  orderBy,
+  updateDoc
 } from "firebase/firestore";
 import { db } from "../../shared/services/firebase";
-import { updateDoc } from "firebase/firestore";
 import { defaultParticipant } from "../../shared/services/firestore";
 
 export const useParticipants = (roomId, userName) => {
@@ -45,6 +45,17 @@ export const useParticipants = (roomId, userName) => {
 
   // 参加者リストの取得（クリーンアップ機能付き）
   useEffect(() => {
+    // 部屋の参加者数を更新する関数（useEffect内で定義）
+    const updateRoomParticipantCount = async (count) => {
+      try {
+        await updateDoc(doc(db, "rooms", roomId), {
+          participantsCount: count
+        });
+        console.log("部屋の参加者数を更新:", count);
+      } catch (error) {
+        console.error("参加者数更新エラー:", error);
+      }
+    };
     console.log("参加者データ取得開始:", roomId);
     const participantsQuery = query(
       collection(db, "rooms", roomId, "participants"),
@@ -118,6 +129,9 @@ export const useParticipants = (roomId, userName) => {
       console.log("ユニーク参加者:", uniqueParticipants.length, "人");
       setParticipants(uniqueParticipants);
       setParticipantsLoading(false);
+      
+      // 部屋の参加者数を更新
+      updateRoomParticipantCount(uniqueParticipants.length);
     }, (error) => {
       console.error("参加者データ取得エラー:", error);
       setParticipantsLoading(false);
