@@ -94,8 +94,13 @@ function broadcast(room) {
   const stateString = JSON.stringify(state);
 
   Object.values(room.connections).forEach((ws) => {
+    // WebSocket接続が開いている場合のみ送信
     if (ws.readyState === 1) {
-      ws.send(stateString);
+      try {
+        ws.send(stateString);
+      } catch (error) {
+        console.error("❌ WebSocketメッセージ送信エラー:", error);
+      }
     }
   });
 }
