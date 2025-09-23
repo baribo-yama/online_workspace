@@ -98,13 +98,18 @@ export const useSharedTimer = (roomId) => {
       return;
     }
 
-    const switchMode = async () => {
+    const performAutoSwitchMode = async () => {
       try {
-        const nextMode = switchTimerMode(timer.mode, timer.cycle);
+        // timerオブジェクトの値を安全に取得
+        const currentMode = timer?.mode || "work";
+        const currentCycle = timer?.cycle || 0;
+        
+        const nextMode = switchTimerMode(currentMode, currentCycle);
         const nextDuration = getModeDuration(nextMode);
-        const newCycle = timer.mode === "work" ? timer.cycle + 1 : timer.cycle;
+        const newCycle = currentMode === "work" ? currentCycle + 1 : currentCycle;
 
         const roomRef = doc(db, "rooms", roomId);
+        // スプレッドで一貫性と可読性を確保
         await updateDoc(roomRef, {
           timer: {
             ...timer,
@@ -125,7 +130,7 @@ export const useSharedTimer = (roomId) => {
     };
 
     // 少し遅延を入れて確実に実行
-    setTimeout(switchMode, 100);
+    setTimeout(performAutoSwitchMode, 100);
   }, [timer.timeLeft, timer.isRunning, timer.mode, timer.cycle, roomId, isAutoCycle]);
 
   // ローカル更新用のタイマー（表示のスムーズさのため）
@@ -221,8 +226,8 @@ export const useSharedTimer = (roomId) => {
     }
   };
 
-  // モード切り替え処理
-  const switchTimerMode = async (newMode) => {
+  // モード切り替え処理（手動）
+  const switchTimerModeManual = async (newMode) => {
     if (!roomId) {
       return;
     }
@@ -257,7 +262,7 @@ export const useSharedTimer = (roomId) => {
     isLoading,
     startTimer,
     resetTimer,
-    switchMode: switchTimerMode,
+    switchMode: switchTimerModeManual,
     isAutoCycle
   };
 };

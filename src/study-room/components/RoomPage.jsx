@@ -21,6 +21,8 @@ import { Home, Trash2 } from "lucide-react";
 import SharedTimer from "../../pomodoro-timer/components/SharedTimer";
 import ParticipantList from "../../collaboration/components/ParticipantList";
 import { useParticipants } from "../../collaboration/hooks/useParticipants";
+import { useNotification } from "../../entertainment/hooks/useNotification";
+
 
 // 大きなコンポーネントを遅延読み込み
 const FaceObstacleGame = lazy(() => import("../../entertainment/components/FaceObstacleGame"));
@@ -32,7 +34,11 @@ function RoomPage() {
   const { state } = useLocation();                                   // ナビゲーション状態
   const userName = state?.name || localStorage.getItem("userName") || "Guest"; // ユーザー名の取得
 
+  // === 通知機能フック ===
+  const { requestPermission } = useNotification(); // 通知許可のリクエスト用（音のみ）
+
   console.log("RoomPage レンダリング開始:", { roomId, userName, state });
+  // 視覚トーストの利用は停止
 
   // === ナビゲーション ===
   const navigate = useNavigate();
@@ -41,7 +47,7 @@ function RoomPage() {
   const [room, setRoom] = useState(null);                            // ルーム情報
   const [loading, setLoading] = useState(true);                      // ローディング状態
   const [showTestGame, setShowTestGame] = useState(false);           // ゲーム表示フラグ
-  const [gameType, setGameType] = useState("face");                  // ゲームタイプ（顔認識ゲーム）使われてない変数
+  // const [gameType, setGameType] = useState("face");                  // ゲームタイプ（顔認識ゲーム）使われてない変数
 
   // === 参加者管理フック ===
   const { participants, participantsLoading, myParticipantId, leaveRoom } = useParticipants(roomId, userName);
@@ -85,6 +91,12 @@ function RoomPage() {
 
     return () => unsubscribe();
   }, [roomId, navigate]);
+
+  // === 通知許可のリクエスト ===
+  useEffect(() => {
+    // コンポーネントマウント時に通知許可をリクエスト
+    requestPermission();
+  }, [requestPermission]);
 
   const handleLeaveRoom = async () => {
     try {
@@ -184,7 +196,7 @@ function RoomPage() {
             <div className="flex gap-2">
               <button
                 onClick={() => {
-                  setGameType("face");
+                  // setGameType("face"); // 一時的にコメントアウト
                   setShowTestGame(true);
                 }}
                 className="bg-purple-600 hover:bg-purple-700 px-3 py-1 rounded text-white text-sm font-medium transition-colors flex items-center gap-2"
@@ -249,7 +261,7 @@ function RoomPage() {
             <div>
               <button
                 onClick={() => {
-                  setGameType("face");
+                  // setGameType("face"); // 一時的にコメントアウト
                   setShowTestGame(true);
                 }}
                 className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded text-white font-medium transition-colors flex items-center gap-2 w-full justify-center"
@@ -323,6 +335,8 @@ function RoomPage() {
           </div>
         </div>
       )}
+      
+      {/* 視覚トーストは無効化中 */}
     </div>
   );
 }

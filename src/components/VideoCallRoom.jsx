@@ -33,15 +33,24 @@ import {
 import { LIVEKIT_CONFIG, generateRoomName, generateParticipantName, generateAccessToken } from '../config/livekit';
 
 
+// =============================================
 // Configuration constants
+// =============================================
+/**
+ * LiveKit接続やUI動作に関わる遅延・しきい値の定義。
+ * 値を一箇所に集約し、デバッグ/調整を容易にする。
+ */
 const TRACK_ATTACHMENT_DELAY = 100; // ms - リモートトラックのアタッチ遅延
 const LOCAL_TRACK_ATTACHMENT_DELAY = 50; // ms - ローカルトラックのアタッチ遅延
 const RETRY_ATTACHMENT_DELAY = 200; // ms - リトライ時のアタッチ遅延
 const AUDIO_LEVEL_NORMALIZER = 128; // 音声レベル正規化用の除数
 const SPEAKING_THRESHOLD = 3; // 話していると判定する音声レベル閾値
 
+
 function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
+  // =============================================
   // State management
+  // =============================================
   const [participants, setParticipants] = useState([]); // 参加者リスト
   const [localParticipant, setLocalParticipant] = useState(null); // ローカル参加者
   const [isConnecting, setIsConnecting] = useState(false); // 接続中フラグ
@@ -51,7 +60,9 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
   const [audioLevel, setAudioLevel] = useState(0); // 音声レベル
   const [isSpeaking, setIsSpeaking] = useState(false); // 話している状態
   
+  // =============================================
   // Refs for DOM elements and function references
+  // =============================================
   const roomRef = useRef(null); // LiveKitルームインスタンス
   const hasConnectedRef = useRef(false); // 接続済みフラグ
   const isConnectingRef = useRef(false); // 接続中フラグ
