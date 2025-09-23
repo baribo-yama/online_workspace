@@ -98,25 +98,26 @@ export const useSharedTimer = (roomId) => {
       return;
     }
 
-    const switchMode = async () => {
+    const performAutoSwitchMode = async () => {
       try {
-        const nextMode = switchTimerMode(timer.mode, timer.cycle);
+        // timerオブジェクトの値を安全に取得
+        const currentMode = timer?.mode || "work";
+        const currentCycle = timer?.cycle || 0;
+        
+        const nextMode = switchTimerMode(currentMode, currentCycle);
         const nextDuration = getModeDuration(nextMode);
-        const newCycle = timer.mode === "work" ? timer.cycle + 1 : timer.cycle;
+        const newCycle = currentMode === "work" ? currentCycle + 1 : currentCycle;
 
         const roomRef = doc(db, "rooms", roomId);
         await updateDoc(roomRef, {
-          timer: {
-            ...timer,
-            mode: nextMode,
-            timeLeft: nextDuration,
-            cycle: newCycle,
-            isRunning: true, // 自動サイクル中は継続的に実行
-            startTime: serverTimestamp(),
-            pausedAt: null,
-            isAutoCycle: true, // 自動サイクル状態を維持
-            lastUpdated: serverTimestamp()
-          }
+          "timer.mode": nextMode,
+          "timer.timeLeft": nextDuration,
+          "timer.cycle": newCycle,
+          "timer.isRunning": true, // 自動サイクル中は継続的に実行
+          "timer.startTime": serverTimestamp(),
+          "timer.pausedAt": null,
+          "timer.isAutoCycle": true, // 自動サイクル状態を維持
+          "timer.lastUpdated": serverTimestamp()
         });
 
       } catch (error) {
@@ -125,7 +126,7 @@ export const useSharedTimer = (roomId) => {
     };
 
     // 少し遅延を入れて確実に実行
-    setTimeout(switchMode, 100);
+    setTimeout(performAutoSwitchMode, 100);
   }, [timer.timeLeft, timer.isRunning, timer.mode, timer.cycle, roomId, isAutoCycle]);
 
   // ローカル更新用のタイマー（表示のスムーズさのため）
@@ -221,8 +222,8 @@ export const useSharedTimer = (roomId) => {
     }
   };
 
-  // モード切り替え処理
-  const switchTimerMode = async (newMode) => {
+  // モード切り替え処理（手動）
+  const switchTimerModeManual = async (newMode) => {
     if (!roomId) {
       return;
     }
@@ -257,7 +258,7 @@ export const useSharedTimer = (roomId) => {
     isLoading,
     startTimer,
     resetTimer,
-    switchMode: switchTimerMode,
+    switchMode: switchTimerModeManual,
     isAutoCycle
   };
 };

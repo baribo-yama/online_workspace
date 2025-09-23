@@ -1,14 +1,35 @@
 // 共有ポモドーロタイマーコンポーネント
-import { memo } from "react";
+import { memo, useEffect, useRef } from "react";
 import { Clock, Play, Pause, RotateCcw, Coffee } from "lucide-react";
 import { useSharedTimer } from "../hooks/useSharedTimer";
 import { formatTime, calculateProgress } from "../../shared/utils/timer";
+import { useNotification } from "../../entertainment/hooks/useNotification";
 
 const SharedTimer = memo(function SharedTimer({ roomId, isHost = false }) {
   const { timer, isLoading, startTimer, resetTimer, switchMode, isAutoCycle } = useSharedTimer(roomId);
+  const { notifyTimerComplete } = useNotification(); // 通知機能を追加
+  const hasNotifiedRef = useRef(false); // 通知済みフラグ
+  const lastNotifiedModeRef = useRef(null); // 最後に通知したモードを記録
 
   const duration = timer?.mode === 'work' ? 25*60 : 5*60;
   const progress = calculateProgress(timer?.timeLeft || 0, duration);
+
+  // タイマーが0になった時の通知処理（useEffect内で実行）
+  useEffect(() => {
+    // タイマーが0になった時のみ通知（モードが変わった場合のみ）
+    if (timer?.timeLeft === 0 && 
+        !hasNotifiedRef.current && 
+        timer.mode !== lastNotifiedModeRef.current) {
+      console.log('通知を実行:', timer.mode);
+      hasNotifiedRef.current = true;
+      lastNotifiedModeRef.current = timer.mode;
+      notifyTimerComplete(timer.mode);
+    } else if (timer?.timeLeft > 0) {
+      // タイマーが再開されたら通知フラグをリセット
+      hasNotifiedRef.current = false;
+      lastNotifiedModeRef.current = null;
+    }
+  }, [timer?.timeLeft, timer?.mode, notifyTimerComplete]);
 
   if (isLoading) {
     return (
