@@ -163,10 +163,9 @@ export default function FaceObstacleGame({ roomId, userName, isHost = false }) {
     return () => clearInterval(interval);
   }, [keys, isConnected, move]);
 
-  // 障害物を事前にCanvasに描画（軽量版）
+  // 障害物を事前にCanvasに描画（画像対応版）
   useEffect(() => {
-    if (obstacle && obstacle.color && obstacle.emoji) {
-
+    if (obstacle && obstacle.color) {
       // 新しいCanvasを作成
       const canvas = document.createElement('canvas');
       canvas.width = obstacle.width;
@@ -182,18 +181,43 @@ export default function FaceObstacleGame({ roomId, userName, isHost = false }) {
       ctx.lineWidth = 2;
       ctx.strokeRect(0, 0, obstacle.width, obstacle.height);
 
-      // 絵文字を描画
-      ctx.fillStyle = "white";
-      ctx.font = "24px Arial";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.fillText(obstacle.emoji, obstacle.width/2, obstacle.height/2);
-
-      setObstacleCanvas(canvas);
+      // 画像がある場合は画像を、ない場合は絵文字を描画
+      if (obstacle.imageUrl) {
+        const img = new Image();
+        img.onload = () => {
+          // 画像を滑らかでない（ピクセルアート風）描画に設定
+          ctx.imageSmoothingEnabled = false;
+          // 画像をキャンバスサイズに合わせて描画（少し余白を残す）
+          ctx.drawImage(img, 4, 4, obstacle.width - 8, obstacle.height - 8);
+          setObstacleCanvas(canvas);
+        };
+        img.onerror = () => {
+          // 画像読み込み失敗時は絵文字をフォールバック
+          console.warn(`画像読み込み失敗: ${obstacle.imageUrl}, 絵文字を使用します`);
+          drawEmojiOnCanvas(ctx, obstacle);
+          setObstacleCanvas(canvas);
+        };
+        // 画像の読み込みパフォーマンス最適化
+        img.crossOrigin = 'anonymous';
+        img.src = obstacle.imageUrl;
+      } else {
+        // 絵文字を描画
+        drawEmojiOnCanvas(ctx, obstacle);
+        setObstacleCanvas(canvas);
+      }
     } else {
       setObstacleCanvas(null);
     }
   }, [obstacle]);
+
+  // 絵文字描画のヘルパー関数
+  const drawEmojiOnCanvas = (ctx, obstacle) => {
+    ctx.fillStyle = "white";
+    ctx.font = "24px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(obstacle.emoji || "😀", obstacle.width/2, obstacle.height/2);
+  };
 
   return (
     <div className="flex flex-col items-center gap-4">
