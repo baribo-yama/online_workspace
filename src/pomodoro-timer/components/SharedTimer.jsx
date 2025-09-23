@@ -10,25 +10,36 @@ const SharedTimer = memo(function SharedTimer({ roomId, isHost = false }) {
   const { notifyTimerComplete } = useNotification(); // 通知機能を追加
   const hasNotifiedRef = useRef(false); // 通知済みフラグ
   const lastNotifiedModeRef = useRef(null); // 最後に通知したモードを記録
+  const prevModeRef = useRef(null); // 直前のモード
+  const prevTimeLeftRef = useRef(null); // 直前の残り秒数
 
   const duration = timer?.mode === 'work' ? 25*60 : 5*60;
   const progress = calculateProgress(timer?.timeLeft || 0, duration);
 
-  // タイマーが0になった時の通知処理（useEffect内で実行）
+  // タイマーが0になった時の通知処理（モード切替前のモードで通知）
   useEffect(() => {
-    // タイマーが0になった時のみ通知（モードが変わった場合のみ）
-    if (timer?.timeLeft === 0 && 
-        !hasNotifiedRef.current && 
-        timer.mode !== lastNotifiedModeRef.current) {
-      console.log('通知を実行:', timer.mode);
+    const currentMode = timer?.mode;
+    const currentTimeLeft = timer?.timeLeft;
+
+    // 直前が1で今が0になった瞬間を検知 → 直前のモードで通知
+    const isZeroTransition = prevTimeLeftRef.current === 1 && currentTimeLeft === 0;
+
+    if (isZeroTransition && !hasNotifiedRef.current) {
+      const modeToNotify = prevModeRef.current || currentMode;
       hasNotifiedRef.current = true;
-      lastNotifiedModeRef.current = timer.mode;
-      notifyTimerComplete(timer.mode);
-    } else if (timer?.timeLeft > 0) {
-      // タイマーが再開されたら通知フラグをリセット
+      lastNotifiedModeRef.current = modeToNotify;
+      notifyTimerComplete(modeToNotify);
+    }
+
+    // 0より大きくなったら（リセット/開始/手動切替等）通知フラグをリセット
+    if (typeof currentTimeLeft === 'number' && currentTimeLeft > 0) {
       hasNotifiedRef.current = false;
       lastNotifiedModeRef.current = null;
     }
+
+    // 最後に参照を更新
+    prevModeRef.current = currentMode;
+    prevTimeLeftRef.current = currentTimeLeft;
   }, [timer?.timeLeft, timer?.mode, notifyTimerComplete]);
 
   if (isLoading) {
