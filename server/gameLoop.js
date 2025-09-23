@@ -1,4 +1,6 @@
 // server/gameLoop.js
+const WebSocket = require("ws");
+
 function handleGameLoop(room) {
   // 顔障害物ゲームの場合のみ処理
   if (room.obstacle) {
@@ -94,8 +96,13 @@ function broadcast(room) {
   const stateString = JSON.stringify(state);
 
   Object.values(room.connections).forEach((ws) => {
-    if (ws.readyState === 1) {
-      ws.send(stateString);
+    // WebSocket接続が開いている場合のみ送信
+    if (ws.readyState === WebSocket.OPEN) {
+      try {
+        ws.send(stateString);
+      } catch (error) {
+        console.error("❌ WebSocketメッセージ送信エラー:", error);
+      }
     }
   });
 }

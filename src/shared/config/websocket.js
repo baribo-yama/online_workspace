@@ -37,8 +37,8 @@ export function getDefaultWebSocketUrl() {
     if (prodUrl && validateWebSocketUrl(prodUrl)) {
       return prodUrl;
     }
-    // RenderのWebSocketサーバーURL
-    return "wss://online-workspace-websocket.onrender.com";
+    // RenderのWebSocketサーバーURL（HTTPSをWSSに変更）
+    return "wss://online-workspace.onrender.com";
   } else {
     return "ws://localhost:8080";
   }
