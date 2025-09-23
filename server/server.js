@@ -37,7 +37,7 @@ wss.on("connection", (ws, req) => {
   const origin = req.headers.origin;
   const userAgent = req.headers['user-agent'];
   const timestamp = new Date().toISOString();
-  
+
   console.log(`🔌 新しい接続試行 - Origin: ${origin}`);
   console.log(`   - User-Agent: ${userAgent}`);
   console.log(`   - 接続時刻: ${timestamp}`);
@@ -177,7 +177,7 @@ function startFaceGame(roomId) {
 
   // 全プレイヤーにゲーム開始を通知
   Object.values(room.connections).forEach((ws) => {
-    if (ws.readyState === 1) {
+    if (ws.readyState === WebSocket.OPEN) {
       try {
         ws.send(JSON.stringify({
           type: "faceGameStart",

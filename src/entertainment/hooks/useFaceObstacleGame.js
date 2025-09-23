@@ -21,7 +21,8 @@ const GAME_CONFIG = {
   CONNECTION_TIMEOUT: isProduction() ? 30000 : 10000, // 本番環境では30秒
   MAX_CONNECTION_RETRIES: isProduction() ? 20 : 100, // 本番環境では20回
   RETRY_INTERVAL: isProduction() ? 2000 : 100, // 本番環境では2秒間隔
-  CONNECTION_CHECK_DELAY: 5000 // 5秒
+  CONNECTION_CHECK_DELAY: 5000, // 5秒
+  LOG_INTERVAL: 5 // ログ出力間隔（n回ごと）
 };
 
 // 障害物の種類定義
@@ -120,7 +121,7 @@ export function useFaceObstacleGame(roomId, userName) {
           resolve();
         } else if (retryCount < maxRetries) {
           retryCount++;
-          if (retryCount % 5 === 0) { // 5回ごとにログ出力
+          if (retryCount % GAME_CONFIG.LOG_INTERVAL === 0) { // LOG_INTERVAL回ごとにログ出力
             console.log(`🔄 WebSocket接続確認中... (${retryCount}/${maxRetries})`);
           }
           setTimeout(checkConnection, GAME_CONFIG.RETRY_INTERVAL);
