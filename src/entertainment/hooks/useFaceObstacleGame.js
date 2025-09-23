@@ -27,9 +27,24 @@ const GAME_CONFIG = {
 
 // 障害物の種類定義
 const OBSTACLE_TYPES = [
-  { color: "#ff6b6b", emoji: "😀", name: "赤い笑顔" },
-  { color: "#4ecdc4", emoji: "😎", name: "青緑のサングラス" },
-  { color: "#45b7d1", emoji: "🤔", name: "青い考え中" },
+  { 
+    color: "#ff6b6b", 
+    emoji: "😀", 
+    name: "おじさん1",
+    imageUrl: "/images/obstacles/ojisan_32x32.png"
+  },
+  { 
+    color: "#4ecdc4", 
+    emoji: "😎", 
+    name: "おじさん2",
+    imageUrl: "/images/obstacles/ojisan_32x32.png"
+  },
+  { 
+    color: "#45b7d1", 
+    emoji: "🤔", 
+    name: "おじさん3",
+    imageUrl: "/images/obstacles/ojisan_32x32.png"
+  },
 ];
 
 export function useFaceObstacleGame(roomId, userName) {
