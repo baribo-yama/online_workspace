@@ -123,31 +123,26 @@ setInterval(() => {
 const PREDEFINED_OBSTACLES = [
   {
     color: "#ff6b6b",
-    emoji: "😀",
     name: "おじさん1",
     imageUrl: "/images/obstacles/ojisan_32x32.png"
   },
   {
     color: "#4ecdc4",
-    emoji: "😎",
     name: "おじさん2",
     imageUrl: "/images/obstacles/ojisan_32x32.png"
   },
   {
     color: "#45b7d1",
-    emoji: "🤔",
     name: "おじさん3",
     imageUrl: "/images/obstacles/ojisan_32x32.png"
   },
   {
     color: "#96ceb4",
-    emoji: "😊",
     name: "おじさん4",
     imageUrl: "/images/obstacles/ojisan_32x32.png"
   },
   {
     color: "#feca57",
-    emoji: "😄",
     name: "おじさん5",
     imageUrl: "/images/obstacles/ojisan_32x32.png"
   }
@@ -170,9 +165,8 @@ function startFaceGame(roomId) {
   // 障害物を初期化
   room.obstacle = {
     color: selectedObstacle.color,
-    emoji: selectedObstacle.emoji,
     name: selectedObstacle.name,
-    imageUrl: selectedObstacle.imageUrl, // 画像URL追加
+    imageUrl: selectedObstacle.imageUrl,
     x: 100,
     y: 100,
     vx: 3,

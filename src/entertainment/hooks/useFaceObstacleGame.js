@@ -29,19 +29,16 @@ const GAME_CONFIG = {
 const OBSTACLE_TYPES = [
   { 
     color: "#ff6b6b", 
-    emoji: "😀", 
     name: "おじさん1",
     imageUrl: "/images/obstacles/ojisan_32x32.png"
   },
   { 
     color: "#4ecdc4", 
-    emoji: "😎", 
     name: "おじさん2",
     imageUrl: "/images/obstacles/ojisan_32x32.png"
   },
   { 
     color: "#45b7d1", 
-    emoji: "🤔", 
     name: "おじさん3",
     imageUrl: "/images/obstacles/ojisan_32x32.png"
   },

@@ -198,7 +198,9 @@ export default function FaceObstacleGame({ roomId, userName, isHost = false }) {
           setObstacleCanvas(canvas);
         };
         // 画像の読み込みパフォーマンス最適化
-        img.crossOrigin = 'anonymous';
+        if (/^https?:\/\//.test(obstacle.imageUrl)) {
+          img.crossOrigin = 'anonymous';
+        }
         img.src = obstacle.imageUrl;
       } else {
         // 絵文字を描画
