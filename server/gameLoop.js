@@ -87,8 +87,8 @@ function broadcast(room) {
       width: room.obstacle.width,
       height: room.obstacle.height,
       color: room.obstacle.color,
-      emoji: room.obstacle.emoji,
-      name: room.obstacle.name
+      name: room.obstacle.name,
+      imageUrl: room.obstacle.imageUrl
     } : null,
   };
 

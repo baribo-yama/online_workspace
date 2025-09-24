@@ -119,32 +119,22 @@ setInterval(() => {
   Object.values(rooms).forEach((room) => handleGameLoop(room));
 }, 200); // 200msごとに更新（軽量化）
 
-// 事前に用意した障害物データ（軽量版）
+// 事前に用意した障害物データ（クライアント側と同期）
 const PREDEFINED_OBSTACLES = [
   {
     color: "#ff6b6b",
-    emoji: "😀",
-    name: "赤い笑顔"
+    name: "おじさん1",
+    imageUrl: "/images/obstacles/ojisan_32x32.png"
   },
   {
     color: "#4ecdc4",
-    emoji: "😎",
-    name: "青緑のサングラス"
+    name: "おじさん2",
+    imageUrl: "/images/obstacles/ojisan_32x32.png"
   },
   {
     color: "#45b7d1",
-    emoji: "🤔",
-    name: "青い考え中"
-  },
-  {
-    color: "#96ceb4",
-    emoji: "😊",
-    name: "緑の微笑み"
-  },
-  {
-    color: "#feca57",
-    emoji: "😄",
-    name: "黄色の大笑い"
+    name: "おじさん3",
+    imageUrl: "/images/obstacles/ojisan_32x32.png"
   }
 ];
 
@@ -165,8 +155,8 @@ function startFaceGame(roomId) {
   // 障害物を初期化
   room.obstacle = {
     color: selectedObstacle.color,
-    emoji: selectedObstacle.emoji,
     name: selectedObstacle.name,
+    imageUrl: selectedObstacle.imageUrl,
     x: 100,
     y: 100,
     vx: 3,
