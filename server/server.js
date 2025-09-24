@@ -119,7 +119,7 @@ setInterval(() => {
   Object.values(rooms).forEach((room) => handleGameLoop(room));
 }, 200); // 200msごとに更新（軽量化）
 
-// 事前に用意した障害物データ（軽量版）
+// 事前に用意した障害物データ（クライアント側と同期）
 const PREDEFINED_OBSTACLES = [
   {
     color: "#ff6b6b",
@@ -134,16 +134,6 @@ const PREDEFINED_OBSTACLES = [
   {
     color: "#45b7d1",
     name: "おじさん3",
-    imageUrl: "/images/obstacles/ojisan_32x32.png"
-  },
-  {
-    color: "#96ceb4",
-    name: "おじさん4",
-    imageUrl: "/images/obstacles/ojisan_32x32.png"
-  },
-  {
-    color: "#feca57",
-    name: "おじさん5",
     imageUrl: "/images/obstacles/ojisan_32x32.png"
   }
 ];

@@ -86,8 +86,8 @@ export const ROOM_CATEGORIES = [
 
 // ポモドーロタイマー設定
 export const POMODORO_SETTINGS = {
-  WORK_DURATION: 10,    // 作業時間（秒）デフォルト25 * 60
-  SHORT_BREAK: 10,       // 短い休憩（秒） 5 * 60
+  WORK_DURATION: 25 * 10,    // 作業時間（秒）デフォルト25 * 60
+  SHORT_BREAK: 5 * 10,       // 短い休憩（秒） 5 * 60
   LONG_BREAK: 15 * 60,       // 長い休憩（秒）
 };
 
