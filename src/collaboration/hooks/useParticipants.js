@@ -118,6 +118,16 @@ export const useParticipants = (roomId, userName) => {
       console.log("ユニーク参加者:", uniqueParticipants.length, "人");
       setParticipants(uniqueParticipants);
       setParticipantsLoading(false);
+
+      // 部屋の参加者数を更新
+      try {
+        await updateDoc(doc(db, "rooms", roomId), {
+          participantsCount: uniqueParticipants.length
+        });
+        console.log("部屋の参加者数を更新:", uniqueParticipants.length);
+      } catch (error) {
+        console.error("参加者数更新エラー:", error);
+      }
     }, (error) => {
       console.error("参加者データ取得エラー:", error);
       setParticipantsLoading(false);
