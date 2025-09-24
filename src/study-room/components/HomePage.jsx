@@ -1,6 +1,6 @@
 // src/pages/Home.jsx
 import { useEffect, useState } from "react";
-import { collection, addDoc, serverTimestamp, query, orderBy, limit, onSnapshot } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, query, orderBy, limit, onSnapshot, getDocs } from "firebase/firestore";
 import { db } from "../../shared/services/firebase";
 import { useNavigate } from "react-router-dom";
 import { defaultRoom } from "../../shared/services/firestore";
@@ -23,7 +23,51 @@ function Home() {
     }
   }, []);
 
-  // 部屋一覧をリアルタイムで取得（シンプル版）
+  // 参加者データを取得する関数
+  const fetchParticipantsData = async (roomsData) => {
+    const participantPromises = roomsData.map(async (room) => {
+      try {
+        const participantsQuery = query(
+          collection(db, "rooms", room.id, "participants"),
+          orderBy("joinedAt", "asc")
+        );
+        
+        const participantsSnapshot = await getDocs(participantsQuery);
+
+        const participants = participantsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+
+        // アクティブな参加者のみをフィルタ（5分以内）
+        const now = Date.now();
+        const activeParticipants = participants.filter(participant => {
+          if (participant.joinedAt) {
+            const joinedTime = participant.joinedAt.toDate ?
+              participant.joinedAt.toDate().getTime() :
+              participant.joinedAt;
+            return (now - joinedTime) <= 300000; // 5分以内
+          }
+          return true;
+        });
+
+        return { roomId: room.id, participants: activeParticipants.map(p => p.name) };
+      } catch (error) {
+        console.error(`部屋 ${room.id} の参加者取得エラー:`, error);
+        return { roomId: room.id, participants: [] };
+      }
+    });
+
+    const participantResults = await Promise.all(participantPromises);
+    const participantsData = {};
+    participantResults.forEach(({ roomId, participants }) => {
+      participantsData[roomId] = participants;
+    });
+
+    setRoomParticipants(participantsData);
+  };
+
+  // 部屋一覧をリアルタイムで取得
   useEffect(() => {
     const roomsQuery = query(
       collection(db, "rooms"),
@@ -31,53 +75,12 @@ function Home() {
       limit(10)
     );
 
-    const unsubscribe = onSnapshot(roomsQuery, async (snapshot) => {
+    const unsubscribe = onSnapshot(roomsQuery, (snapshot) => {
       const roomsData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
       setRooms(roomsData);
-
-      // 各部屋の参加者データを取得
-      const participantsData = {};
-      for (const room of roomsData) {
-        try {
-          const participantsQuery = query(
-            collection(db, "rooms", room.id, "participants"),
-            orderBy("joinedAt", "asc")
-          );
-          
-          const participantsSnapshot = await new Promise((resolve, reject) => {
-            const unsubscribeParticipants = onSnapshot(participantsQuery, resolve, reject);
-            // 即座にunsubscribeして一回だけ取得
-            setTimeout(() => unsubscribeParticipants(), 100);
-          });
-
-          const participants = participantsSnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          }));
-
-          // アクティブな参加者のみをフィルタ（5分以内）
-          const now = Date.now();
-          const activeParticipants = participants.filter(participant => {
-            if (participant.joinedAt) {
-              const joinedTime = participant.joinedAt.toDate ?
-                participant.joinedAt.toDate().getTime() :
-                participant.joinedAt;
-              return (now - joinedTime) <= 300000; // 5分以内
-            }
-            return true;
-          });
-
-          participantsData[room.id] = activeParticipants.map(p => p.name);
-        } catch (error) {
-          console.error(`部屋 ${room.id} の参加者取得エラー:`, error);
-          participantsData[room.id] = [];
-        }
-      }
-
-      setRoomParticipants(participantsData);
       setLoading(false);
     }, (error) => {
       console.error("部屋一覧取得エラー:", error);
@@ -86,6 +89,13 @@ function Home() {
 
     return () => unsubscribe();
   }, []);
+
+  // 部屋データが変更されたときに参加者データを取得
+  useEffect(() => {
+    if (rooms.length > 0) {
+      fetchParticipantsData(rooms);
+    }
+  }, [rooms]);
 
   // 名前が変更されたらローカルストレージに保存
   const handleNameChange = (e) => {
