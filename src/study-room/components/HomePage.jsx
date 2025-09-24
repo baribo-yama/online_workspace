@@ -11,6 +11,7 @@ function Home() {
   const [title, setTitle] = useState("");
   const [name, setName] = useState("");
   const [rooms, setRooms] = useState([]);
+  const [roomParticipants, setRoomParticipants] = useState({});
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -30,12 +31,53 @@ function Home() {
       limit(10)
     );
 
-    const unsubscribe = onSnapshot(roomsQuery, (snapshot) => {
+    const unsubscribe = onSnapshot(roomsQuery, async (snapshot) => {
       const roomsData = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
       setRooms(roomsData);
+
+      // 各部屋の参加者データを取得
+      const participantsData = {};
+      for (const room of roomsData) {
+        try {
+          const participantsQuery = query(
+            collection(db, "rooms", room.id, "participants"),
+            orderBy("joinedAt", "asc")
+          );
+          
+          const participantsSnapshot = await new Promise((resolve, reject) => {
+            const unsubscribeParticipants = onSnapshot(participantsQuery, resolve, reject);
+            // 即座にunsubscribeして一回だけ取得
+            setTimeout(() => unsubscribeParticipants(), 100);
+          });
+
+          const participants = participantsSnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          }));
+
+          // アクティブな参加者のみをフィルタ（5分以内）
+          const now = Date.now();
+          const activeParticipants = participants.filter(participant => {
+            if (participant.joinedAt) {
+              const joinedTime = participant.joinedAt.toDate ?
+                participant.joinedAt.toDate().getTime() :
+                participant.joinedAt;
+              return (now - joinedTime) <= 300000; // 5分以内
+            }
+            return true;
+          });
+
+          participantsData[room.id] = activeParticipants.map(p => p.name);
+        } catch (error) {
+          console.error(`部屋 ${room.id} の参加者取得エラー:`, error);
+          participantsData[room.id] = [];
+        }
+      }
+
+      setRoomParticipants(participantsData);
       setLoading(false);
     }, (error) => {
       console.error("部屋一覧取得エラー:", error);
@@ -174,7 +216,7 @@ function Home() {
                   アクティブ
                 </span>
               </div>
-              <div className="flex items-center justify-between text-sm text-gray-300">
+              <div className="flex items-center justify-between text-sm text-gray-300 mb-2">
                 <div className="flex items-center gap-1">
                   <Users className="w-4 h-4" />
                   <span>{room.participantsCount || 0}/5</span>
@@ -183,6 +225,13 @@ function Home() {
                   {room.subject || "一般"}
                 </span>
               </div>
+              {/* 参加者名表示 */}
+              {roomParticipants[room.id] && roomParticipants[room.id].length > 0 && (
+                <div className="text-xs text-gray-400">
+                  <span className="text-gray-500">参加者：</span>
+                  {roomParticipants[room.id].join("　")}
+                </div>
+              )}
             </div>
           ))}
 
