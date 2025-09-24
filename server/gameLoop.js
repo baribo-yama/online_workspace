@@ -87,9 +87,8 @@ function broadcast(room) {
       width: room.obstacle.width,
       height: room.obstacle.height,
       color: room.obstacle.color,
-      emoji: room.obstacle.emoji,
       name: room.obstacle.name,
-      imageUrl: room.obstacle.imageUrl // 画像URL追加
+      imageUrl: room.obstacle.imageUrl
     } : null,
   };
 
