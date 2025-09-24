@@ -1,6 +1,6 @@
 // src/pages/Home.jsx
 import { useEffect, useState } from "react";
-import { collection, addDoc, serverTimestamp, query, orderBy, limit, onSnapshot } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, query, orderBy, limit, onSnapshot, getDocs } from "firebase/firestore";
 import { db } from "../../shared/services/firebase";
 import { useNavigate } from "react-router-dom";
 import { defaultRoom } from "../../shared/services/firestore";
@@ -11,6 +11,7 @@ function Home() {
   const [title, setTitle] = useState("");
   const [name, setName] = useState("");
   const [rooms, setRooms] = useState([]);
+  const [roomParticipants, setRoomParticipants] = useState({});
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -22,7 +23,51 @@ function Home() {
     }
   }, []);
 
-  // 部屋一覧をリアルタイムで取得（シンプル版）
+  // 参加者データを取得する関数
+  const fetchParticipantsData = async (roomsData) => {
+    const participantPromises = roomsData.map(async (room) => {
+      try {
+        const participantsQuery = query(
+          collection(db, "rooms", room.id, "participants"),
+          orderBy("joinedAt", "asc")
+        );
+        
+        const participantsSnapshot = await getDocs(participantsQuery);
+
+        const participants = participantsSnapshot.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
+        }));
+
+        // アクティブな参加者のみをフィルタ（5分以内）
+        const now = Date.now();
+        const activeParticipants = participants.filter(participant => {
+          if (participant.joinedAt) {
+            const joinedTime = participant.joinedAt.toDate ?
+              participant.joinedAt.toDate().getTime() :
+              participant.joinedAt;
+            return (now - joinedTime) <= 300000; // 5分以内
+          }
+          return true;
+        });
+
+        return { roomId: room.id, participants: activeParticipants.map(p => p.name) };
+      } catch (error) {
+        console.error(`部屋 ${room.id} の参加者取得エラー:`, error);
+        return { roomId: room.id, participants: [] };
+      }
+    });
+
+    const participantResults = await Promise.all(participantPromises);
+    const participantsData = {};
+    participantResults.forEach(({ roomId, participants }) => {
+      participantsData[roomId] = participants;
+    });
+
+    setRoomParticipants(participantsData);
+  };
+
+  // 部屋一覧をリアルタイムで取得
   useEffect(() => {
     const roomsQuery = query(
       collection(db, "rooms"),
@@ -44,6 +89,13 @@ function Home() {
 
     return () => unsubscribe();
   }, []);
+
+  // 部屋データが変更されたときに参加者データを取得
+  useEffect(() => {
+    if (rooms.length > 0) {
+      fetchParticipantsData(rooms);
+    }
+  }, [rooms]);
 
   // 名前が変更されたらローカルストレージに保存
   const handleNameChange = (e) => {
@@ -174,7 +226,7 @@ function Home() {
                   アクティブ
                 </span>
               </div>
-              <div className="flex items-center justify-between text-sm text-gray-300">
+              <div className="flex items-center justify-between text-sm text-gray-300 mb-2">
                 <div className="flex items-center gap-1">
                   <Users className="w-4 h-4" />
                   <span>{room.participantsCount || 0}/5</span>
@@ -183,6 +235,13 @@ function Home() {
                   {room.subject || "一般"}
                 </span>
               </div>
+              {/* 参加者名表示 */}
+              {roomParticipants[room.id] && roomParticipants[room.id].length > 0 && (
+                <div className="text-xs text-gray-400">
+                  <span className="text-gray-500">参加者：</span>
+                  {roomParticipants[room.id].join("　")}
+                </div>
+              )}
             </div>
           ))}
 
