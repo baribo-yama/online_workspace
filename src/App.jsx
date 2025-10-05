@@ -1,35 +1,29 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+// src/App.jsx
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { lazy, Suspense } from "react";
+
+// 遅延読み込みでコード分割
+const HomePage = lazy(() => import("./study-room/components/HomePage"));
+const RoomPage = lazy(() => import("./study-room/components/RoomPage"));
 
 function App() {
-  const [count, setCount] = useState(0)
-
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
-  )
+    <BrowserRouter>
+      <Suspense fallback={
+        <div className="flex h-screen bg-gray-900 items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+            <p className="text-white">読み込み中...</p>
+          </div>
+        </div>
+      }>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/room/:roomId" element={<RoomPage />} />
+        </Routes>
+      </Suspense>
+    </BrowserRouter>
+  );
 }
 
-export default App
+export default App;
