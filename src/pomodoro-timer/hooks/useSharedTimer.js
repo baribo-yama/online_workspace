@@ -1,7 +1,7 @@
 // 共有ポモドーロタイマーのフック
 import { useState, useEffect } from "react";
 import { doc, onSnapshot, updateDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "../../shared/services/firebase";
+import { db, getRoomsCollection } from "../../shared/services/firebase";
 import {
   calculateTimerState,
   switchTimerMode,
@@ -14,11 +14,11 @@ export const useSharedTimer = (roomId) => {
   const [isLoading, setIsLoading] = useState(true);
   const [isAutoCycle, setIsAutoCycle] = useState(false);
 
-  // Firestoreからタイマー状態をリアルタイム購読
+  // Firestoreからタイマー状態をリアルタイム購諭
   useEffect(() => {
     if (!roomId) return;
 
-    const roomRef = doc(db, "rooms", roomId);
+    const roomRef = doc(getRoomsCollection(), roomId);
 
     const unsubscribe = onSnapshot(roomRef, (doc) => {
       if (doc.exists()) {
@@ -103,12 +103,12 @@ export const useSharedTimer = (roomId) => {
         // timerオブジェクトの値を安全に取得
         const currentMode = timer?.mode || "work";
         const currentCycle = timer?.cycle || 0;
-        
+
         const nextMode = switchTimerMode(currentMode, currentCycle);
         const nextDuration = getModeDuration(nextMode);
         const newCycle = currentMode === "work" ? currentCycle + 1 : currentCycle;
 
-        const roomRef = doc(db, "rooms", roomId);
+        const roomRef = doc(getRoomsCollection(), roomId);
         // スプレッドで一貫性と可読性を確保
         await updateDoc(roomRef, {
           timer: {
@@ -159,7 +159,7 @@ export const useSharedTimer = (roomId) => {
     }
 
 
-    const roomRef = doc(db, "rooms", roomId);
+    const roomRef = doc(getRoomsCollection(), roomId);
     console.log("更新対象パス:", roomRef.path);
 
     try {
@@ -210,7 +210,7 @@ export const useSharedTimer = (roomId) => {
 
     try {
       setIsAutoCycle(false);
-      const roomRef = doc(db, "rooms", roomId);
+      const roomRef = doc(getRoomsCollection(), roomId);
       const resetTimerData = createInitialTimer();
 
       await updateDoc(roomRef, {
@@ -235,7 +235,7 @@ export const useSharedTimer = (roomId) => {
 
     try {
       setIsAutoCycle(false); // 手動モード切り替え時は自動サイクルを停止
-      const roomRef = doc(db, "rooms", roomId);
+      const roomRef = doc(getRoomsCollection(), roomId);
       const newDuration = getModeDuration(newMode);
       const newCycle = newMode === "work" ? timer.cycle + 1 : timer.cycle;
 

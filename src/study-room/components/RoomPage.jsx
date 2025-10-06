@@ -15,7 +15,7 @@
  */
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { doc, deleteDoc, onSnapshot } from "firebase/firestore";
-import { db } from "../../shared/services/firebase";
+import { db, getRoomsCollection } from "../../shared/services/firebase";
 import { useState, useEffect, lazy, Suspense } from "react";
 import { Home, Trash2 } from "lucide-react";
 import SharedTimer from "../../pomodoro-timer/components/SharedTimer";
@@ -58,7 +58,7 @@ function RoomPage() {
   // 部屋情報の取得
   useEffect(() => {
     console.log("部屋データ取得開始:", roomId);
-    const roomDocRef = doc(db, "rooms", roomId);
+    const roomDocRef = doc(getRoomsCollection(), roomId);
 
     const unsubscribe = onSnapshot(roomDocRef, (doc) => {
       console.log("部屋データ更新:", doc.exists(), doc.data());
@@ -125,7 +125,7 @@ function RoomPage() {
 
     if (confirmEnd) {
       try {
-        await deleteDoc(doc(db, "rooms", roomId));
+        await deleteDoc(doc(getRoomsCollection(), roomId));
         console.log("部屋が終了されました:", roomId);
         navigate("/");
       } catch (error) {
@@ -335,7 +335,7 @@ function RoomPage() {
           </div>
         </div>
       )}
-      
+
       {/* 視覚トーストは無効化中 */}
     </div>
   );

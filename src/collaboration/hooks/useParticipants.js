@@ -33,7 +33,7 @@ import {
   limit,
   orderBy
 } from "firebase/firestore";
-import { db } from "../../shared/services/firebase";
+import { db, getRoomsCollection } from "../../shared/services/firebase";
 import { updateDoc } from "firebase/firestore";
 import { defaultParticipant } from "../../shared/services/firestore";
 
@@ -47,7 +47,7 @@ export const useParticipants = (roomId, userName) => {
   useEffect(() => {
     console.log("参加者データ取得開始:", roomId);
     const participantsQuery = query(
-      collection(db, "rooms", roomId, "participants"),
+      collection(getRoomsCollection(), roomId, "participants"),
       orderBy("joinedAt", "asc"),
       limit(10)
     );
@@ -74,7 +74,7 @@ export const useParticipants = (roomId, userName) => {
       // 古い参加者を削除
       oldParticipants.forEach(async (participant) => {
         try {
-          await deleteDoc(doc(db, "rooms", roomId, "participants", participant.id));
+          await deleteDoc(doc(getRoomsCollection(), roomId, "participants", participant.id));
           console.log("古い参加者を削除:", participant.name);
         } catch (error) {
           console.error("古い参加者削除エラー:", error);
@@ -110,7 +110,7 @@ export const useParticipants = (roomId, userName) => {
         } else {
           // 重複する古い参加者を削除
           console.log("重複する参加者を削除:", participant.name, participant.id);
-          deleteDoc(doc(db, "rooms", roomId, "participants", participant.id))
+          deleteDoc(doc(getRoomsCollection(), roomId, "participants", participant.id))
             .catch(error => console.error("重複参加者削除エラー:", error));
         }
       });
@@ -121,7 +121,7 @@ export const useParticipants = (roomId, userName) => {
 
       // 部屋の参加者数を更新
       try {
-        await updateDoc(doc(db, "rooms", roomId), {
+        await updateDoc(doc(getRoomsCollection(), roomId), {
           participantsCount: uniqueParticipants.length
         });
         console.log("部屋の参加者数を更新:", uniqueParticipants.length);
@@ -149,7 +149,7 @@ export const useParticipants = (roomId, userName) => {
         if (existingParticipantId) {
           // 既存の参加者IDがある場合、それが有効かチェック
           try {
-            const existingDoc = await getDoc(doc(db, "rooms", roomId, "participants", existingParticipantId));
+            const existingDoc = await getDoc(doc(getRoomsCollection(), roomId, "participants", existingParticipantId));
             if (existingDoc.exists()) {
               console.log("既存の参加者IDを使用:", existingParticipantId);
               participantId = existingParticipantId;
@@ -169,7 +169,7 @@ export const useParticipants = (roomId, userName) => {
 
         // 同じ名前の既存参加者をチェックして削除
         const existingParticipantsQuery = query(
-          collection(db, "rooms", roomId, "participants"),
+          collection(getRoomsCollection(), roomId, "participants"),
           orderBy("joinedAt", "desc")
         );
 
@@ -183,7 +183,7 @@ export const useParticipants = (roomId, userName) => {
         const duplicateParticipants = existingParticipants.filter(p => p.name === userName);
         for (const duplicate of duplicateParticipants) {
           try {
-            await deleteDoc(doc(db, "rooms", roomId, "participants", duplicate.id));
+            await deleteDoc(doc(getRoomsCollection(), roomId, "participants", duplicate.id));
             console.log("重複する既存参加者を削除:", duplicate.name, duplicate.id);
           } catch (error) {
             console.error("重複参加者削除エラー:", error);
@@ -194,7 +194,7 @@ export const useParticipants = (roomId, userName) => {
         const isFirstParticipant = existingParticipants.length === 0;
 
         console.log("新しい参加者として追加中:", userName, "ホスト:", isFirstParticipant);
-        const docRef = await addDoc(collection(db, "rooms", roomId, "participants"), {
+        const docRef = await addDoc(collection(getRoomsCollection(), roomId, "participants"), {
           ...defaultParticipant(userName, isFirstParticipant),
           joinedAt: serverTimestamp(),
         });
@@ -204,7 +204,7 @@ export const useParticipants = (roomId, userName) => {
         // 最初の参加者（ホスト）の場合、部屋のhostIdを設定
         if (isFirstParticipant) {
           try {
-            await updateDoc(doc(db, "rooms", roomId), {
+            await updateDoc(doc(getRoomsCollection(), roomId), {
               hostId: participantId,
               createdBy: userName,
             });
@@ -243,7 +243,7 @@ export const useParticipants = (roomId, userName) => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
 
       if (participantId) {
-        deleteDoc(doc(db, "rooms", roomId, "participants", participantId))
+        deleteDoc(doc(getRoomsCollection(), roomId, "participants", participantId))
           .then(() => {
             console.log("クリーンアップ: 参加者データを削除しました", participantId);
             localStorage.removeItem(`participantId_${roomId}`);
@@ -260,7 +260,7 @@ export const useParticipants = (roomId, userName) => {
   const leaveRoom = async () => {
     if (myParticipantId) {
       try {
-        await deleteDoc(doc(db, "rooms", roomId, "participants", myParticipantId));
+        await deleteDoc(doc(getRoomsCollection(), roomId, "participants", myParticipantId));
         console.log("参加者が退出しました:", myParticipantId);
 
         localStorage.removeItem(`participantId_${roomId}`);

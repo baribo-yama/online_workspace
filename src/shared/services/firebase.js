@@ -1,6 +1,6 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
+import { getFirestore, collection } from "firebase/firestore";
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 
@@ -18,8 +18,11 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-
-
-
 // Firestoreを使えるようにexport
 export const db = getFirestore(app);
+
+// 環境（本番、開発）ごとにコレクションの接頭辞を変える
+export const DB_PREFIX = import.meta.env.MODE === "production" ? "prod_" : "dev_";
+
+// 部屋コレクションを取得する関数
+export const getRoomsCollection = () => collection(db, `${DB_PREFIX}rooms`);
