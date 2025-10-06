@@ -1,7 +1,7 @@
 // src/pages/Home.jsx
 import { useEffect, useState } from "react";
 import { collection, addDoc, serverTimestamp, query, orderBy, limit, onSnapshot, getDocs } from "firebase/firestore";
-import { db } from "../../shared/services/firebase";
+import { db, getRoomsCollection } from "../../shared/services/firebase";
 import { useNavigate } from "react-router-dom";
 import { defaultRoom } from "../../shared/services/firestore";
 import { Users, RefreshCw } from "lucide-react";
@@ -28,10 +28,10 @@ function Home() {
     const participantPromises = roomsData.map(async (room) => {
       try {
         const participantsQuery = query(
-          collection(db, "rooms", room.id, "participants"),
+          collection(getRoomsCollection(), room.id, "participants"),
           orderBy("joinedAt", "asc")
         );
-        
+
         const participantsSnapshot = await getDocs(participantsQuery);
 
         const participants = participantsSnapshot.docs.map(doc => ({
@@ -70,7 +70,7 @@ function Home() {
   // 部屋一覧をリアルタイムで取得
   useEffect(() => {
     const roomsQuery = query(
-      collection(db, "rooms"),
+      getRoomsCollection(),
       orderBy("createdAt", "desc"),
       limit(10)
     );
@@ -124,7 +124,7 @@ function Home() {
     }
 
     try {
-      const docRef = await addDoc(collection(db, "rooms"), {
+      const docRef = await addDoc(getRoomsCollection(), {
         ...defaultRoom,
         title: title.trim(),
         createdAt: serverTimestamp(),

@@ -27,18 +27,18 @@ const GAME_CONFIG = {
 
 // 障害物の種類定義
 const OBSTACLE_TYPES = [
-  { 
-    color: "#ff6b6b", 
+  {
+    color: "#ff6b6b",
     name: "おじさん1",
     imageUrl: "/images/obstacles/ojisan_32x32.png"
   },
-  { 
-    color: "#4ecdc4", 
+  {
+    color: "#4ecdc4",
     name: "おじさん2",
     imageUrl: "/images/obstacles/ojisan_32x32.png"
   },
-  { 
-    color: "#45b7d1", 
+  {
+    color: "#45b7d1",
     name: "おじさん3",
     imageUrl: "/images/obstacles/ojisan_32x32.png"
   },
@@ -90,7 +90,7 @@ export function useFaceObstacleGame(roomId, userName) {
     if (gameStatus === "playing" && playerId && !isConnected) {
       console.log("🔗 ゲーム開始に伴うWebSocket接続開始");
       connectWebSocket();
-    } 
+    }
     // ゲームが終了した場合のみ切断（アイドル状態への変更では切断しない）
     else if (gameStatus === "idle" && isConnected) {
       console.log("🔌 ゲーム終了に伴うWebSocket切断");
@@ -248,7 +248,7 @@ export function useFaceObstacleGame(roomId, userName) {
       console.error("  - ReadyState:", ws.readyState);
       console.error("  - 環境:", import.meta.env.MODE);
       console.error("  - User Agent:", navigator.userAgent);
-      
+
       if (isProduction()) {
         console.error("🏭 本番環境エラー詳細:");
         console.error("  - サーバー状態確認が必要");
@@ -258,7 +258,7 @@ export function useFaceObstacleGame(roomId, userName) {
       } else {
         console.error("  - 可能な原因: サーバーが起動していない、SSL証明書問題、CORS問題、ネットワーク問題");
       }
-      
+
       setIsConnected(false);
     };
 
@@ -285,13 +285,13 @@ export function useFaceObstacleGame(roomId, userName) {
     console.log("🔌 WebSocket切断処理開始");
     if (wsRef.current) {
       console.log(`📊 切断前の状態: readyState=${wsRef.current.readyState}`);
-      
+
       // 接続が開いている場合のみ明示的に閉じる
-      if (wsRef.current.readyState === WebSocket.OPEN || 
+      if (wsRef.current.readyState === WebSocket.OPEN ||
           wsRef.current.readyState === WebSocket.CONNECTING) {
         wsRef.current.close();
       }
-      
+
       wsRef.current = null;
       setIsConnected(false);
       console.log("✅ WebSocket切断完了");
@@ -360,14 +360,14 @@ export function useFaceObstacleGame(roomId, userName) {
         }
       } catch (wsError) {
         console.warn("⚠️ WebSocket接続失敗、シングルプレイヤーモードで続行:", wsError.message);
-        
+
         if (isProduction()) {
           console.warn("🏭 本番環境でのWebSocket接続失敗:");
           console.warn("  - サーバーが起動中の可能性があります");
           console.warn("  - しばらく待ってから再試行してください");
           console.warn("  - 現在はシングルプレイヤーモードで動作します");
         }
-        
+
         // シングルプレイヤーモード用の障害物生成
         generateLocalObstacle();
         generateLocalPlayer();
