@@ -1,11 +1,11 @@
-// src/pages/Home.jsx
+// src/features/study-room/components/HomePage.jsx
 import { useEffect, useState } from "react";
 import { collection, addDoc, serverTimestamp, query, orderBy, limit, onSnapshot, getDocs } from "firebase/firestore";
-import { db, getRoomsCollection } from "../../shared/services/firebase";
+import { db, getRoomsCollection } from "../../../shared/services/firebase";
 import { useNavigate } from "react-router-dom";
-import { defaultRoom } from "../../shared/services/firestore";
+import { defaultRoom } from "../../../shared/services/firestore";
 import { Users, RefreshCw } from "lucide-react";
-import PersonalTimer from "../../pomodoro-timer/components/PersonalTimer";
+import PersonalTimer from "../../timer/components/PersonalTimer";
 
 function Home() {
   const [title, setTitle] = useState("");

@@ -1,8 +1,8 @@
-// src/entertainment/hooks/useFaceObstacleGame.js
+// src/features/entertainment/hooks/useFaceObstacleGame.js
 import { useEffect, useRef, useState, useCallback } from "react";
 import { doc, onSnapshot, updateDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "../../shared/services/firebase";
-import { getWebSocketUrl, validateWebSocketUrl, isProduction } from "../../shared/config/websocket";
+import { db } from "../../../shared/services/firebase";
+import { getWebSocketUrl, validateWebSocketUrl, isProduction } from "../../../shared/config/websocket";
 
 // ゲーム設定定数
 const GAME_CONFIG = {
