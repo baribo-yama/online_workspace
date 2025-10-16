@@ -15,10 +15,10 @@
  */
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { doc, deleteDoc, onSnapshot } from "firebase/firestore";
-import { db, getRoomsCollection } from "../../shared/services/firebase";
+import { db, getRoomsCollection } from "../../../shared/services/firebase";
 import { useState, useEffect, lazy, Suspense } from "react";
 import { Home, Trash2 } from "lucide-react";
-import SharedTimer from "../../pomodoro-timer/components/SharedTimer";
+import SharedTimer from "../../timer/components/SharedTimer";
 import ParticipantList from "../../collaboration/components/ParticipantList";
 import { useParticipants } from "../../collaboration/hooks/useParticipants";
 import { useNotification } from "../../entertainment/hooks/useNotification";
@@ -26,7 +26,7 @@ import { useNotification } from "../../entertainment/hooks/useNotification";
 
 // 大きなコンポーネントを遅延読み込み
 const FaceObstacleGame = lazy(() => import("../../entertainment/components/FaceObstacleGame"));
-const VideoCallRoom = lazy(() => import("../../components/VideoCallRoom"));
+const VideoCallRoom = lazy(() => import("../../video-call/components/VideoCallRoom"));
 
 function RoomPage() {
   // === ルーティング情報の取得 ===

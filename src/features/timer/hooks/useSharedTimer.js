@@ -1,13 +1,13 @@
 // 共有ポモドーロタイマーのフック
 import { useState, useEffect } from "react";
 import { doc, onSnapshot, updateDoc, serverTimestamp } from "firebase/firestore";
-import { db, getRoomsCollection } from "../../shared/services/firebase";
+import { db, getRoomsCollection } from "../../../shared/services/firebase";
 import {
   calculateTimerState,
   switchTimerMode,
   getModeDuration,
   createInitialTimer
-} from "../../shared/services/firestore";
+} from "../../../shared/services/firestore";
 
 export const useSharedTimer = (roomId) => {
   const [timer, setTimer] = useState(createInitialTimer());
