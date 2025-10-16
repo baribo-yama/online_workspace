@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
-import { 
-  TIMER_STATE, 
-  TIMER_DURATIONS, 
-  formatTime, 
-  calculateProgress, 
-  calculateOverProgress 
-} from "../../shared/utils/timer";
+import {
+  TIMER_STATE,
+  TIMER_DURATIONS,
+  formatTime,
+  calculateProgress,
+  calculateOverProgress
+} from "../../../shared/utils/timer";
 
 export { TIMER_STATE };
 
@@ -89,7 +89,7 @@ export const usePersonalTimer = () => {
         return 0;
     }
   };
-  
+
   const getOverProgress = () => {
     if (state === TIMER_STATE.REST && timeLeft < 0) {
       return calculateOverProgress(timeLeft, TIMER_DURATIONS.SHORT_BREAK);

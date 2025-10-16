@@ -2,7 +2,7 @@
 import { memo, useEffect, useRef } from "react";
 import { Clock, Play, Pause, RotateCcw, Coffee } from "lucide-react";
 import { useSharedTimer } from "../hooks/useSharedTimer";
-import { formatTime, calculateProgress } from "../../shared/utils/timer";
+import { formatTime, calculateProgress } from "../../../shared/utils/timer";
 import { useNotification } from "../../entertainment/hooks/useNotification";
 
 const SharedTimer = memo(function SharedTimer({ roomId, isHost = false }) {
