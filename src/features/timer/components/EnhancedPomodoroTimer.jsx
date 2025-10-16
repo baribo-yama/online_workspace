@@ -1,7 +1,7 @@
 // 休憩時間統合型のポモドーロタイマー（カメラ機能なし）
 import { useState, useEffect, useRef } from "react";
 import { Clock, Play, Pause, RotateCcw, Coffee, Target } from "lucide-react";
-import ShootingGame from "../features/shooting-game/ShootingGame";
+// import ShootingGame from "../features/shooting-game/ShootingGame"; // 未実装のため一時的にコメントアウト
 
 function EnhancedPomodoroTimer({
   timer,
@@ -71,7 +71,7 @@ function EnhancedPomodoroTimer({
     onModeChange('break');
   };
 
-  // ゲームモード時の画面
+  // ゲームモード時の画面（ShootingGameが未実装のため一時的に無効化）
   if (localMode === 'game') {
     return (
       <div className="flex flex-col h-full bg-gray-900">
@@ -80,21 +80,8 @@ function EnhancedPomodoroTimer({
             🎯 休憩時間ゲーム
           </h2>
           <p className="text-gray-300 text-lg">
-            リフレッシュタイム！ターゲットを撃ってスコアを稼ごう
+            ゲーム機能は現在開発中です
           </p>
-        </div>
-
-        <div className="flex-1">
-          <ShootingGame
-            targetImage={null} // デフォルトターゲットを使用
-            onGameEnd={handleGameEnd}
-            gameConfig={{
-              gameTime: 30000, // 30秒
-              targetCount: 10,
-              targetSize: 80,
-              spawnRate: 1200
-            }}
-          />
         </div>
 
         <div className="text-center mt-4">
@@ -102,7 +89,7 @@ function EnhancedPomodoroTimer({
             onClick={() => setLocalMode('work')}
             className="text-gray-400 hover:text-white transition-colors"
           >
-            ゲームを終了して休憩に戻る
+            戻る
           </button>
         </div>
       </div>
