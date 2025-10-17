@@ -1,11 +1,12 @@
 // src/features/study-room/components/HomePage.jsx
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { collection, addDoc, serverTimestamp, query, orderBy, limit, onSnapshot, getDocs } from "firebase/firestore";
-import { db, getRoomsCollection } from "../../../shared/services/firebase";
+import { getRoomsCollection } from "../../../shared/services/firebase";
 import { useNavigate } from "react-router-dom";
 import { defaultRoom } from "../../../shared/services/firestore";
-import { Users, RefreshCw } from "lucide-react";
+import { Users } from "lucide-react";
 import PersonalTimer from "../../timer/components/PersonalTimer";
+import { ROOM_LIMITS, ROOM_ERRORS } from "../constants";
 
 function Home() {
   const [title, setTitle] = useState("");
@@ -23,8 +24,8 @@ function Home() {
     }
   }, []);
 
-  // 参加者データを取得する関数
-  const fetchParticipantsData = async (roomsData) => {
+  // 参加者データを取得する関数（useCallbackで最適化）
+  const fetchParticipantsData = useCallback(async (roomsData) => {
     const participantPromises = roomsData.map(async (room) => {
       try {
         const participantsQuery = query(
@@ -39,14 +40,14 @@ function Home() {
           ...doc.data()
         }));
 
-        // アクティブな参加者のみをフィルタ（5分以内）
+        // アクティブな参加者のみをフィルタ
         const now = Date.now();
         const activeParticipants = participants.filter(participant => {
           if (participant.joinedAt) {
             const joinedTime = participant.joinedAt.toDate ?
               participant.joinedAt.toDate().getTime() :
               participant.joinedAt;
-            return (now - joinedTime) <= 300000; // 5分以内
+            return (now - joinedTime) <= ROOM_LIMITS.PARTICIPANT_TIMEOUT_MS;
           }
           return true;
         });
@@ -65,14 +66,14 @@ function Home() {
     });
 
     setRoomParticipants(participantsData);
-  };
+  }, []);
 
   // 部屋一覧をリアルタイムで取得
   useEffect(() => {
     const roomsQuery = query(
       getRoomsCollection(),
       orderBy("createdAt", "desc"),
-      limit(10)
+      limit(ROOM_LIMITS.ROOMS_LIST_LIMIT)
     );
 
     const unsubscribe = onSnapshot(roomsQuery, (snapshot) => {
@@ -95,7 +96,7 @@ function Home() {
     if (rooms.length > 0) {
       fetchParticipantsData(rooms);
     }
-  }, [rooms]);
+  }, [rooms, fetchParticipantsData]);
 
   // 名前が変更されたらローカルストレージに保存
   const handleNameChange = (e) => {
@@ -109,17 +110,17 @@ function Home() {
   // シンプルな部屋作成
   const createRoom = async () => {
     if (!title.trim()) {
-      alert("部屋のタイトルを入力してください");
+      alert(ROOM_ERRORS.TITLE_REQUIRED);
       return;
     }
     if (!name.trim()) {
-      alert("名前を入力してください");
+      alert(ROOM_ERRORS.NAME_REQUIRED);
       return;
     }
 
-    // 現在の部屋数をチェック（シンプル）
-    if (rooms.length >= 3) {
-      alert("現在、同時に存在できる部屋数の上限（3部屋）に達しています。\nしばらく時間をおいてからお試しください。");
+    // 現在の部屋数をチェック
+    if (rooms.length >= ROOM_LIMITS.MAX_ACTIVE_ROOMS) {
+      alert(ROOM_ERRORS.ROOMS_LIMIT_REACHED);
       return;
     }
 
@@ -135,13 +136,13 @@ function Home() {
       navigate(`/room/${docRef.id}`, { state: { name: name.trim() } });
     } catch (error) {
       console.error("部屋作成エラー:", error);
-      alert("部屋の作成に失敗しました。もう一度お試しください。");
+      alert(ROOM_ERRORS.CREATE_FAILED);
     }
   };
 
   const joinRoom = (roomId) => {
     if (!name.trim()) {
-      alert("名前を入力してください");
+      alert(ROOM_ERRORS.NAME_REQUIRED);
       return;
     }
     console.log("部屋に参加:", { roomId, name: name.trim() });
@@ -156,7 +157,7 @@ function Home() {
           <h1 className="text-2xl font-bold text-white mb-2">オンライン自習室</h1>
           <p className="text-gray-400">集中して学習できる環境を選んでください</p>
           <p className="text-gray-400 text-sm mt-1">
-            現在の部屋数: {rooms.length}/3 (MVP制限)
+            現在の部屋数: {rooms.length}/{ROOM_LIMITS.MAX_ACTIVE_ROOMS} (MVP制限)
           </p>
         </div>
 
@@ -189,9 +190,9 @@ function Home() {
         <div className="mb-6">
           <button
             onClick={createRoom}
-            disabled={rooms.length >= 3}
+            disabled={rooms.length >= ROOM_LIMITS.MAX_ACTIVE_ROOMS}
             className={`w-full font-semibold py-3 px-4 rounded-lg shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${
-              rooms.length < 3
+              rooms.length < ROOM_LIMITS.MAX_ACTIVE_ROOMS
                 ? 'bg-blue-600 hover:bg-blue-700 text-white hover:shadow-blue-500/25'
                 : 'bg-gray-600 text-gray-300 cursor-not-allowed'
             }`}
@@ -199,9 +200,9 @@ function Home() {
             <Users className="w-5 h-5" />
             部屋を作成
           </button>
-          {rooms.length >= 3 && (
+          {rooms.length >= ROOM_LIMITS.MAX_ACTIVE_ROOMS && (
             <div className="mt-2 p-3 bg-red-900/50 border border-red-600 rounded text-red-200 text-sm">
-              同時に存在できる部屋数の上限（3部屋）に達しています
+              同時に存在できる部屋数の上限（{ROOM_LIMITS.MAX_ACTIVE_ROOMS}部屋）に達しています
             </div>
           )}
         </div>
@@ -229,7 +230,7 @@ function Home() {
               <div className="flex items-center justify-between text-sm text-gray-300 mb-2">
                 <div className="flex items-center gap-1">
                   <Users className="w-4 h-4" />
-                  <span>{room.participantsCount || 0}/5</span>
+                  <span>{room.participantsCount || 0}/{ROOM_LIMITS.MAX_PARTICIPANTS}</span>
                 </div>
                 <span className="bg-gray-600 text-gray-300 text-xs px-2 py-1 rounded">
                   {room.subject || "一般"}
