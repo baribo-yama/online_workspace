@@ -120,17 +120,16 @@ function RoomPage() {
   useEffect(() => {
     if (!room?.game) return;
 
-    const status = room.game.status || GAME_STATUS.IDLE;
-    console.log("[RoomPage] ゲーム状態:", status);
+    console.log("[RoomPage] ゲーム状態:", gameStatus);
 
-    if (status === GAME_STATUS.PLAYING) {
+    if (gameStatus === GAME_STATUS.PLAYING) {
       console.log("[RoomPage] ゲーム開始 - 自動表示");
       setShowGame(true);
-    } else if (status === GAME_STATUS.IDLE) {
+    } else if (gameStatus === GAME_STATUS.IDLE) {
       console.log("[RoomPage] ゲーム終了 - 自動非表示");
       setShowGame(false);
     }
-  }, [room?.game?.status]);
+  }, [gameStatus, room?.game]);
 
   // 通知許可リクエスト
   useEffect(() => {
