@@ -2,81 +2,57 @@
 
 `tree -I "node_modules|dist|.git"` の実行結果です。
 
-```
-.
-├── LIVEKIT_SETUP.md
-├── README.md
-├── docs
-│   └── tech-stack.md
-├── eslint.config.js
-├── firebase.json
-├── index.html
-├── package-lock.json
-├── package.json
-├── pnpm-lock.yaml
-├── postcss.config.js
-├── public
-│   ├── images
-│   │   └── obstacles
-│   │       ├── README.md
-│   │       └── ojisan_32x32.png
-│   └── sounds
-│       └── notification.mp3
-├── render.yaml
-├── server
-│   ├── gameLoop.js
-│   ├── package-lock.json
-│   ├── package.json
-│   ├── playerManager.js
-│   ├── server.js
-│   └── state.js
-├── src
-│   ├── App.jsx
-│   ├── collaboration
-│   │   ├── components
-│   │   │   └── ParticipantList.jsx
-│   │   └── hooks
-│   │       └── useParticipants.js
-│   ├── components
-│   │   ├── EnhancedPomodoroTimer.jsx
-│   │   └── VideoCallRoom.jsx
-│   ├── config
-│   │   └── livekit.js
-│   ├── entertainment
-│   │   ├── components
-│   │   │   ├── CameraCapture.jsx
-│   │   │   └── FaceObstacleGame.jsx
-│   │   └── hooks
-│   │       ├── useCamera.js
-│   │       ├── useFaceObstacleGame.js
-│   │       └── useNotification.js
-│   ├── features
-│   │   └── camera
-│   │       └── CameraCapture.jsx
-│   ├── game-test
-│   │   └── index.html
-│   ├── globals.css
-│   ├── index.css
-│   ├── main.jsx
-│   ├── pomodoro-timer
-│   │   ├── components
+
+src/
+├── features/                    # 機能ベースのモジュール
+│   ├── study-room/             # 勉強部屋機能
+│   │   ├── components/
+│   │   │   ├── HomePage.jsx
+│   │   │   └── RoomPage.jsx
+│   │   └── index.js           # エクスポート用
+│   │
+│   ├── timer/                  # ポモドーロタイマー機能
+│   │   ├── components/
 │   │   │   ├── PersonalTimer.jsx
-│   │   │   └── SharedTimer.jsx
-│   │   └── hooks
-│   │       ├── usePersonalTimer.js
-│   │       └── useSharedTimer.js
-│   ├── shared
-│   │   ├── config
-│   │   │   └── websocket.js
-│   │   ├── services
-│   │   │   ├── firebase.js
-│   │   │   └── firestore.js
-│   │   └── utils
-│   │       └── timer.js
-│   └── study-room
-│       └── components
-│           ├── HomePage.jsx
-│           └── RoomPage.jsx
-├── tailwind.config.js
-├── test-websocket-server.js
-└── vite.config.js
+│   │   │   ├── SharedTimer.jsx
+│   │   │   └── EnhancedPomodoroTimer.jsx
+│   │   ├── hooks/
+│   │   │   ├── usePersonalTimer.js
+│   │   │   └── useSharedTimer.js
+│   │   └── index.js
+│   │
+│   ├── video-call/             # ビデオ通話機能
+│   │   ├── components/
+│   │   │   └── VideoCallRoom.jsx
+│   │   ├── config/
+│   │   │   └── livekit.js
+│   │   └── index.js
+│   │
+│   ├── collaboration/          # コラボレーション機能
+│   │   ├── components/
+│   │   │   └── ParticipantList.jsx
+│   │   ├── hooks/
+│   │   │   └── useParticipants.js
+│   │   └── index.js
+│   │
+│   └── entertainment/          # エンターテイメント機能
+│       ├── components/
+│       │   └── FaceObstacleGame.jsx
+│       ├── hooks/
+│       │   ├── useFaceObstacleGame.js
+│       │   └── useNotification.js
+│       └── index.js
+│
+├── shared/                     # 共通機能
+│   ├── config/
+│   │   └── websocket.js
+│   ├── services/
+│   │   ├── firebase.js
+│   │   └── firestore.js
+│   └── utils/
+│       └── timer.js
+│
+├── App.jsx                     # ルートコンポーネント
+├── main.jsx                    # エントリーポイント
+├── globals.css
+└── index.css
