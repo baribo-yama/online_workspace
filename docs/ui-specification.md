@@ -49,10 +49,8 @@
         - **表示内容:**
             - 現在のルーム参加者のリストを表示。
             - 各参加者の名前と、マイク/カメラのステータスをアイコンで表示。
-    - **2.3. 強化版ポモドーロタイマー (`src/components/EnhancedPomodoroTimer.jsx`):**
-        - **機能:**
-            - 「共有モード」と「個人モード」を切り替えるタブまたはスイッチ。
-        - **共有タイマー (`src/pomodoro-timer/components/SharedTimer.jsx`):**
+    
+    - **2.3. 共有タイマー (`src/pomodoro-timer/components/SharedTimer.jsx`):**
             - WebSocketまたはFirestore Realtime Updatesを利用して、全参加者のタイマー状態を同期。
             - 作業時間、休憩時間、セッション数を設定可能。
             - 開始/一時停止/リセットのコントロールは、特定の権限を持つユーザー（例: ルーム作成者）のみ操作可能か、全員が操作可能かを選択できる。
