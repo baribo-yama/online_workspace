@@ -15,7 +15,7 @@ src/
 │   │   ├── components/
 │   │   │   ├── PersonalTimer.jsx
 │   │   │   ├── SharedTimer.jsx
-│   │   │   └── EnhancedPomodoroTimer.jsx
+│   │   │   
 │   │   ├── hooks/
 │   │   │   ├── usePersonalTimer.js
 │   │   │   └── useSharedTimer.js

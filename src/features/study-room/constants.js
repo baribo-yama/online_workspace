@@ -7,12 +7,13 @@
 
 // ルーム制限
 export const ROOM_LIMITS = {
-  MAX_PARTICIPANTS: 5,           // 1部屋の最大参加者数
-  MAX_ACTIVE_ROOMS: 3,           // 同時に存在できる最大部屋数（MVP制限）
+  MAX_PARTICIPANTS: 5,            // 1部屋の最大参加者数
+  MAX_ACTIVE_ROOMS: 3,            // 同時に存在できる最大部屋数（MVP制限）
   PARTICIPANT_TIMEOUT_MS: 300000, // 参加者のタイムアウト（5分）
+  ROOMS_LIST_LIMIT: 10,           // 部屋一覧の取得上限
 };
 
-// エラーメッセージ
+// エラーメッセージ（動的に生成）
 export const ROOM_ERRORS = {
   NOT_FOUND: "部屋が見つかりません",
   ROOM_FULL: "この部屋は満員です",
@@ -21,6 +22,8 @@ export const ROOM_ERRORS = {
   LEAVE_FAILED: "退出処理でエラーが発生しました",
   NAME_REQUIRED: "名前を入力してください",
   TITLE_REQUIRED: "部屋のタイトルを入力してください",
+  CREATE_FAILED: "部屋の作成に失敗しました。もう一度お試しください",
+  ROOMS_LIMIT_REACHED: `現在、同時に存在できる部屋数の上限（${ROOM_LIMITS.MAX_ACTIVE_ROOMS}部屋）に達しています。\nしばらく時間をおいてからお試しください。`,
 };
 
 // 確認メッセージ
