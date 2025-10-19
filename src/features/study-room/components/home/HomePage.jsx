@@ -20,7 +20,8 @@ import { useParticipantsData } from "../../hooks/home/useParticipantsData";
 import { useUserName } from "../../hooks/shared/useUserName";
 import { RoomCreationForm } from "./RoomCreationForm";
 import { RoomList } from "./RoomList";
-import { ROOM_LIMITS, ROOM_ERRORS } from "../../constants";
+import { ROOM_LIMITS } from "../../constants";
+import { validateUserName } from "../../utils";
 
 function HomePage() {
   const navigate = useNavigate();
@@ -43,8 +44,9 @@ function HomePage() {
 
   // 部屋参加ハンドラ
   const joinRoom = (roomId) => {
-    if (!name.trim()) {
-      alert(ROOM_ERRORS.NAME_REQUIRED);
+    const userNameValidation = validateUserName(name);
+    if (!userNameValidation.valid) {
+      alert(userNameValidation.error);
       return;
     }
     console.log("部屋に参加:", { roomId, name: name.trim() });

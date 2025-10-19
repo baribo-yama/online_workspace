@@ -10,27 +10,21 @@
  * @returns {Object} { name, setName, handleNameChange }
  */
 import { useState, useEffect, useCallback } from "react";
-
-const USER_NAME_KEY = "userName";
+import { getUserName, saveUserName } from "../../utils";
 
 export const useUserName = () => {
   const [name, setName] = useState("");
 
   // 名前をローカルストレージから復元
   useEffect(() => {
-    const savedName = localStorage.getItem(USER_NAME_KEY);
-    if (savedName) {
-      setName(savedName);
-    }
+    setName(getUserName());
   }, []);
 
   // 名前変更ハンドラ
   const handleNameChange = useCallback((e) => {
     const newName = e.target.value;
     setName(newName);
-    if (newName.trim()) {
-      localStorage.setItem(USER_NAME_KEY, newName.trim());
-    }
+    saveUserName(newName);
   }, []);
 
   return {

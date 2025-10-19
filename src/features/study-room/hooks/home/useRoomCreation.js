@@ -16,6 +16,7 @@ import { addDoc, serverTimestamp } from "firebase/firestore";
 import { getRoomsCollection } from "../../../../shared/services/firebase";
 import { defaultRoom } from "../../../../shared/services/firestore";
 import { ROOM_LIMITS, ROOM_ERRORS } from "../../constants";
+import { validateRoomTitle, validateUserName } from "../../utils";
 
 export const useRoomCreation = () => {
   const navigate = useNavigate();
@@ -24,12 +25,15 @@ export const useRoomCreation = () => {
   // 部屋作成処理
   const createRoom = useCallback(async (title, userName, currentRoomCount) => {
     // バリデーション
-    if (!title.trim()) {
-      alert(ROOM_ERRORS.TITLE_REQUIRED);
+    const titleValidation = validateRoomTitle(title);
+    if (!titleValidation.valid) {
+      alert(titleValidation.error);
       return false;
     }
-    if (!userName.trim()) {
-      alert(ROOM_ERRORS.NAME_REQUIRED);
+
+    const userNameValidation = validateUserName(userName);
+    if (!userNameValidation.valid) {
+      alert(userNameValidation.error);
       return false;
     }
 

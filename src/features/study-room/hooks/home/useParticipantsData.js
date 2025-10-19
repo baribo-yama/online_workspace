@@ -14,7 +14,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { collection, query, orderBy, getDocs } from "firebase/firestore";
 import { getRoomsCollection } from "../../../../shared/services/firebase";
-import { ROOM_LIMITS } from "../../constants";
+import { isParticipantActive } from "../../utils";
 
 export const useParticipantsData = (rooms) => {
   const [roomParticipants, setRoomParticipants] = useState({});
@@ -37,15 +37,7 @@ export const useParticipantsData = (rooms) => {
 
         // アクティブな参加者のみをフィルタ
         const now = Date.now();
-        const activeParticipants = participants.filter(participant => {
-          if (participant.joinedAt) {
-            const joinedTime = participant.joinedAt.toDate ?
-              participant.joinedAt.toDate().getTime() :
-              participant.joinedAt;
-            return (now - joinedTime) <= ROOM_LIMITS.PARTICIPANT_TIMEOUT_MS;
-          }
-          return true;
-        });
+        const activeParticipants = participants.filter(p => isParticipantActive(p, now));
 
         return { roomId: room.id, participants: activeParticipants.map(p => p.name) };
       } catch (error) {
