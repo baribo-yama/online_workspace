@@ -11,7 +11,7 @@
  * - ゲストにはルーム一覧に戻るボタンだけが表示される
  */
 import { Home, Trash2 } from "lucide-react";
-import { ROOM_DEFAULTS } from "../constants";
+import { ROOM_DEFAULTS } from "../../constants";
 
 export const RoomHeader = ({
   roomTitle,

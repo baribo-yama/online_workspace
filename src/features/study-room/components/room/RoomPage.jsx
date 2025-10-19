@@ -1,0 +1,131 @@
+/**
+ * RoomPage - 勉強ルームメインページ（レベル2: チーム開発対応）
+ *
+ * 責務:
+ * - ルーティング情報の取得
+ * - カスタムフックの統合
+ * - UIコンポーネントの配置
+ *
+ * リファクタリング:
+ * - ロジックをhooksに分離
+ * - UIコンポーネントを分割
+ * - 238行 → 約100行に削減
+ */
+import { useParams, useLocation, useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useParticipants } from "../../../collaboration/hooks/useParticipants";
+import { useNotification } from "../../../entertainment/hooks/useNotification";
+import { useRoomData } from "../../hooks/room/useRoomData";
+import { useRoomActions } from "../../hooks/room/useRoomActions";
+import { useRoomPermissions } from "../../hooks/room/useRoomPermissions";
+import { LoadingScreen } from "../shared/LoadingScreen";
+import { RoomSidebar } from "./RoomSidebar";
+import { RoomMainContent } from "./RoomMainContent";
+import { GameOverlay } from "../game/GameOverlay";
+import { GAME_STATUS, ROOM_DEFAULTS } from "../../constants";
+
+function RoomPage() {
+  // ===== ルーティング情報 =====
+  const { roomId } = useParams();
+  const { state } = useLocation();
+  const navigate = useNavigate();
+  const userName = state?.name || localStorage.getItem("userName") || ROOM_DEFAULTS.GUEST_NAME;
+
+  // ===== カスタムフック（データ取得・操作） =====
+  const { room, loading, error } = useRoomData(roomId);
+  const { participants, participantsLoading, myParticipantId, leaveRoom } =
+    useParticipants(roomId, userName);
+  const { requestPermission } = useNotification();
+
+  // ===== 権限チェック =====
+  const { isHost, canStartGame, gameStatus } = useRoomPermissions(room, myParticipantId);
+
+  // ===== 操作ロジック =====
+  const { handleLeaveRoom, handleEndRoom } = useRoomActions(roomId, leaveRoom, isHost);
+
+  // ===== ローカル状態管理 =====
+  const [showGame, setShowGame] = useState(false);
+
+  // ===== 副作用 =====
+
+  // ゲーム状態の自動監視
+  useEffect(() => {
+    if (!room?.game) return;
+
+    console.log("[RoomPage] ゲーム状態:", gameStatus);
+
+    if (gameStatus === GAME_STATUS.PLAYING) {
+      console.log("[RoomPage] ゲーム開始 - 自動表示");
+      setShowGame(true);
+    } else if (gameStatus === GAME_STATUS.IDLE) {
+      console.log("[RoomPage] ゲーム終了 - 自動非表示");
+      setShowGame(false);
+    }
+  }, [gameStatus, room?.game]);
+
+  // 通知許可リクエスト
+  useEffect(() => {
+    requestPermission();
+  }, [requestPermission]);
+
+  // エラーハンドリング
+  useEffect(() => {
+    if (error) {
+      console.error("[RoomPage] エラー発生:", error);
+      alert(error);
+      navigate("/");
+    }
+  }, [error, navigate]);
+
+  // ===== 条件付きレンダリング =====
+
+  // ローディング画面
+  if (loading) {
+    return <LoadingScreen />;
+  }
+
+  // 部屋が存在しない
+  if (!room) {
+    return <LoadingScreen message="部屋情報を取得中..." />;
+  }
+
+  // ===== メインUI =====
+
+  return (
+    <div className="flex h-screen bg-gray-900">
+      {/* 左サイドバー: 参加者リスト & ビデオ通話 */}
+      <RoomSidebar
+        roomId={roomId}
+        userName={userName}
+        participants={participants}
+        participantsLoading={participantsLoading}
+        myParticipantId={myParticipantId}
+        onLeaveRoom={handleLeaveRoom}
+      />
+
+      {/* 右メインコンテンツ: ヘッダー & タイマー & コントロール */}
+      <RoomMainContent
+        roomId={roomId}
+        roomTitle={room.title}
+        isHost={isHost}
+        canStartGame={canStartGame}
+        gameStatus={gameStatus}
+        onLeaveRoom={handleLeaveRoom}
+        onEndRoom={handleEndRoom}
+        onGameStart={() => setShowGame(true)}
+      />
+
+      {/* ゲームオーバーレイ */}
+      <GameOverlay
+        show={showGame}
+        roomId={roomId}
+        userName={userName}
+        isHost={isHost}
+        onClose={() => setShowGame(false)}
+      />
+    </div>
+  );
+}
+
+export default RoomPage;
+
