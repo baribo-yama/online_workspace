@@ -368,12 +368,28 @@ features/[feature-name]/components/MainComponent.jsx をリファクタしてく
 ---
 
 ## AI利用ガイド（リファクタ時）
+
+### **基本的な指示方法**
 AIに指示する際の例：
 
- docs/ARCHITECTURE.md の方針を守りつつ、
- features/video-call/hooks/useVideoCall.js をリファクタしてください。
- UIとロジックを分離し、副作用はhooksにまとめてください。
+```
+@docs/ARCHITECTURE.md の方針を守りつつ、
+@features/video-call/hooks/useVideoCall.js をリファクタしてください。
+UIとロジックを分離し、副作用はhooksにまとめてください。
+```
 
+### **📝 リファクタリング完了後の必須タスク**
+
+**重要:** 大規模なリファクタリング（10ファイル以上、フォルダ構成変更、アーキテクチャ変更）を完了した際は、**必ずリファクタリングレポートを作成**すること。
+
+#### **レポートテンプレート**
+`docs/templates/REFACTORING_REPORT.md`
+
+#### **保存場所**
+`docs/refactoring-reports/YYYY-MM-DD_feature-name_description.md`
+
+#### **詳細ガイドライン**
+[AI_GUIDELINES.md](./AI_GUIDELINES.md) を参照。
 
 ---
 
@@ -385,4 +401,5 @@ AIに指示する際の例：
 ---
 
 ## 更新履歴
+- **2025-10-19:** リファクタリングレポート作成の義務化を追加（平林）
 - **2025-10-19:** 構成を features/[feature-name]/ ベースに更新（平林）

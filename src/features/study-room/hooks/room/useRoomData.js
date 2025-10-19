@@ -11,8 +11,8 @@
  */
 import { useState, useEffect } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
-import { getRoomsCollection } from "../../../shared/services/firebase";
-import { ROOM_ERRORS } from "../constants";
+import { getRoomsCollection } from "../../../../shared/services/firebase";
+import { ROOM_ERRORS } from "../../constants";
 
 export const useRoomData = (roomId) => {
   const [room, setRoom] = useState(null);

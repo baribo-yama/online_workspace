@@ -17,8 +17,8 @@
 import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { doc, deleteDoc } from "firebase/firestore";
-import { getRoomsCollection } from "../../../shared/services/firebase";
-import { ROOM_ERRORS, ROOM_CONFIRMS } from "../constants";
+import { getRoomsCollection } from "../../../../shared/services/firebase";
+import { ROOM_ERRORS, ROOM_CONFIRMS } from "../../constants";
 
 export const useRoomActions = (roomId, leaveRoom, isHost) => {
   const navigate = useNavigate();
