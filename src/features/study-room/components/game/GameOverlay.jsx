@@ -7,9 +7,9 @@
  * - ゲーム画面の開閉制御
  */
 import { lazy, Suspense } from "react";
-import { LOADING_MESSAGES } from "../constants";
+import { LOADING_MESSAGES } from "../../constants";
 
-const FaceObstacleGame = lazy(() => import("../../entertainment/components/FaceObstacleGame"));
+const FaceObstacleGame = lazy(() => import("../../../entertainment/components/FaceObstacleGame"));
 
 export const GameOverlay = ({
   show,
@@ -66,3 +66,4 @@ export const GameOverlay = ({
     </div>
   );
 };
+

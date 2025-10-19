@@ -40,7 +40,9 @@ MVP開発は完了しており、以下の主要機能が安定動作してい�
 
 ## 現在の開発フェーズ
 - 大学（Tech Garage）でのテスト導入を予定  
-- リファクタリングを実施中（feature-based architecture導入）  
+- ✅ study-room 機能のレベル2構成への移行完了（2025-10-19）
+  - 詳細: [リファクタリングレポート](./refactoring-reports/2025-10-19_study-room_level2-refactoring.md)
+- リファクタリングを継続中（feature-based architecture 導入）  
 - 保守性と拡張性を重視した開発体制に移行中  
 
 ---
@@ -57,3 +59,11 @@ MVP開発は完了しており、以下の主要機能が安定動作してい�
 - 共同開発者: 野村、スレマン  
 - 著作権保持: 平林  
 - ドキュメント最終更新: 2025-10-19
+
+---
+
+## 関連ドキュメント
+- [ARCHITECTURE.md](./ARCHITECTURE.md) - アーキテクチャ設計
+- [CODING_RULES.md](./CODING_RULES.md) - コーディング規約
+- [AI_GUIDELINES.md](./AI_GUIDELINES.md) - AI支援開発ガイドライン
+- [リファクタリングレポート](./refactoring-reports/) - 過去のリファクタリング記録
