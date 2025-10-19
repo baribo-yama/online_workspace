@@ -10,10 +10,15 @@
 export const UserNameInput = ({ value, onChange }) => {
   return (
     <div className="mb-6">
+      <label htmlFor="userName" className="block text-sm font-medium text-gray-300 mb-2">
+        あなたの名前
+      </label>
       <input
+        id="userName"
         value={value}
         onChange={onChange}
-        placeholder="あなたの名前"
+        placeholder="名前を入力してください"
+        aria-label="ユーザー名"
         className="w-full px-4 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
       />
       {value && (

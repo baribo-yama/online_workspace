@@ -12,10 +12,21 @@ import { Users } from "lucide-react";
 import { ROOM_LIMITS } from "../../constants";
 
 export const RoomCard = ({ room, participants, onClick }) => {
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault();
+      onClick();
+    }
+  };
+
   return (
     <div
-      className="bg-gray-700 border border-gray-600 rounded-lg p-4 hover:shadow-lg hover:shadow-blue-500/20 transition-all duration-200 cursor-pointer"
+      className="bg-gray-700 border border-gray-600 rounded-lg p-4 hover:shadow-lg hover:shadow-blue-500/20 transition-all duration-200 cursor-pointer focus:outline-none focus:ring-2 focus:ring-blue-500"
       onClick={onClick}
+      onKeyDown={handleKeyDown}
+      role="button"
+      tabIndex={0}
+      aria-label={`部屋「${room.title || "無題の部屋"}」に参加する`}
     >
       <div className="flex items-center justify-between mb-2">
         <h3 className="text-lg text-white font-semibold">{room.title || "無題の部屋"}</h3>

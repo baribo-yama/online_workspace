@@ -77,6 +77,46 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
   const roomIdRef = useRef(roomId); // ルームIDの参照
   const userNameRef = useRef(userName); // ユーザー名の参照
   const audioElementsRef = useRef(new Map()); // 音声要素の管理用Map
+  const userInteractionEnabledRef = useRef(false); // ユーザーインタラクション有効フラグ
+  
+  /**
+   * ユーザーインタラクションを有効化する関数
+   * 
+   * ブラウザの自動再生制限を回避するため、
+   * 無音の音声を再生してユーザーインタラクションを記録します。
+   */
+  const enableUserInteraction = useCallback(() => {
+    if (userInteractionEnabledRef.current) {
+      return; // 既に有効化済み
+    }
+    
+    try {
+      // 無音の音声データ（Base64エンコード）
+      const silentAudioData = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
+      const silentAudio = new Audio(silentAudioData);
+      
+      // 無音音声を再生してユーザーインタラクションを記録
+      silentAudio.play().then(() => {
+        userInteractionEnabledRef.current = true;
+        if (import.meta.env.DEV) {
+          console.log('ユーザーインタラクション有効化完了');
+        }
+      }).catch((error) => {
+        if (import.meta.env.DEV) {
+          console.log('無音音声再生失敗（通常は問題なし）:', error);
+        }
+      });
+      
+      // 音声要素を即座に停止
+      silentAudio.pause();
+      silentAudio.src = '';
+      
+    } catch (error) {
+      if (import.meta.env.DEV) {
+        console.warn('ユーザーインタラクション有効化エラー:', error);
+      }
+    }
+  }, []);
   
   // ビデオ表示管理用のref
   const localVideoRef = useRef(null); // ローカルビデオ要素の参照
@@ -146,6 +186,8 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
          * srcObject の解放と DOM 要素の削除のみを行うこと。
          */
         existingElement.srcObject = new MediaStream([track.mediaStreamTrack]);
+        // 要素を再表示（一時無効化されていた場合）
+        existingElement.style.display = 'none'; // 非表示のまま
         if (import.meta.env.DEV) {
           console.log('既存の音声要素を更新:', participant.identity);
         }
@@ -175,6 +217,10 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
         // ブラウザの自動再生制限への対応
         if (error.name === 'NotAllowedError') {
           console.log('音声再生にはユーザーインタラクションが必要です');
+          
+          // ユーザーインタラクションを有効化
+          enableUserInteraction();
+          
           // AbortControllerを使用してイベントリスナーを管理
           const abortController = new AbortController();
           const handleUserInteraction = () => {
@@ -213,7 +259,8 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
    * 指定された参加者の音声要素をクリーンアップする関数
    * 
    * 参加者が退出した際や、音声トラックが非購読された際に
-   * 音声要素を適切に削除してメモリリークを防ぎます。
+   * 音声要素を一時的に無効化してメモリリークを防ぎます。
+   * DOMからは削除せず、要素を保持してリロード時の音声問題を回避します。
    * @param {string} participantIdentity - 参加者のID
    */
   const cleanupAudioElement = useCallback((participantIdentity) => {
@@ -223,15 +270,13 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
       audioElement.pause();
       // 音声ストリームをクリア（リモートトラックは停止しない）
       audioElement.srcObject = null;
-      // DOMから音声要素を削除
-      if (audioElement.parentNode) {
-        audioElement.parentNode.removeChild(audioElement);
-      }
-      // 参照マップから削除
-      audioElementsRef.current.delete(participantIdentity);
+      // DOMからは削除せず、非表示にする（要素を保持）
+      audioElement.style.display = 'none';
+      // 参照マップからは削除しない（要素を保持）
+      // audioElementsRef.current.delete(participantIdentity);
       
       if (import.meta.env.DEV) {
-        console.log('音声要素をクリーンアップ:', participantIdentity);
+        console.log('音声要素を一時無効化:', participantIdentity);
       }
     }
   }, []);
@@ -852,10 +897,10 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
   }, [isAudioEnabled]);
 
     // === コンポーネントライフサイクル管理 ===
-    // コンポーネントマウント時に接続
+    // コンポーネントマウント時に接続（依存配列を空にしてリロード時の再実行を防ぐ）
     useEffect(() => {
     if (import.meta.env.DEV) {
-      console.log('VideoCallRoom マウント - 接続開始', { roomId, userName });
+      console.log('VideoCallRoom マウント - 接続開始', { roomId: roomIdRef.current, userName: userNameRef.current });
     }
     
     // 既存の接続をクリーンアップ
@@ -875,6 +920,9 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
         hasConnectedRef.current = false;
         isConnectingRef.current = false;
     setError(null);
+    
+    // ユーザーインタラクションを有効化（自動再生制限回避）
+    enableUserInteraction();
     
     // 接続を開始
     const initializeConnection = async () => {
@@ -911,7 +959,53 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
         hasConnectedRef.current = false;
         isConnectingRef.current = false;
     };
-  }, [roomId, userName, stopAudioLevelMonitoring]); // roomIdとuserNameを依存配列に追加
+  }, []); // 依存配列を空にして、マウント時のみ実行（リロード時の再実行を防ぐ）
+
+  // roomIdとuserNameの変更を監視して接続を更新
+  useEffect(() => {
+    if (!roomId || !userName) return;
+    
+    // 既に接続済みで、roomIdとuserNameが同じ場合は何もしない
+    if (hasConnectedRef.current && 
+        roomIdRef.current === roomId && 
+        userNameRef.current === userName) {
+      return;
+    }
+    
+    console.log('roomId/userName変更検出 - 接続を更新:', { roomId, userName });
+    
+    // 既存の接続を切断
+    if (roomRef.current) {
+      try {
+        roomRef.current.disconnect();
+      } catch (error) {
+        console.warn('既存接続の切断エラー:', error);
+      }
+      roomRef.current = null;
+    }
+    
+    // 状態をリセット
+    hasConnectedRef.current = false;
+    isConnectingRef.current = false;
+    setError(null);
+    
+    // 新しい接続を開始
+    const initializeNewConnection = async () => {
+      try {
+        if (connectToRoomRef.current) {
+          await connectToRoomRef.current();
+        }
+      } catch (error) {
+        console.error('新しい接続エラー:', error);
+      }
+    };
+    
+    const timeoutId = setTimeout(initializeNewConnection, 100);
+    
+    return () => {
+      clearTimeout(timeoutId);
+    };
+  }, [roomId, userName]); // roomIdとuserNameの変更を監視
 
   // === ビデオ表示管理 ===
   // ビデオ要素の参照管理（上部で定義済み）
