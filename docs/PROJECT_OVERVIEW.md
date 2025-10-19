@@ -66,4 +66,7 @@ MVP開発は完了しており、以下の主要機能が安定動作してい�
 - [ARCHITECTURE.md](./ARCHITECTURE.md) - アーキテクチャ設計
 - [CODING_RULES.md](./CODING_RULES.md) - コーディング規約
 - [AI_GUIDELINES.md](./AI_GUIDELINES.md) - AI支援開発ガイドライン
+- [TEAM_DEVELOPMENT.md](./TEAM_DEVELOPMENT.md) - チーム開発ガイド（必読）
+- [FAQ.md](./FAQ.md) - よくある質問（トラブルシューティング）
+- [tech-stack.md](./tech-stack.md) - 技術スタック詳細
 - [リファクタリングレポート](./refactoring-reports/) - 過去のリファクタリング記録
