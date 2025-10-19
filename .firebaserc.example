@@ -1,18 +1,19 @@
 {
   "projects": {
-    "default": "online-workspace-1c2a4"
+    "default": "your-firebase-project-id"
   },
   "targets": {
-    "online-workspace-1c2a4": {
+    "your-firebase-project-id": {
       "hosting": {
         "prod": [
-          "online-workspace-1c2a4"
+          "your-prod-site-name"
         ],
         "dev": [
-          "online-workspace-dev"
+          "your-dev-site-name"
         ]
       }
     }
   },
   "etags": {}
 }
+

@@ -4,6 +4,11 @@
 このドキュメントは、AI支援開発を効果的に行うためのガイドラインを提供します。  
 AI（Cursor、ChatGPT、GitHub Copilot等）を使用する際の指示方法、期待する動作、レポート作成方法を定義します。
 
+**関連ドキュメント:**
+- [TEAM_DEVELOPMENT.md](./TEAM_DEVELOPMENT.md) - チーム開発ガイド（Firebase Hostingの注意点など）
+- [ARCHITECTURE.md](./ARCHITECTURE.md) - アーキテクチャ設計方針
+- [tech-stack.md](./tech-stack.md) - 技術スタック詳細
+
 ---
 
 ## AI利用の基本方針
