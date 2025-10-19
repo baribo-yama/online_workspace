@@ -3,8 +3,8 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { lazy, Suspense } from "react";
 
 // 遅延読み込みでコード分割
-const HomePage = lazy(() => import("./features/study-room/components/HomePage"));
-const RoomPage = lazy(() => import("./features/study-room/components/RoomPage"));
+const HomePage = lazy(() => import("./features/study-room/components/home/HomePage"));
+const RoomPage = lazy(() => import("./features/study-room/components/room/RoomPage"));
 
 function App() {
   return (
