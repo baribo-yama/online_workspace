@@ -15,7 +15,7 @@
 // === LiveKit基本設定 ===
 export const LIVEKIT_CONFIG = {
   // 環境変数から取得（フォールバック付き）
-  serverUrl: import.meta.env.VITE_LIVEKIT_URL || 'https://onlineworkspace-xu7dilqe.livekit.cloud',
+  serverUrl: import.meta.env.VITE_LIVEKIT_URL || 'wss://onlineworkspace-xu7dilqe.livekit.cloud',
   apiKey: import.meta.env.VITE_LIVEKIT_API_KEY || 'dev-api-key',
   apiSecret: import.meta.env.VITE_LIVEKIT_API_SECRET || 'dev-api-secret',
   
