@@ -1,4 +1,4 @@
-/**
+﻿/**
  * VideoCallRoom - LiveKit リアルタイムビデオ通話コンポーネント
  * 
  * Features:
@@ -117,6 +117,179 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
       }
     }
   }, []);
+
+  /**
+   * 音声レベル監視を開始する関数
+   * 
+   * AudioContextとAnalyserNodeを使用して音声レベルを監視し、
+   * 話している状態を判定します。
+   */
+  const startAudioLevelMonitoring = useCallback(() => {
+    if (audioContextRef.current && analyserRef.current) {
+      return; // 既に監視中
+    }
+
+    // ユーザーインタラクションが有効でない場合は待機
+    if (!userInteractionEnabledRef.current) {
+      console.log('ユーザーインタラクション待機中...');
+      return;
+    }
+
+    try {
+      // AudioContextを初期化（ユーザーインタラクション後に実行）
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      }
+
+      // AudioContextが停止状態の場合は再開
+      if (audioContextRef.current.state === 'suspended') {
+        audioContextRef.current.resume().catch(error => {
+          console.warn('AudioContext再開エラー:', error);
+        });
+      }
+
+      // AnalyserNodeを作成
+      if (!analyserRef.current) {
+        analyserRef.current = audioContextRef.current.createAnalyser();
+        analyserRef.current.fftSize = 256;
+        analyserRef.current.smoothingTimeConstant = 0.8;
+      }
+
+      // 音声レベル監視のアニメーションフレーム
+      const monitorAudioLevel = () => {
+        if (!analyserRef.current) return;
+
+        const bufferLength = analyserRef.current.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+        analyserRef.current.getByteFrequencyData(dataArray);
+
+        // 音声レベルを計算
+        let sum = 0;
+        for (let i = 0; i < bufferLength; i++) {
+          sum += dataArray[i];
+        }
+        const average = sum / bufferLength;
+        const normalizedLevel = Math.min(average / AUDIO_LEVEL_NORMALIZER, 1);
+
+        setAudioLevel(normalizedLevel);
+
+        // 話している状態を判定
+        const isCurrentlySpeaking = normalizedLevel > (SPEAKING_THRESHOLD / 100);
+        if (isCurrentlySpeaking !== isSpeaking) {
+          setIsSpeaking(isCurrentlySpeaking);
+        }
+
+        animationFrameRef.current = requestAnimationFrame(monitorAudioLevel);
+      };
+
+      monitorAudioLevel();
+      console.log('音声レベル監視を開始しました');
+    } catch (error) {
+      console.warn('音声レベル監視開始エラー:', error);
+    }
+  }, [isSpeaking]);
+
+  /**
+   * 音声レベル監視を停止する関数
+   */
+  const stopAudioLevelMonitoring = useCallback(() => {
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+
+    if (analyserRef.current) {
+      analyserRef.current.disconnect();
+      analyserRef.current = null;
+    }
+
+    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+
+    console.log('音声レベル監視を停止しました');
+  }, []);
+
+  /**
+   * トラックを指定して音声レベル監視を開始する関数
+   * 
+   * ローカルオーディオトラックをAudioContextに接続して
+   * 音声レベル監視を開始します。
+   */
+  const startAudioLevelMonitoringWithTrack = useCallback((track) => {
+    if (!track || !track.mediaStreamTrack) {
+      console.warn('音声トラックが無効です');
+      return;
+    }
+
+    // ユーザーインタラクションが有効でない場合は待機
+    if (!userInteractionEnabledRef.current) {
+      console.log('ユーザーインタラクション待機中...');
+      return;
+    }
+
+    try {
+      // AudioContextを初期化
+      if (!audioContextRef.current) {
+        audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+      }
+
+      // AudioContextが停止状態の場合は再開
+      if (audioContextRef.current.state === 'suspended') {
+        audioContextRef.current.resume().catch(error => {
+          console.warn('AudioContext再開エラー:', error);
+        });
+      }
+
+      // AnalyserNodeを作成
+      if (!analyserRef.current) {
+        analyserRef.current = audioContextRef.current.createAnalyser();
+        analyserRef.current.fftSize = 256;
+        analyserRef.current.smoothingTimeConstant = 0.8;
+      }
+
+      // 音声トラックをAudioContextに接続
+      const source = audioContextRef.current.createMediaStreamSource(new MediaStream([track.mediaStreamTrack]));
+      source.connect(analyserRef.current);
+
+      // 音声レベル監視のアニメーションフレーム
+      const monitorAudioLevel = () => {
+        if (!analyserRef.current) return;
+
+        const bufferLength = analyserRef.current.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+        analyserRef.current.getByteFrequencyData(dataArray);
+
+        // 音声レベルを計算
+        let sum = 0;
+        for (let i = 0; i < bufferLength; i++) {
+          sum += dataArray[i];
+        }
+        const average = sum / bufferLength;
+        const normalizedLevel = Math.min(average / AUDIO_LEVEL_NORMALIZER, 1);
+
+        setAudioLevel(normalizedLevel);
+
+        // 話している状態を判定
+        const isCurrentlySpeaking = normalizedLevel > (SPEAKING_THRESHOLD / 100);
+        if (isCurrentlySpeaking !== isSpeaking) {
+          setIsSpeaking(isCurrentlySpeaking);
+        }
+
+        animationFrameRef.current = requestAnimationFrame(monitorAudioLevel);
+      };
+
+      monitorAudioLevel();
+      console.log('トラック指定音声レベル監視を開始しました');
+    } catch (error) {
+      console.warn('トラック指定音声レベル監視開始エラー:', error);
+    }
+  }, [isSpeaking]);
+
+  // refに関数を設定
+  startAudioLevelMonitoringRef.current = startAudioLevelMonitoring;
+  startAudioLevelMonitoringWithTrackRef.current = startAudioLevelMonitoringWithTrack;
   
   // ビデオ表示管理用のref
   const localVideoRef = useRef(null); // ローカルビデオ要素の参照
@@ -253,7 +426,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
     } catch (error) {
       console.error('音声トラックアタッチエラー:', error);
     }
-  }, []);
+  }, [enableUserInteraction]);
 
   /**
    * 指定された参加者の音声要素をクリーンアップする関数
@@ -299,6 +472,22 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
 
       try {
         await roomRef.current.localParticipant.setMicrophoneEnabled(true);
+        
+        // マイク有効化後、音声レベル監視を開始
+        setTimeout(() => {
+          const localParticipant = roomRef.current?.localParticipant;
+          if (localParticipant && localParticipant.audioTracks) {
+            const audioTracks = Array.from(localParticipant.audioTracks.values());
+            const audioTrack = audioTracks.find(track => track.source === Track.Source.Microphone);
+            
+            if (audioTrack && audioTrack.track && audioTrack.track.mediaStreamTrack) {
+              if (import.meta.env.DEV) {
+                console.log('音声レベル監視を開始（マイク有効化後）');
+              }
+              startAudioLevelMonitoringWithTrack(audioTrack.track);
+            }
+          }
+        }, 500);
       } catch (microphoneError) {
         console.warn('マイク有効化エラー:', microphoneError);
       }
@@ -318,171 +507,10 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
         
       setError(`メディアアクセスエラー: ${mediaError.message}`);
     }
-  }, [updateParticipants]);
+  }, [updateParticipants, startAudioLevelMonitoringWithTrack]);
 
-  /**
-   * 音声レベル監視を開始する関数（トラック直接指定版）
-   * 
-   * 指定されたオーディオトラックを使用して音声レベル監視を開始します。
-   * Web Audio APIを使用してリアルタイムで音声レベルを測定し、
-   * スピーキング状態を判定します。
-   * 
-   * @param {Track} audioTrack - 監視するオーディオトラック
-   */
-  const startAudioLevelMonitoringWithTrack = useCallback((audioTrack) => {
-    if (!audioTrack || !audioTrack.mediaStreamTrack) {
-      console.log('音声レベル監視: 有効なオーディオトラックが提供されていません');
-      return;
-    }
 
-    try {
-      // AudioContextを作成
-      audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
-      analyserRef.current = audioContextRef.current.createAnalyser();
-      analyserRef.current.fftSize = 256;
-      analyserRef.current.smoothingTimeConstant = 0.8;
 
-      const source = audioContextRef.current.createMediaStreamSource(
-        new MediaStream([audioTrack.mediaStreamTrack])
-      );
-      source.connect(analyserRef.current);
-
-      // 音声レベルを監視
-      const monitorAudioLevel = () => {
-        if (!analyserRef.current) return;
-
-        const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
-        analyserRef.current.getByteFrequencyData(dataArray);
-
-        // 音声レベルを計算（0-100の範囲、感度を上げる）
-        const average = dataArray.reduce((sum, value) => sum + value, 0) / dataArray.length;
-        const level = Math.min(100, (average / AUDIO_LEVEL_NORMALIZER) * 100);
-        
-        setAudioLevel(level);
-        
-        // 話しているかどうかを判定（閾値を下げて感度を上げる）
-        const speaking = level > SPEAKING_THRESHOLD;
-        setIsSpeaking(speaking);
-
-        animationFrameRef.current = requestAnimationFrame(monitorAudioLevel);
-      };
-
-      monitorAudioLevel();
-      if (import.meta.env.DEV) {
-      console.log('音声レベル監視を開始（トラック直接使用）');
-    }
-      
-      // 成功したら再試行カウンターをリセット
-      audioMonitoringRetryCountRef.current = 0;
-    } catch (error) {
-      console.error('音声レベル監視エラー:', error);
-    }
-  }, []);
-
-  /**
-   * 音声レベル監視を開始する関数（従来の方法）
-   * 
-   * ローカル参加者のオーディオトラックを使用して音声レベル監視を開始します。
-   * トラックが利用できない場合は再試行メカニズムを実行します。
-   */
-  const startAudioLevelMonitoring = useCallback(() => {
-    if (!roomRef.current || !roomRef.current.localParticipant) {
-      console.log('音声レベル監視: ルームまたはローカル参加者が利用できません');
-            return;
-          }
-
-    try {
-      // オーディオトラックが利用可能かチェック
-      const localParticipant = roomRef.current.localParticipant;
-      console.log('音声レベル監視: ローカル参加者情報:', {
-        hasAudioTracks: !!localParticipant.audioTracks,
-        audioTracksType: typeof localParticipant.audioTracks,
-        audioTracksSize: localParticipant.audioTracks?.size || 0,
-        hasValuesMethod: typeof localParticipant.audioTracks?.values === 'function'
-      });
-      
-      if (!localParticipant.audioTracks || typeof localParticipant.audioTracks.values !== 'function') {
-        console.log('音声レベル監視: audioTracksが利用できません - LocalTrackPublishedイベントを待機');
-      return;
-      }
-
-      // ローカル参加者のオーディオトラックを取得
-      const audioTracks = Array.from(localParticipant.audioTracks.values());
-      console.log('音声レベル監視: オーディオトラック一覧:', audioTracks.map(track => ({
-        source: track.source,
-        kind: track.kind,
-        hasMediaStreamTrack: !!track.mediaStreamTrack,
-        isEnabled: track.isEnabled
-      })));
-      
-      const audioTrack = audioTracks.find(track => track.source === Track.Source.Microphone);
-      console.log('音声レベル監視: マイクトラック:', audioTrack ? {
-        source: audioTrack.source,
-        hasMediaStreamTrack: !!audioTrack.mediaStreamTrack,
-        isEnabled: audioTrack.isEnabled
-      } : '見つかりません');
-      
-      if (audioTrack && audioTrack.mediaStreamTrack) {
-        startAudioLevelMonitoringWithTrack(audioTrack);
-      } else {
-        console.log('音声レベル監視: マイクトラックが見つかりません - 再試行をスケジュール');
-        
-        // 再試行回数をチェック（最大3回）
-        if (audioMonitoringRetryCountRef.current < 3) {
-          audioMonitoringRetryCountRef.current++;
-          // 3秒後に再試行
-        setTimeout(() => {
-            if (startAudioLevelMonitoringRef.current) {
-              startAudioLevelMonitoringRef.current();
-            }
-          }, 3000);
-      } else {
-          console.log('音声レベル監視: 最大再試行回数に達しました');
-        }
-      }
-    } catch (error) {
-      console.error('音声レベル監視エラー:', error);
-      
-      // 再試行回数をチェック（最大3回）
-      if (audioMonitoringRetryCountRef.current < 3) {
-        audioMonitoringRetryCountRef.current++;
-        // エラーが発生した場合は5秒後に再試行
-        setTimeout(() => {
-          if (startAudioLevelMonitoringRef.current) {
-            startAudioLevelMonitoringRef.current();
-          }
-        }, 5000);
-      } else {
-        console.log('音声レベル監視: 最大再試行回数に達しました');
-      }
-    }
-  }, [startAudioLevelMonitoringWithTrack]);
-
-  /**
-   * 音声レベル監視を停止する関数
-   * 
-   * アニメーションフレームとAudioContextをクリーンアップして
-   * 音声レベル監視を停止します。メモリリークを防ぐため、
-   * すべてのリソースを適切に解放します。
-   */
-  const stopAudioLevelMonitoring = useCallback(() => {
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = null;
-    }
-    
-    if (audioContextRef.current) {
-      audioContextRef.current.close();
-      audioContextRef.current = null;
-    }
-    
-    analyserRef.current = null;
-    setAudioLevel(0);
-    setIsSpeaking(false);
-      if (import.meta.env.DEV) {
-        console.log('音声レベル監視を停止');
-      }
-  }, []);
 
   /**
    * roomIdとuserNameの参照を更新するuseEffect
@@ -959,7 +987,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
         hasConnectedRef.current = false;
         isConnectingRef.current = false;
     };
-  }, []); // 依存配列を空にして、マウント時のみ実行（リロード時の再実行を防ぐ）
+  }, [enableUserInteraction, stopAudioLevelMonitoring]); // 依存配列を空にして、マウント時のみ実行（リロード時の再実行を防ぐ）
 
   // roomIdとuserNameの変更を監視して接続を更新
   useEffect(() => {
