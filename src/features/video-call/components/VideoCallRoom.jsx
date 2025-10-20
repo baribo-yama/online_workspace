@@ -31,18 +31,25 @@ import {
   Users
 } from 'lucide-react';
 import { LIVEKIT_CONFIG, generateRoomName, generateParticipantName, generateAccessToken } from '../config/livekit';
+import { TIMINGS, AUDIO } from '../constants';
 
 
 // =============================================
 // Configuration constants
 // =============================================
 /**
- * LiveKit接続やUI動作に関わる遅延・しきい値の定義。
- * 値を一箇所に集約し、デバッグ/調整を容易にする。
+ * 遅延系の定数は ../constants.js (TIMINGS) に集約。
+ *
+ * 意図:
+ * - TRACK_ATTACHMENT_DELAY: 体感応答性向上のため 200ms → 50ms。
+ * - LOCAL_TRACK_ATTACHMENT_DELAY: 計測で問題無しのため 100ms → 20ms。
+ * - RETRY_ATTACHMENT_DELAY: 復帰を早めるため 500ms → 100ms。
+ *
+ * もし競合やチラつきが生じる場合は 25ms 程度ずつ増やして調整。
  */
-const TRACK_ATTACHMENT_DELAY = 50; // ms - リモートトラックのアタッチ遅延（短縮）
-const LOCAL_TRACK_ATTACHMENT_DELAY = 20; // ms - ローカルトラックのアタッチ遅延（短縮）
-const RETRY_ATTACHMENT_DELAY = 100; // ms - リトライ時のアタッチ遅延（短縮）
+const TRACK_ATTACHMENT_DELAY = TIMINGS.TRACK_ATTACHMENT_DELAY;
+const LOCAL_TRACK_ATTACHMENT_DELAY = TIMINGS.LOCAL_TRACK_ATTACHMENT_DELAY;
+const RETRY_ATTACHMENT_DELAY = TIMINGS.RETRY_ATTACHMENT_DELAY;
 const AUDIO_LEVEL_NORMALIZER = 128; // 音声レベル正規化用の除数
 const SPEAKING_THRESHOLD = 3; // 話していると判定する音声レベル閾値
 
@@ -94,7 +101,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
       // 無音の音声データ（Base64エンコード）
       const silentAudioData = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
       const silentAudio = new Audio(silentAudioData);
-      silentAudio.volume = 0.01; // 音量を最小に設定
+      silentAudio.volume = AUDIO.SILENT_AUDIO_VOLUME; // 音量を最小に設定（定数化）
       
       // 無音音声を再生してユーザーインタラクションを記録
       silentAudio.play().then(() => {
@@ -424,8 +431,8 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
             // ユーザーインタラクションを有効化
             enableUserInteraction();
             
-            // 複数のタイミングで再試行（間隔を短縮）
-            const retryTimes = [50, 100, 200, 500, 1000];
+            // 複数のタイミングで再試行（定数化）
+            const retryTimes = TIMINGS.AUDIO_PLAY_RETRY_MS;
             let retryIndex = 0;
             
             const retryPlay = () => {
@@ -1040,7 +1047,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
         hasConnectedRef.current = false;
         isConnectingRef.current = false;
     };
-  }, [enableUserInteraction, stopAudioLevelMonitoring]); // 依存配列を空にして、マウント時のみ実行（リロード時の再実行を防ぐ）
+  }, [enableUserInteraction, stopAudioLevelMonitoring]); // 依存配列にenableUserInteractionとstopAudioLevelMonitoringを指定しているため、マウント時およびこれらが変更されたときに実行される
 
   // roomIdとuserNameの変更を監視して接続を更新
   useEffect(() => {
