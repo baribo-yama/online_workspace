@@ -94,6 +94,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
       // 無音の音声データ（Base64エンコード）
       const silentAudioData = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=';
       const silentAudio = new Audio(silentAudioData);
+      silentAudio.volume = 0.01; // 音量を最小に設定
       
       // 無音音声を再生してユーザーインタラクションを記録
       silentAudio.play().then(() => {
@@ -101,20 +102,42 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
         if (import.meta.env.DEV) {
           console.log('ユーザーインタラクション有効化完了');
         }
+        // 音声レベル監視を開始
+        setTimeout(() => {
+          if (startAudioLevelMonitoringRef.current) {
+            startAudioLevelMonitoringRef.current();
+          }
+        }, 100);
       }).catch((error) => {
         if (import.meta.env.DEV) {
           console.log('無音音声再生失敗（通常は問題なし）:', error);
         }
+        // 再生に失敗してもユーザーインタラクションを有効化
+        userInteractionEnabledRef.current = true;
+        setTimeout(() => {
+          if (startAudioLevelMonitoringRef.current) {
+            startAudioLevelMonitoringRef.current();
+          }
+        }, 100);
       });
       
       // 音声要素を即座に停止
-      silentAudio.pause();
-      silentAudio.src = '';
+      setTimeout(() => {
+        silentAudio.pause();
+        silentAudio.src = '';
+      }, 100);
       
     } catch (error) {
       if (import.meta.env.DEV) {
         console.warn('ユーザーインタラクション有効化エラー:', error);
       }
+      // エラーが発生してもユーザーインタラクションを有効化
+      userInteractionEnabledRef.current = true;
+      setTimeout(() => {
+        if (startAudioLevelMonitoringRef.current) {
+          startAudioLevelMonitoringRef.current();
+        }
+      }, 100);
     }
   }, []);
 
@@ -385,33 +408,56 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
       audioElementsRef.current.set(participant.identity, audioElement);
 
       // 音声の再生を開始
-      audioElement.play().catch(error => {
-        console.warn('音声再生エラー:', error);
-        // ブラウザの自動再生制限への対応
-        if (error.name === 'NotAllowedError') {
-          console.log('音声再生にはユーザーインタラクションが必要です');
+      const playAudioSafely = async () => {
+        try {
+          await audioElement.play();
+          if (import.meta.env.DEV) {
+            console.log('音声再生成功:', participant.identity);
+          }
+        } catch (error) {
+          console.warn('音声再生エラー:', error);
           
-          // ユーザーインタラクションを有効化
-          enableUserInteraction();
-          
-          // AbortControllerを使用してイベントリスナーを管理
-          const abortController = new AbortController();
-          const handleUserInteraction = () => {
-            audioElement.play().catch(e => console.warn('再試行でも音声再生失敗:', e));
-            abortController.abort(); // イベントリスナーを削除
-          };
-          
-          // スコープを限定したイベントリスナー（AbortController付き）
-          document.addEventListener('click', handleUserInteraction, { 
-            signal: abortController.signal,
-            once: true 
-          });
-          document.addEventListener('touchstart', handleUserInteraction, { 
-            signal: abortController.signal,
-            once: true 
-          });
+          // ブラウザの自動再生制限への対応
+          if (error.name === 'NotAllowedError') {
+            console.log('音声再生にはユーザーインタラクションが必要です');
+            
+            // ユーザーインタラクションを有効化
+            enableUserInteraction();
+            
+            // 複数のタイミングで再試行
+            const retryTimes = [100, 500, 1000, 2000, 5000];
+            let retryIndex = 0;
+            
+            const retryPlay = () => {
+              if (retryIndex < retryTimes.length) {
+                setTimeout(() => {
+                  audioElement.play().catch(e => {
+                    console.warn(`音声再生再試行 ${retryIndex + 1} 失敗:`, e);
+                    retryIndex++;
+                    retryPlay();
+                  });
+                }, retryTimes[retryIndex]);
+              }
+            };
+            
+            // ユーザーインタラクションイベントを監視
+            const handleUserInteraction = () => {
+              audioElement.play().catch(e => console.warn('ユーザーインタラクション後の音声再生失敗:', e));
+            };
+            
+            // 複数のイベントを監視
+            document.addEventListener('click', handleUserInteraction, { once: true });
+            document.addEventListener('touchstart', handleUserInteraction, { once: true });
+            document.addEventListener('keydown', handleUserInteraction, { once: true });
+            document.addEventListener('mousemove', handleUserInteraction, { once: true });
+            
+            // バックグラウンドで再試行
+            retryPlay();
+          }
         }
-      });
+      };
+      
+      playAudioSafely();
 
       if (import.meta.env.DEV) {
         console.log('音声トラックをアタッチ:', participant.identity, {
@@ -485,6 +531,13 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
                 console.log('音声レベル監視を開始（マイク有効化後）');
               }
               startAudioLevelMonitoringWithTrack(audioTrack.track);
+            } else {
+              // 音声トラックが見つからない場合は、少し待ってから再試行
+              setTimeout(() => {
+                if (startAudioLevelMonitoringRef.current) {
+                  startAudioLevelMonitoringRef.current();
+                }
+              }, 1000);
             }
           }
         }, 500);
