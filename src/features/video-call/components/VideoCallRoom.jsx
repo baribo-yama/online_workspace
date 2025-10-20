@@ -509,7 +509,6 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
 
   /**
    * カメラとマイクを有効化する関数
-   * 
    * ローカル参加者のカメラとマイクを有効化し、
    * メディアアクセスエラーの適切な処理を行います。
    */
