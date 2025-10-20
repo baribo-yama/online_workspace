@@ -40,9 +40,9 @@ import { LIVEKIT_CONFIG, generateRoomName, generateParticipantName, generateAcce
  * LiveKit接続やUI動作に関わる遅延・しきい値の定義。
  * 値を一箇所に集約し、デバッグ/調整を容易にする。
  */
-const TRACK_ATTACHMENT_DELAY = 100; // ms - リモートトラックのアタッチ遅延
-const LOCAL_TRACK_ATTACHMENT_DELAY = 50; // ms - ローカルトラックのアタッチ遅延
-const RETRY_ATTACHMENT_DELAY = 200; // ms - リトライ時のアタッチ遅延
+const TRACK_ATTACHMENT_DELAY = 50; // ms - リモートトラックのアタッチ遅延（短縮）
+const LOCAL_TRACK_ATTACHMENT_DELAY = 20; // ms - ローカルトラックのアタッチ遅延（短縮）
+const RETRY_ATTACHMENT_DELAY = 100; // ms - リトライ時のアタッチ遅延（短縮）
 const AUDIO_LEVEL_NORMALIZER = 128; // 音声レベル正規化用の除数
 const SPEAKING_THRESHOLD = 3; // 話していると判定する音声レベル閾値
 
@@ -424,8 +424,8 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
             // ユーザーインタラクションを有効化
             enableUserInteraction();
             
-            // 複数のタイミングで再試行
-            const retryTimes = [100, 500, 1000, 2000, 5000];
+            // 複数のタイミングで再試行（間隔を短縮）
+            const retryTimes = [50, 100, 200, 500, 1000];
             let retryIndex = 0;
             
             const retryPlay = () => {
@@ -743,7 +743,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
                   audioMonitoringRetryCountRef.current = 0;
                   startAudioLevelMonitoringWithTrackRef.current(publication.track);
                 }
-              }, 500);
+              }, 100); // 遅延を500msから100msに短縮
           }
         });
 
@@ -773,12 +773,12 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
             }, TRACK_ATTACHMENT_DELAY);
           }
           
-          // 音声トラックの処理
+          // 音声トラックの処理（即座に実行）
           if (track.kind === Track.Kind.Audio && track) {
             if (import.meta.env.DEV) {
               console.log('音声トラック処理開始:', participant.identity);
             }
-            // 音声トラックをアタッチして自動再生
+            // 音声トラックを即座にアタッチして自動再生（遅延なし）
             attachAudioTrack(track, participant);
           }
           
