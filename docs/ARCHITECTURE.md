@@ -330,7 +330,7 @@ describe('useFeatureActions', () => {
 ## 🔗 関連ドキュメント
 
 - [ARCHITECTURE.md](../../../docs/ARCHITECTURE.md) - プロジェクト全体のアーキテクチャ
-- [requirements-specification.md](../../../docs/requirements-specification.md) - 要件定義
+- [02_expected-spec.md](../../../docs/02_expected-spec.md) - 期待仕様
 - [bugs.md](../../../docs/bugs.md) - バグ一覧
 - 関連する他のドキュメント
 
