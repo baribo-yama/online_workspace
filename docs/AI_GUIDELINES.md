@@ -5,6 +5,7 @@
 AI（Cursor、ChatGPT、GitHub Copilot等）を使用する際の指示方法、期待する動作、レポート作成方法を定義します。
 
 **関連ドキュメント:**
+- [AI_REFACTORING_WORKFLOW.md](./AI_REFACTORING_WORKFLOW.md) - AI駆動リファクタリングの実践ガイド（必読）
 - [TEAM_DEVELOPMENT.md](./TEAM_DEVELOPMENT.md) - チーム開発ガイド（Firebase Hostingの注意点など）
 - [ARCHITECTURE.md](./ARCHITECTURE.md) - アーキテクチャ設計方針
 - [tech-stack.md](./tech-stack.md) - 技術スタック詳細
