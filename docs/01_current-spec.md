@@ -63,6 +63,7 @@
 ### 3.2 技術スタック
 - Frontend: React 19 + Vite
 - Backend/DB: Firebase（Firestore + Hosting）
+- Security: Firestore Security Rules（2025-10-21設定）
 - Video: LiveKit Cloud
 - Styling: Tailwind CSS
 

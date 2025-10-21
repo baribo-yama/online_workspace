@@ -1,0 +1,61 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 開発環境と本番環境のルーム（dev_rooms, prod_rooms）
+    match /{prefix}_rooms/{roomId} {
+      // 読み取り: 誰でも可能
+      // - ルーム一覧の表示
+      // - ルーム詳細の取得
+      allow read: if true;
+      
+      // 作成: 必須フィールドのチェック
+      // - title（部屋タイトル）は必須、1-50文字
+      // - createdAt（作成日時）は必須
+      allow create: if request.resource.data.keys().hasAll(['title', 'createdAt']) &&
+                       request.resource.data.title is string &&
+                       request.resource.data.title.size() > 0 &&
+                       request.resource.data.title.size() <= 50;
+      
+      // 更新: 誰でも可能（MVP段階）
+      // - タイマー操作（ホストのみの制限は将来実装）
+      // - participantsCount 更新
+      // - hostId 設定
+      // - ゲーム状態更新
+      // TODO: ホストのみが更新可能にする（02_expected-spec.md #2 実装時）
+      allow update: if true;
+      
+      // 削除: 誰でも可能（MVP段階）
+      // - ルーム終了
+      // TODO: ホストのみが削除可能にする（02_expected-spec.md #2 実装時）
+      allow delete: if true;
+      
+      // 参加者サブコレクション
+      match /participants/{participantId} {
+        // 読み取り: 誰でも可能
+        // - 参加者リストの表示
+        allow read: if true;
+        
+        // 作成: 必須フィールドのチェック
+        // - name（ユーザー名）は必須、1-20文字
+        // - joinedAt（入室日時）は必須
+        // - isHost（ホスト権限）は必須
+        allow create: if request.resource.data.keys().hasAll(['name', 'joinedAt', 'isHost']) &&
+                         request.resource.data.name is string &&
+                         request.resource.data.name.size() > 0 &&
+                         request.resource.data.name.size() <= 20 &&
+                         request.resource.data.isHost is bool;
+        
+        // 更新: 誰でも可能（MVP段階）
+        // - lastActivity の更新
+        allow update: if true;
+        
+        // 削除: 誰でも可能
+        // - 退出処理
+        // - 古い参加者のクリーンアップ
+        // - 重複参加者の削除
+        allow delete: if true;
+      }
+    }
+  }
+}
+
