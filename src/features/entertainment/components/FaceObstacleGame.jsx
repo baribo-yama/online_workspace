@@ -19,7 +19,6 @@ export default function FaceObstacleGame({ roomId, userName, isHost = false }) {
 
   const canvasRef = useRef(null);
   const [keys, setKeys] = useState({ w: false, a: false, s: false, d: false });
-  const [faceImage, setFaceImage] = useState(null);
   const [obstacleCanvas, setObstacleCanvas] = useState(null);
   const [lastObstaclePos, setLastObstaclePos] = useState({ x: 0, y: 0 });
 

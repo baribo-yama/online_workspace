@@ -43,7 +43,7 @@ import {
   limit,
   orderBy
 } from "firebase/firestore";
-import { db, getRoomsCollection } from "../../../shared/services/firebase";
+import { getRoomsCollection } from "../../../shared/services/firebase";
 import { updateDoc } from "firebase/firestore";
 import { defaultParticipant } from "../../../shared/services/firestore";
 

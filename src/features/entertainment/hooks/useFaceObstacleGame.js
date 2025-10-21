@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { doc, onSnapshot, updateDoc, serverTimestamp } from "firebase/firestore";
 import { db } from "../../../shared/services/firebase";
-import { getWebSocketUrl, validateWebSocketUrl, isProduction } from "../../../shared/config/websocket";
+import { getWebSocketUrl, isProduction } from "../../../shared/config/websocket";
 
 // ゲーム設定定数
 const GAME_CONFIG = {
@@ -82,7 +82,7 @@ export function useFaceObstacleGame(roomId, userName) {
     });
 
     return () => unsubscribe();
-  }, [roomId]);
+  }, [roomId, endGame]);
 
   // WebSocket接続/切断の管理
   useEffect(() => {
@@ -96,7 +96,7 @@ export function useFaceObstacleGame(roomId, userName) {
       console.log("🔌 ゲーム終了に伴うWebSocket切断");
       disconnectWebSocket();
     }
-  }, [gameStatus, playerId, isConnected]);
+  }, [gameStatus, playerId, isConnected, connectWebSocket, disconnectWebSocket]);
 
   // 手動でWebSocket接続を確立する関数
   const ensureWebSocketConnection = async () => {
@@ -152,7 +152,7 @@ export function useFaceObstacleGame(roomId, userName) {
     });
   };
 
-  const connectWebSocket = () => {
+  const connectWebSocket = useCallback(() => {
     console.log("🔗 WebSocket接続処理開始...");
 
     // 既に有効な接続がある場合は何もしない
@@ -281,7 +281,9 @@ export function useFaceObstacleGame(roomId, userName) {
       clearTimeout(connectionCheckTimeout);
       originalOnError.call(ws, error);
     };
-  };  const disconnectWebSocket = () => {
+  }, [roomId, playerId]);
+
+  const disconnectWebSocket = useCallback(() => {
     console.log("🔌 WebSocket切断処理開始");
     if (wsRef.current) {
       console.log(`📊 切断前の状態: readyState=${wsRef.current.readyState}`);
@@ -298,7 +300,7 @@ export function useFaceObstacleGame(roomId, userName) {
     } else {
       console.log("ℹ️ WebSocket接続なし - 切断処理スキップ");
     }
-  };
+  }, []);
 
   // カウントダウン開始
   const startCountdown = () => {
@@ -413,7 +415,7 @@ export function useFaceObstacleGame(roomId, userName) {
   };
 
   // ゲーム終了
-  const endGame = async () => {
+  const endGame = useCallback(async () => {
     if (!roomId) return;
 
     try {
@@ -429,7 +431,7 @@ export function useFaceObstacleGame(roomId, userName) {
     } catch (error) {
       console.error("ゲーム終了エラー:", error);
     }
-  };
+  }, [roomId]);
 
 
   // クリーンアップ
@@ -437,7 +439,7 @@ export function useFaceObstacleGame(roomId, userName) {
     return () => {
       disconnectWebSocket();
     };
-  }, []);
+  }, [disconnectWebSocket]);
 
   return {
     players,
