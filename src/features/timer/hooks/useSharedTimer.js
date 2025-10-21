@@ -1,9 +1,8 @@
 // 共有ポモドーロタイマーのフック
 import { useState, useEffect } from "react";
 import { doc, onSnapshot, updateDoc, serverTimestamp } from "firebase/firestore";
-import { db, getRoomsCollection } from "../../../shared/services/firebase";
+import { getRoomsCollection } from "../../../shared/services/firebase";
 import {
-  calculateTimerState,
   switchTimerMode,
   getModeDuration,
   createInitialTimer
@@ -131,7 +130,7 @@ export const useSharedTimer = (roomId) => {
 
     // 少し遅延を入れて確実に実行
     setTimeout(performAutoSwitchMode, 100);
-  }, [timer.timeLeft, timer.isRunning, timer.mode, timer.cycle, roomId, isAutoCycle]);
+  }, [timer.timeLeft, timer.isRunning, timer.mode, timer.cycle, roomId, isAutoCycle, timer]);
 
   // ローカル更新用のタイマー（表示のスムーズさのため）
   useEffect(() => {
@@ -150,7 +149,7 @@ export const useSharedTimer = (roomId) => {
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [timer.isRunning, timer.timeLeft]);
+  }, [timer.isRunning, timer.timeLeft, isAutoCycle]);
 
   // タイマー開始処理
   const startTimer = async () => {

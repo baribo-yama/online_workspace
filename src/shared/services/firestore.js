@@ -115,7 +115,7 @@ export const updateTimerState = (currentTimer, updates) => ({
 // タイマー状態の検証
 export const validateTimerState = (timer) => {
   const required = ['timeLeft', 'isRunning', 'mode', 'cycle'];
-  return required.every(field => timer.hasOwnProperty(field));
+  return required.every(field => Object.hasOwn(timer, field));
 };
 
 // タイマーモードの切り替え
