@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { LIVEKIT_CONFIG, generateRoomName, generateParticipantName, generateAccessToken } from '../config/livekit';
 import { TIMINGS, AUDIO } from '../constants';
+import { stopAllLocalTracks } from '../utils/streamUtils';
 
 
 // =============================================
@@ -895,39 +896,9 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
    */
   const disconnectFromRoom = useCallback(async () => {
     try {
-      // 1. カメラ・マイクストリームの完全停止（バグ修正）
+      // 1. カメラ・マイクストリームの完全停止（PRレビュー対応 - ヘルパー関数使用）
       if (roomRef.current?.localParticipant) {
-        try {
-          // カメラストリームを完全に停止
-          const videoPublications = roomRef.current.localParticipant.videoTrackPublications;
-          if (videoPublications) {
-            for (const publication of videoPublications.values()) {
-              if (publication.track) {
-                publication.track.stop();
-                if (publication.track.mediaStreamTrack) {
-                  publication.track.mediaStreamTrack.stop();
-                }
-                console.log('カメラストリームを完全停止');
-              }
-            }
-          }
-          
-          // マイクストリームを完全に停止
-          const audioPublications = roomRef.current.localParticipant.audioTrackPublications;
-          if (audioPublications) {
-            for (const publication of audioPublications.values()) {
-              if (publication.track) {
-                publication.track.stop();
-                if (publication.track.mediaStreamTrack) {
-                  publication.track.mediaStreamTrack.stop();
-                }
-                console.log('マイクストリームを完全停止');
-              }
-            }
-          }
-        } catch (streamError) {
-          console.warn('ストリーム停止エラー:', streamError);
-        }
+        stopAllLocalTracks(roomRef.current.localParticipant);
       }
       
       // 2. 音声要素のクリーンアップ
@@ -1074,37 +1045,11 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
         // 音声レベル監視を停止
         stopAudioLevelMonitoring();
         
-        // カメラ・マイクストリームの完全停止（バグ修正）
+        // カメラ・マイクストリームの完全停止（PRレビュー対応 - ヘルパー関数使用）
         if (roomRef.current?.localParticipant) {
-          try {
-            // カメラストリームを完全に停止
-            const videoPublications = roomRef.current.localParticipant.videoTrackPublications;
-            if (videoPublications) {
-              for (const publication of videoPublications.values()) {
-                if (publication.track) {
-                  publication.track.stop();
-                  if (publication.track.mediaStreamTrack) {
-                    publication.track.mediaStreamTrack.stop();
-                  }
-                }
-              }
-            }
-            
-            // マイクストリームを完全に停止
-            const audioPublications = roomRef.current.localParticipant.audioTrackPublications;
-            if (audioPublications) {
-              for (const publication of audioPublications.values()) {
-                if (publication.track) {
-                  publication.track.stop();
-                  if (publication.track.mediaStreamTrack) {
-                    publication.track.mediaStreamTrack.stop();
-                  }
-                }
-              }
-            }
-            console.log('アンマウント時: カメラ・マイクストリームを完全停止');
-          } catch (streamError) {
-            console.warn('アンマウント時ストリーム停止エラー:', streamError);
+          stopAllLocalTracks(roomRef.current.localParticipant);
+          if (import.meta.env.DEV) {
+            console.log('アンマウント時: すべてのローカルトラックを停止しました');
           }
         }
         
