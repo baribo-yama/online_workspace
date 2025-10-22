@@ -266,6 +266,7 @@ export const useParticipants = (roomId, userName) => {
   // 参加者入室・復帰処理（仕様書完全準拠 + 重複登録防止）
   useEffect(() => {
     let participantId = null;
+    let cleanup = null;
     isUnmountingRef.current = false;
 
     const joinRoom = async () => {
@@ -284,6 +285,9 @@ export const useParticipants = (roomId, userName) => {
         if (!isUnmountingRef.current) {
           setMyParticipantId(participantId);
           
+          // 参加者ID取得後にクリーンアップを設定（PRレビュー対応）
+          cleanup = handleUnexpectedTermination(roomId, participantId);
+          
           // 参加者ID取得後、重複データをクリーンアップ
           setTimeout(() => {
             cleanupDuplicateParticipants(roomId, participantId);
@@ -297,17 +301,17 @@ export const useParticipants = (roomId, userName) => {
 
     joinRoom();
 
-    // 予期しない終了の処理
-    const cleanup = handleUnexpectedTermination(roomId, participantId);
-
     return () => {
       isUnmountingRef.current = true;
-      cleanup();
+      if (cleanup) {
+        cleanup();
+      }
       
       // 明示退出時のみ削除処理
       // リロード時は削除しない
     };
-  }, [roomId, userName, myParticipantId]); // myParticipantIdを依存配列に追加（重複登録防止のため）
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId, userName]); // myParticipantIdは依存配列から削除（重複登録防止のため）
 
   // 参加者リストの監視（仕様書完全準拠 + 参加者数更新）
   useEffect(() => {
