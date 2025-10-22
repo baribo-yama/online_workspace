@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { LIVEKIT_CONFIG, generateRoomName, generateParticipantName, generateAccessToken } from '../config/livekit';
 import { TIMINGS, AUDIO } from '../constants';
+import { stopAllLocalTracks } from '../utils/streamUtils';
 
 
 // =============================================
@@ -895,25 +896,34 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
    */
   const disconnectFromRoom = useCallback(async () => {
     try {
-      // 音声要素のクリーンアップ
+      // 1. カメラ・マイクストリームの完全停止（PRレビュー対応 - ヘルパー関数使用）
+      if (roomRef.current?.localParticipant) {
+        stopAllLocalTracks(roomRef.current.localParticipant);
+      }
+      
+      // 2. 音声要素のクリーンアップ
       for (const participantIdentity of audioElementsRef.current.keys()) {
         cleanupAudioElement(participantIdentity);
       }
       
-      // ビデオ関連のリソースをクリーンアップ
+      // 3. ビデオ関連のリソースをクリーンアップ
       attachedTracksRef.current.clear(); // アタッチ済みトラック記録をクリア
       remoteVideoRefs.current.clear();   // リモートビデオ要素参照をクリア
       
+      // 4. LiveKitルームから切断
       if (roomRef.current) {
         await roomRef.current.disconnect();
         roomRef.current = null;
       }
+      
+      // 5. 状態リセット
       hasConnectedRef.current = false;
       isConnectingRef.current = false;
       setParticipants([]);
       setLocalParticipant(null);
       setError(null);
-      // onLeaveRoomが提供されている場合はそれを使用、そうでなければonRoomDisconnectedを使用
+      
+      // 6. コールバック実行
       if (onLeaveRoom) {
         console.log('onLeaveRoomコールバックを実行');
         await onLeaveRoom();
@@ -1025,27 +1035,36 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
     // 少し遅延させて接続を開始(接続がかぶらないようにする)
     const timeoutId = setTimeout(initializeConnection, 100);
 
-      // クリーンアップ
+      // クリーンアップ（強化版 - カメラストリーム完全停止）
       return () => {
-      if (import.meta.env.DEV) {
-        console.log('VideoCallRoom アンマウント - 接続切断', { roomId: roomIdRef.current, userName: userNameRef.current });
+        if (import.meta.env.DEV) {
+          console.log('VideoCallRoom アンマウント - 接続切断', { roomId: roomIdRef.current, userName: userNameRef.current });
         }
-      clearTimeout(timeoutId);
-      
-      // 音声レベル監視を停止
-      stopAudioLevelMonitoring();
-      
+        clearTimeout(timeoutId);
+        
+        // 音声レベル監視を停止
+        stopAudioLevelMonitoring();
+        
+        // カメラ・マイクストリームの完全停止（PRレビュー対応 - ヘルパー関数使用）
+        if (roomRef.current?.localParticipant) {
+          stopAllLocalTracks(roomRef.current.localParticipant);
+          if (import.meta.env.DEV) {
+            console.log('アンマウント時: すべてのローカルトラックを停止しました');
+          }
+        }
+        
+        // LiveKitルームから切断
         if (roomRef.current) {
           try {
             roomRef.current.disconnect();
           } catch (error) {
-          console.warn('切断時のエラー:', error);
+            console.warn('切断時のエラー:', error);
           }
           roomRef.current = null;
         }
         hasConnectedRef.current = false;
         isConnectingRef.current = false;
-    };
+      };
   }, [enableUserInteraction, stopAudioLevelMonitoring]); // 依存配列にenableUserInteractionとstopAudioLevelMonitoringを指定しているため、マウント時およびこれらが変更されたときに実行される
 
   // roomIdとuserNameの変更を監視して接続を更新
