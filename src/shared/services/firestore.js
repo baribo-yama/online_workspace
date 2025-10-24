@@ -1,3 +1,5 @@
+import { getRoomsCollection } from './firebase';
+
 // タイマー状態の初期化
 export const createInitialTimer = () => ({
   timeLeft: 25 * 60,
@@ -161,4 +163,131 @@ export const calculateTimerState = (timerData) => {
     // 時間切れの場合は自動的にモード切り替え
     isRunning: currentTimeLeft > 0 ? timerData.isRunning : false,
   };
+};
+
+/**
+ * ホスト権限を次の参加者に移譲する関数
+ * 
+ * @param {Object} db - Firestore インスタンス
+ * @param {string} roomId - ルームID
+ * @param {string} currentHostId - 現在のホストの participantId
+ * @returns {Promise<string>} 新ホストの participantId
+ * @throws {Error} 権限移譲に失敗した場合
+ */
+export const transferHostAuthority = async (db, roomId, currentHostId) => {
+  const { runTransaction, collection, query, orderBy, getDocs, doc } = await import('firebase/firestore');
+  
+  try {
+    // 1. トランザクション外でルーム内の全参加者を取得
+    // 重要：getRoomsCollection() を使ってプレフィックスを正しく適用
+    const roomsCollection = getRoomsCollection();
+    const participantsRef = collection(roomsCollection, roomId, "participants");
+    const participantsQuery = query(participantsRef, orderBy('joinedAt', 'asc'));
+    const participantsSnapshot = await getDocs(participantsQuery);
+    
+    console.log('[transferHostAuthority] Firestore取得結果:', {
+      totalDocs: participantsSnapshot.docs.length,
+      docs: participantsSnapshot.docs.map(d => ({
+        id: d.id,
+        data: d.data()
+      }))
+    });
+    
+    const participants = participantsSnapshot.docs
+      .map(docSnap => ({
+        id: docSnap.id,
+        ...docSnap.data()
+      }))
+      .filter(p => p.id !== currentHostId); // 現在のホストを除外
+    
+    console.log('[transferHostAuthority] ホスト除外後:', {
+      count: participants.length,
+      participants: participants.map(p => ({
+        id: p.id,
+        isHost: p.isHost,
+        name: p.name,
+        joinedAt: p.joinedAt
+      }))
+    });
+    
+    if (participants.length === 0) {
+      // 残存参加者がいない場合
+      console.log('残存参加者なし：ルーム終了');
+      return null;
+    }
+    
+    // 修正案1追加：ホスト候補がゲスト（isHost=false）であることを確認
+    // 重要：isHost が undefined の場合も除外対象にする（ゲスト扱い）
+    const hostCandidates = participants.filter(p => p.isHost !== true);
+    
+    console.log('[transferHostAuthority] ホスト候補:', {
+      count: hostCandidates.length,
+      candidates: hostCandidates.map(p => ({
+        id: p.id,
+        isHost: p.isHost,
+        name: p.name
+      }))
+    });
+    
+    if (hostCandidates.length === 0) {
+      console.error('エラー：有効なホスト候補が見つかりません', {
+        allParticipants: participants.length,
+        hosts: participants.filter(p => p.isHost === true).length
+      });
+      throw new Error('権限移譲対象が見つかりません（全員ホスト権限を持っています）');
+    }
+    
+    // 2. 新ホストを決定（ホスト候補のみから選択）
+    // joinedAt が最も早い参加者 → doc.id の辞書順
+    const newHost = hostCandidates.sort((a, b) => {
+      const timeCompare = (a.joinedAt?.toDate?.() || 0) - (b.joinedAt?.toDate?.() || 0);
+      if (timeCompare !== 0) return timeCompare;
+      return a.id.localeCompare(b.id);
+    })[0];
+    
+    console.log('[transferHostAuthority] 新ホスト決定:', {
+      newHostId: newHost.id,
+      name: newHost.name,
+      joinedAt: newHost.joinedAt
+    });
+    
+    if (!newHost) {
+      throw new Error('新ホスト候補が見つかりません');
+    }
+    
+    // 3. トランザクション内で権限移譲を実行
+    return await runTransaction(db, async (transaction) => {
+      console.log('[transferHostAuthority] トランザクション開始');
+      
+      // 新ホストの isHost を true に更新
+      // 重要：getRoomsCollection() でプレフィックスを正しく適用
+      transaction.update(
+        doc(getRoomsCollection(), roomId, "participants", newHost.id),
+        { isHost: true }
+      );
+      
+      console.log('[transferHostAuthority] 新ホストのisHost更新:', newHost.id);
+      
+      // 現在のホストの参加者ドキュメントを削除
+      transaction.delete(
+        doc(getRoomsCollection(), roomId, "participants", currentHostId)
+      );
+      
+      console.log('[transferHostAuthority] 旧ホスト削除:', currentHostId);
+      
+      // ★ 重要追加：ルームドキュメント自体の hostId も更新
+      transaction.update(
+        doc(getRoomsCollection(), roomId),
+        { hostId: newHost.id }
+      );
+      
+      console.log('[transferHostAuthority] ルームドキュメントのhostId更新:', newHost.id);
+      console.log('権限移譲完了:', `${currentHostId} → ${newHost.id}`);
+      return newHost.id;
+    });
+    
+  } catch (error) {
+    console.error('権限移譲処理エラー:', error);
+    throw error;
+  }
 };

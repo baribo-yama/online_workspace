@@ -10,7 +10,12 @@
  */
 import { GAME_STATUS } from "../../constants";
 
-export const HostControls = ({ isHost, canStartGame, gameStatus, onGameStart }) => {
+export const HostControls = ({ 
+  isHost, 
+  canStartGame, 
+  gameStatus, 
+  onGameStart
+}) => {
   if (!isHost) return null;
 
   return (
