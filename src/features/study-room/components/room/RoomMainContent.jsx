@@ -11,6 +11,7 @@
 import SharedTimer from "../../../timer/components/SharedTimer";
 import { RoomHeader } from "./RoomHeader";
 import { HostControls } from "./HostControls";
+import { RoomChat } from "./RoomChat";
 
 export const RoomMainContent = ({
   roomId,
@@ -37,6 +38,9 @@ export const RoomMainContent = ({
       <div className="flex-1 p-6">
         <SharedTimer roomId={roomId} isHost={isHost} />
       </div>
+
+      {/* チャット */}
+      <RoomChat roomId={roomId} />
 
       {/* ホストコントロール */}
       <div className="p-6">
