@@ -46,7 +46,7 @@ function RoomPage() {
 
   // ===== ローカル状態管理 =====
   const [showGame, setShowGame] = useState(false);
-  const [wasHost, setWasHost] = useState(isHost);
+  const [wasHost, setWasHost] = useState(false);
 
   // ===== 副作用 =====
 
