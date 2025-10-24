@@ -51,7 +51,7 @@ export const RoomChat = ({ roomId }) => {
   };
 
   return (
-    <div className="px-6 pb-4 flex flex-col h-48 bg-gray-800 border-t border-gray-700">
+    <div className="px-6 pb-4 flex flex-col h-full bg-gray-800 border-t border-gray-700">
       {/* ヘッダー */}
       <div className="py-2 border-b border-gray-700">
         <h3 className="text-sm font-semibold text-gray-300">チャット</h3>

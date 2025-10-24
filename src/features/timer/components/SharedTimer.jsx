@@ -54,7 +54,7 @@ const SharedTimer = memo(function SharedTimer({ roomId, isHost = false }) {
   }
 
   return (
-    <div className="flex flex-col h-full bg-gray-900 p-6">
+    <div className="flex flex-col h-full bg-gray-900">
       <div className="text-center mb-8">
         <h2 className="text-2xl font-bold text-white mb-2">共有ポモドーロタイマー</h2>
         <div className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
