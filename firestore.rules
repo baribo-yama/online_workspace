@@ -55,6 +55,33 @@ service cloud.firestore {
         // - 重複参加者の削除
         allow delete: if true;
       }
+
+      // チャットメッセージサブコレクション
+      // - ルーム終了時に自動削除される（02_expected-spec.md #6 より）
+      match /messages/{messageId} {
+        // 読み取り: 誰でも可能
+        // - チャット履歴の表示
+        allow read: if true;
+        
+        // 作成: 必須フィールドのチェック
+        // - userName（ユーザー名）は必須、1-20文字
+        // - text（メッセージテキスト）は必須、1-200文字
+        // - createdAt（作成日時）は必須
+        allow create: if request.resource.data.keys().hasAll(['userName', 'text', 'createdAt']) &&
+                         request.resource.data.userName is string &&
+                         request.resource.data.userName.size() > 0 &&
+                         request.resource.data.userName.size() <= 20 &&
+                         request.resource.data.text is string &&
+                         request.resource.data.text.size() > 0 &&
+                         request.resource.data.text.size() <= 200;
+        
+        // 更新: 不可（送信後の編集は許可しない）
+        allow update: if false;
+        
+        // 削除: 不可（ルーム終了時に自動削除）
+        // TODO: ルーム終了時の自動削除機能実装時に有効化
+        allow delete: if false;
+      }
     }
   }
 }

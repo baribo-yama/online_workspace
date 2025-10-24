@@ -2,6 +2,7 @@
  * RoomSidebar - ルーム左サイドバーコンポーネント
  *
  * 責務:
+ * - ルームヘッダーの表示
  * - 参加者リストの表示
  * - ビデオ通話エリアの表示
  *
@@ -9,6 +10,7 @@
  */
 import { Suspense, lazy } from "react";
 import ParticipantList from "../../../collaboration/components/ParticipantList";
+import { RoomHeader } from "./RoomHeader";
 import { LOADING_MESSAGES } from "../../constants";
 
 const VideoCallRoom = lazy(() => import("../../../video-call/components/VideoCallRoom"));
@@ -20,9 +22,21 @@ export const RoomSidebar = ({
   participantsLoading,
   myParticipantId,
   onLeaveRoom,
+  roomTitle,
+  isHost,
+  onEndRoom,
 }) => {
   return (
     <div className="w-1/2 bg-gray-800 border-r border-gray-700 flex flex-col">
+      {/* ルームヘッダー */}
+      <RoomHeader
+        roomTitle={roomTitle}
+        roomId={roomId}
+        isHost={isHost}
+        onLeaveRoom={onLeaveRoom}
+        onEndRoom={onEndRoom}
+      />
+
       {/* 参加者一覧 */}
       <div className="p-6 border-b border-gray-700">
         <ParticipantList

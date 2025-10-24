@@ -101,6 +101,9 @@ function RoomPage() {
         participantsLoading={participantsLoading}
         myParticipantId={myParticipantId}
         onLeaveRoom={handleLeaveRoom}
+        roomTitle={room.title}
+        isHost={isHost}
+        onEndRoom={handleEndRoom}
       />
 
       {/* 右メインコンテンツ: ヘッダー & タイマー & コントロール */}

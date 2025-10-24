@@ -26,8 +26,7 @@ import {
   VideoOff, 
   Mic, 
   MicOff, 
-  Phone, 
-  PhoneOff,
+  Phone,
   Users
 } from 'lucide-react';
 import { LIVEKIT_CONFIG, generateRoomName, generateParticipantName, generateAccessToken } from '../config/livekit';
@@ -54,6 +53,12 @@ const RETRY_ATTACHMENT_DELAY = TIMINGS.RETRY_ATTACHMENT_DELAY;
 const AUDIO_LEVEL_NORMALIZER = 128; // 音声レベル正規化用の除数
 const SPEAKING_THRESHOLD = 3; // 話していると判定する音声レベル閾値
 
+// マイク音声レベル監視のリトライロジック設定
+const AUDIO_LEVEL_MONITORING_RETRY_CONFIG = {
+  INITIAL_DELAY_MS: 500,      // 初回の音声トラック検索遅延
+  FALLBACK_RETRY_DELAY_MS: 1000, // フォールバック再試行時の遅延
+};
+
 
 function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
   // =============================================
@@ -63,8 +68,8 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
   const [localParticipant, setLocalParticipant] = useState(null); // ローカル参加者
   const [isConnecting, setIsConnecting] = useState(false); // 接続中フラグ
   const [error, setError] = useState(null); // エラー状態
-  const [isVideoEnabled, setIsVideoEnabled] = useState(true); // ビデオ有効状態
-  const [isAudioEnabled, setIsAudioEnabled] = useState(true); // オーディオ有効状態
+  const [isVideoEnabled, setIsVideoEnabled] = useState(false); // ビデオ有効状態（デフォルトOFF）
+  const [isAudioEnabled, setIsAudioEnabled] = useState(false); // オーディオ有効状態（デフォルトOFF）
   const [audioLevel, setAudioLevel] = useState(0); // 音声レベル
   const [isSpeaking, setIsSpeaking] = useState(false); // 話している状態
   
@@ -569,6 +574,80 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
     }
   }, [updateParticipants, startAudioLevelMonitoringWithTrack]);
 
+  /**
+   * カメラとマイクを初期状態に設定する関数
+   * ローカル参加者のカメラとマイクをUIの状態に合わせて初期化します。
+   * デフォルトはカメラOFF、マイクOFFです。
+   */
+  const initializeCameraAndMicrophone = useCallback(async () => {
+    if (!roomRef.current) return;
+
+    try {
+      // カメラの初期状態を設定（デフォルトOFF）
+      try {
+        await roomRef.current.localParticipant.setCameraEnabled(isVideoEnabled);
+        if (import.meta.env.DEV) {
+          console.log('カメラを初期化:', isVideoEnabled ? 'ON' : 'OFF');
+        }
+      } catch (cameraError) {
+        console.warn('カメラ初期化エラー:', cameraError);
+      }
+
+      // マイクの初期状態を設定（デフォルトOFF）
+      try {
+        await roomRef.current.localParticipant.setMicrophoneEnabled(isAudioEnabled);
+        if (import.meta.env.DEV) {
+          console.log('マイクを初期化:', isAudioEnabled ? 'ON' : 'OFF');
+        }
+        
+        // マイク有効時のみ音声レベル監視を開始
+        if (isAudioEnabled) {
+          // 初回の音声トラック検索遅延
+          const retryAudioLevelMonitoring = () => {
+            if (startAudioLevelMonitoringRef.current) {
+              startAudioLevelMonitoringRef.current();
+            }
+          };
+
+          setTimeout(() => {
+            const localParticipant = roomRef.current?.localParticipant;
+            if (localParticipant && localParticipant.audioTracks) {
+              const audioTracks = Array.from(localParticipant.audioTracks.values());
+              const audioTrack = audioTracks.find(track => track.source === Track.Source.Microphone);
+              
+              if (audioTrack && audioTrack.track && audioTrack.track.mediaStreamTrack) {
+                if (import.meta.env.DEV) {
+                  console.log('音声レベル監視を開始（マイク有効化後）');
+                }
+                startAudioLevelMonitoringWithTrack(audioTrack.track);
+              } else {
+                // 音声トラックが見つからない場合は、少し待ってからフォールバック再試行
+                setTimeout(retryAudioLevelMonitoring, AUDIO_LEVEL_MONITORING_RETRY_CONFIG.FALLBACK_RETRY_DELAY_MS);
+              }
+            }
+          }, AUDIO_LEVEL_MONITORING_RETRY_CONFIG.INITIAL_DELAY_MS);
+        }
+      } catch (microphoneError) {
+        console.warn('マイク初期化エラー:', microphoneError);
+      }
+
+      // カメラ・マイク初期化後の参加者リスト更新
+      setTimeout(() => {
+        updateParticipants();
+      }, 1000);
+      
+    } catch (mediaError) {
+      console.error('カメラ・マイクアクセスエラー:', mediaError);
+      
+      if (mediaError.message && mediaError.message.includes('silence detected')) {
+        updateParticipants();
+        return;
+      }
+      
+      setError(`メディアアクセスエラー: ${mediaError.message}`);
+    }
+  }, [isVideoEnabled, isAudioEnabled, updateParticipants, startAudioLevelMonitoringWithTrack]);
+
 
 
 
@@ -831,7 +910,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
           if (import.meta.env.DEV) {
             console.log('接続完了: カメラ・マイクアクセスを開始');
           }
-          enableCameraAndMicrophone();
+          initializeCameraAndMicrophone();
         });
       };
 
@@ -875,7 +954,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
       isConnectingRef.current = false;
       setIsConnecting(false);
     }
-  }, [updateParticipants, enableCameraAndMicrophone, attachAudioTrack, cleanupAudioElement]);
+  }, [updateParticipants, initializeCameraAndMicrophone, attachAudioTrack, cleanupAudioElement]);
 
   /**
    * connectToRoom関数の参照を設定するuseEffect
@@ -1426,13 +1505,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
             )}
           </button>
           
-          <button
-            onClick={disconnectFromRoom}
-            className="p-2 rounded-lg bg-red-600 hover:bg-red-700 transition-colors"
-            title="通話を終了"
-          >
-            <PhoneOff className="w-5 h-5" />
-          </button>
+          {/* 退出ボタンは削除済み: ゲストは「ルーム一覧に戻る」ボタンで十分 */}
         </div>
       </div>
 
