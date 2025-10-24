@@ -217,8 +217,8 @@ export const transferHostAuthority = async (db, roomId, currentHostId) => {
     }
     
     // 修正案1追加：ホスト候補がゲスト（isHost=false）であることを確認
-    // 重要：isHost が undefined または false の場合を候補対象にする
-    const hostCandidates = participants.filter(p => p.isHost !== true);
+    // 重要：isHost が false のゲストのみを抽出（厳密な比較）
+    const hostCandidates = participants.filter(p => p.isHost === false);
     
     console.log('[transferHostAuthority] ホスト候補:', {
       count: hostCandidates.length,
