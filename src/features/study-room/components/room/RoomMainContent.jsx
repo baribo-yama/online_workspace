@@ -2,14 +2,13 @@
  * RoomMainContent - ルーム右メインコンテンツコンポーネント
  *
  * 責務:
- * - ヘッダーの表示
  * - タイマーの表示
+ * - チャットの表示
  * - ホストコントロールの表示
  *
  * RoomPage から抽出
  */
 import SharedTimer from "../../../timer/components/SharedTimer";
-import { RoomHeader } from "./RoomHeader";
 import { HostControls } from "./HostControls";
 import { RoomChat } from "./RoomChat";
 
@@ -25,22 +24,15 @@ export const RoomMainContent = ({
 }) => {
   return (
     <div className="w-1/2 bg-gray-800 flex flex-col">
-      {/* ヘッダー */}
-      <RoomHeader
-        roomTitle={roomTitle}
-        roomId={roomId}
-        isHost={isHost}
-        onLeaveRoom={onLeaveRoom}
-        onEndRoom={onEndRoom}
-      />
-
-      {/* ポモドーロタイマー */}
-      <div className="flex-1 p-6">
+      {/* ポモドーロタイマー（タイマーボタンが見えるサイズ） */}
+      <div className="flex-1 p-6 items-center justify-center border-b border-gray-700">
         <SharedTimer roomId={roomId} isHost={isHost} />
       </div>
 
       {/* チャット */}
-      <RoomChat roomId={roomId} />
+      <div className="h-1/3 overflow-hidden">
+        <RoomChat roomId={roomId} />
+      </div>
 
       {/* ホストコントロール */}
       <div className="p-6">

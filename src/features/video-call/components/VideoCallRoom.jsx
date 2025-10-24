@@ -26,8 +26,7 @@ import {
   VideoOff, 
   Mic, 
   MicOff, 
-  Phone, 
-  PhoneOff,
+  Phone,
   Users
 } from 'lucide-react';
 import { LIVEKIT_CONFIG, generateRoomName, generateParticipantName, generateAccessToken } from '../config/livekit';
@@ -1478,13 +1477,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
             )}
           </button>
           
-          <button
-            onClick={disconnectFromRoom}
-            className='p-2 rounded-lg bg-red-600 hover:bg-red-700 transition-colors hidden'
-            title='通話を終了'
-          >
-            <PhoneOff className='w-5 h-5' />
-          </button>
+          {/* 退出ボタンは削除済み: ゲストは「ルーム一覧に戻る」ボタンで十分 */}
         </div>
       </div>
 
