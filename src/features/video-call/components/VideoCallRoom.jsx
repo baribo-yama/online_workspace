@@ -62,8 +62,8 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
   const [localParticipant, setLocalParticipant] = useState(null); // ローカル参加者
   const [isConnecting, setIsConnecting] = useState(false); // 接続中フラグ
   const [error, setError] = useState(null); // エラー状態
-  const [isVideoEnabled, setIsVideoEnabled] = useState(true); // ビデオ有効状態
-  const [isAudioEnabled, setIsAudioEnabled] = useState(true); // オーディオ有効状態
+  const [isVideoEnabled, setIsVideoEnabled] = useState(false); // ビデオ有効状態（デフォルトOFF）
+  const [isAudioEnabled, setIsAudioEnabled] = useState(false); // オーディオ有効状態（デフォルトOFF）
   const [audioLevel, setAudioLevel] = useState(0); // 音声レベル
   const [isSpeaking, setIsSpeaking] = useState(false); // 話している状態
   
@@ -568,6 +568,77 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
     }
   }, [updateParticipants, startAudioLevelMonitoringWithTrack]);
 
+  /**
+   * カメラとマイクを初期状態に設定する関数
+   * ローカル参加者のカメラとマイクをUIの状態に合わせて初期化します。
+   * デフォルトはカメラOFF、マイクOFFです。
+   */
+  const initializeCameraAndMicrophone = useCallback(async () => {
+    if (!roomRef.current) return;
+
+    try {
+      // カメラの初期状態を設定（デフォルトOFF）
+      try {
+        await roomRef.current.localParticipant.setCameraEnabled(isVideoEnabled);
+        if (import.meta.env.DEV) {
+          console.log('カメラを初期化:', isVideoEnabled ? 'ON' : 'OFF');
+        }
+      } catch (cameraError) {
+        console.warn('カメラ初期化エラー:', cameraError);
+      }
+
+      // マイクの初期状態を設定（デフォルトOFF）
+      try {
+        await roomRef.current.localParticipant.setMicrophoneEnabled(isAudioEnabled);
+        if (import.meta.env.DEV) {
+          console.log('マイクを初期化:', isAudioEnabled ? 'ON' : 'OFF');
+        }
+        
+        // マイク有効時のみ音声レベル監視を開始
+        if (isAudioEnabled) {
+          setTimeout(() => {
+            const localParticipant = roomRef.current?.localParticipant;
+            if (localParticipant && localParticipant.audioTracks) {
+              const audioTracks = Array.from(localParticipant.audioTracks.values());
+              const audioTrack = audioTracks.find(track => track.source === Track.Source.Microphone);
+              
+              if (audioTrack && audioTrack.track && audioTrack.track.mediaStreamTrack) {
+                if (import.meta.env.DEV) {
+                  console.log('音声レベル監視を開始（マイク有効化後）');
+                }
+                startAudioLevelMonitoringWithTrack(audioTrack.track);
+              } else {
+                // 音声トラックが見つからない場合は、少し待ってから再試行
+                setTimeout(() => {
+                  if (startAudioLevelMonitoringRef.current) {
+                    startAudioLevelMonitoringRef.current();
+                  }
+                }, 1000);
+              }
+            }
+          }, 500);
+        }
+      } catch (microphoneError) {
+        console.warn('マイク初期化エラー:', microphoneError);
+      }
+
+      // カメラ・マイク初期化後の参加者リスト更新
+      setTimeout(() => {
+        updateParticipants();
+      }, 1000);
+      
+    } catch (mediaError) {
+      console.error('カメラ・マイクアクセスエラー:', mediaError);
+      
+      if (mediaError.message && mediaError.message.includes('silence detected')) {
+        updateParticipants();
+        return;
+      }
+      
+      setError(`メディアアクセスエラー: ${mediaError.message}`);
+    }
+  }, [isVideoEnabled, isAudioEnabled, updateParticipants, startAudioLevelMonitoringWithTrack]);
+
 
 
 
@@ -830,7 +901,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
           if (import.meta.env.DEV) {
             console.log('接続完了: カメラ・マイクアクセスを開始');
           }
-          enableCameraAndMicrophone();
+          initializeCameraAndMicrophone();
         });
       };
 
@@ -874,7 +945,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
       isConnectingRef.current = false;
       setIsConnecting(false);
     }
-  }, [updateParticipants, enableCameraAndMicrophone, attachAudioTrack, cleanupAudioElement]);
+  }, [updateParticipants, initializeCameraAndMicrophone, attachAudioTrack, cleanupAudioElement]);
 
   /**
    * connectToRoom関数の参照を設定するuseEffect
@@ -1409,10 +1480,10 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
           
           <button
             onClick={disconnectFromRoom}
-            className="p-2 rounded-lg bg-red-600 hover:bg-red-700 transition-colors"
-            title="通話を終了"
+            className='p-2 rounded-lg bg-red-600 hover:bg-red-700 transition-colors hidden'
+            title='通話を終了'
           >
-            <PhoneOff className="w-5 h-5" />
+            <PhoneOff className='w-5 h-5' />
           </button>
         </div>
       </div>
