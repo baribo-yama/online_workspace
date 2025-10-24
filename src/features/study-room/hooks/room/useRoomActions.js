@@ -48,7 +48,8 @@ export const useRoomActions = (roomId, leaveRoom, isHost, myParticipantId) => {
         } catch (transferError) {
           console.error("[useRoomActions] 権限移譲エラー:", transferError);
           showErrorToast("ホスト権限の移譲に失敗しました。もう一度お試しください。");
-          // 修正案3：throw しない（ホストをルーム内に留める）
+          // ホスト権限移譲に失敗した場合、throw しない（ホストをルーム内に留める）
+          // これにより、ホストが無意識にルームを離脱し、ルーム孤立や不整合状態を防ぐ
           return;
         }
       }

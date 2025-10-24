@@ -59,7 +59,7 @@ export const showToast = (message, type = 'info', duration = 3000) => {
   
   // Create icon span
   const iconSpan = document.createElement('span');
-  iconSpan.innerHTML = style.icon;
+  iconSpan.textContent = style.icon;
   
   // Create message span
   const messageSpan = document.createElement('span');
