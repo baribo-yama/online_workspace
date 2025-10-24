@@ -57,10 +57,17 @@ export const showToast = (message, type = 'info', duration = 3000) => {
     max-w-sm
   `;
   
-  toast.innerHTML = `
-    <span>${style.icon}</span>
-    <span>${message}</span>
-  `;
+  // Create icon span
+  const iconSpan = document.createElement('span');
+  iconSpan.innerHTML = style.icon;
+  
+  // Create message span
+  const messageSpan = document.createElement('span');
+  messageSpan.textContent = message;
+  
+  // Append spans to toast
+  toast.appendChild(iconSpan);
+  toast.appendChild(messageSpan);
   
   document.body.appendChild(toast);
   
