@@ -2,7 +2,7 @@
  * useRoomActions - ルーム操作ロジック
  *
  * 責務:
- * - 退出処理
+ * - 退出処理（ホスト権限移譲対応）
  * - 終了処理（ホスト権限チェック付き）
  * - エラーハンドリング
  *
@@ -12,34 +12,63 @@
  * @param {string} roomId - ルームID
  * @param {function} leaveRoom - 参加者退出関数
  * @param {boolean} isHost - ホスト権限
+ * @param {string} myParticipantId - 現在のユーザーの参加者ID
  * @returns {Object} { handleLeaveRoom, handleEndRoom }
  */
 import { useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { doc, deleteDoc } from "firebase/firestore";
+import { doc, deleteDoc, getFirestore } from "firebase/firestore";
 import { getRoomsCollection } from "../../../../shared/services/firebase";
+import { transferHostAuthority } from "../../../../shared/services/firestore";
+import { showHostTransferSuccessToast, showErrorToast } from "../../../../shared/utils/toastNotification";
 import { ROOM_ERRORS, ROOM_CONFIRMS } from "../../constants";
 
-export const useRoomActions = (roomId, leaveRoom, isHost) => {
+export const useRoomActions = (roomId, leaveRoom, isHost, myParticipantId) => {
   const navigate = useNavigate();
+  const db = getFirestore();
 
-  // 退出処理
+  // 退出処理（ホスト権限移譲対応）
   const handleLeaveRoom = useCallback(async () => {
     try {
       console.log("[useRoomActions] ルーム退出開始");
-      await leaveRoom();
 
-      // LiveKit切断処理の完了を待つ
-      setTimeout(() => {
-        console.log("[useRoomActions] ホームページに遷移");
-        navigate("/");
-      }, 500);
+      // ホスト権限移譲処理（先に実行 - ホストはまだ参加者リストに存在）
+      if (isHost && myParticipantId) {
+        try {
+          console.log("[useRoomActions] ホスト権限移譲処理開始");
+          const newHostId = await transferHostAuthority(db, roomId, myParticipantId);
+          
+          if (newHostId) {
+            console.log("[useRoomActions] 新ホストに権限移譲完了:", newHostId);
+            showHostTransferSuccessToast();
+          } else {
+            console.log("[useRoomActions] 残存参加者なし - ルーム終了");
+            await deleteDoc(doc(getRoomsCollection(), roomId));
+          }
+        } catch (transferError) {
+          console.error("[useRoomActions] 権限移譲エラー:", transferError);
+          showErrorToast("ホスト権限の移譲に失敗しました。もう一度お試しください。");
+          // 修正案3：throw しない（ホストをルーム内に留める）
+          return;
+        }
+      }
+
+      // その後に LiveKit 接続を切断してホストを参加者から削除
+      console.log("[useRoomActions] LiveKit接続を切断");
+      await leaveRoom();
+      
+      // 500ms 待機（接続切断完了を確保）
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      // ホームページへ遷移
+      console.log("[useRoomActions] ホームページに遷移");
+      navigate("/");
     } catch (error) {
       console.error("[useRoomActions] 退出エラー:", error);
       alert(ROOM_ERRORS.LEAVE_FAILED);
       navigate("/");
     }
-  }, [leaveRoom, navigate]);
+  }, [leaveRoom, navigate, isHost, myParticipantId, roomId, db]);
 
   // 終了処理（ホスト権限チェック付き）
   const handleEndRoom = useCallback(async () => {
