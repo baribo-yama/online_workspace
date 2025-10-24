@@ -52,6 +52,12 @@ const RETRY_ATTACHMENT_DELAY = TIMINGS.RETRY_ATTACHMENT_DELAY;
 const AUDIO_LEVEL_NORMALIZER = 128; // 音声レベル正規化用の除数
 const SPEAKING_THRESHOLD = 3; // 話していると判定する音声レベル閾値
 
+// マイク音声レベル監視のリトライロジック設定
+const AUDIO_LEVEL_MONITORING_RETRY_CONFIG = {
+  INITIAL_DELAY_MS: 500,      // 初回の音声トラック検索遅延
+  FALLBACK_RETRY_DELAY_MS: 1000, // フォールバック再試行時の遅延
+};
+
 
 function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
   // =============================================
@@ -595,6 +601,13 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
         
         // マイク有効時のみ音声レベル監視を開始
         if (isAudioEnabled) {
+          // 初回の音声トラック検索遅延
+          const retryAudioLevelMonitoring = () => {
+            if (startAudioLevelMonitoringRef.current) {
+              startAudioLevelMonitoringRef.current();
+            }
+          };
+
           setTimeout(() => {
             const localParticipant = roomRef.current?.localParticipant;
             if (localParticipant && localParticipant.audioTracks) {
@@ -607,15 +620,11 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
                 }
                 startAudioLevelMonitoringWithTrack(audioTrack.track);
               } else {
-                // 音声トラックが見つからない場合は、少し待ってから再試行
-                setTimeout(() => {
-                  if (startAudioLevelMonitoringRef.current) {
-                    startAudioLevelMonitoringRef.current();
-                  }
-                }, 1000);
+                // 音声トラックが見つからない場合は、少し待ってからフォールバック再試行
+                setTimeout(retryAudioLevelMonitoring, AUDIO_LEVEL_MONITORING_RETRY_CONFIG.FALLBACK_RETRY_DELAY_MS);
               }
             }
-          }, 500);
+          }, AUDIO_LEVEL_MONITORING_RETRY_CONFIG.INITIAL_DELAY_MS);
         }
       } catch (microphoneError) {
         console.warn('マイク初期化エラー:', microphoneError);
