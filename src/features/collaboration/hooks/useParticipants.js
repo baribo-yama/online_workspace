@@ -87,7 +87,7 @@ const handleReloadEntry = async (roomId, userName) => {
     const existingParticipantId = localStorage.getItem(`participantId_${roomId}`);
     
     if (!existingParticipantId) {
-      // localStorageにIDがない場合は「複数タブから同じユーザーがアクセス」している可能性がある
+      // localStorageにIDがない場合は、初回入室または複数タブからのアクセスの可能性があるため、
       // 同じ名前の既存参加者を検索して再利用する
       console.log("[handleReloadEntry] localStorageに participantId がない - 同じ名前の参加者を検索");
       

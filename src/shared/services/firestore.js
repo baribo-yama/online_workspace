@@ -217,7 +217,7 @@ export const transferHostAuthority = async (db, roomId, currentHostId) => {
     }
     
     // 修正案1追加：ホスト候補がゲスト（isHost=false）であることを確認
-    // 重要：isHost が undefined の場合も除外対象にする（ゲスト扱い）
+    // 重要：isHost が undefined または false の場合を候補対象にする
     const hostCandidates = participants.filter(p => p.isHost !== true);
     
     console.log('[transferHostAuthority] ホスト候補:', {
@@ -244,16 +244,6 @@ export const transferHostAuthority = async (db, roomId, currentHostId) => {
       if (timeCompare !== 0) return timeCompare;
       return a.id.localeCompare(b.id);
     })[0];
-    
-    console.log('[transferHostAuthority] 新ホスト決定:', {
-      newHostId: newHost.id,
-      name: newHost.name,
-      joinedAt: newHost.joinedAt
-    });
-    
-    if (!newHost) {
-      throw new Error('新ホスト候補が見つかりません');
-    }
     
     // 3. トランザクション内で権限移譲を実行
     return await runTransaction(db, async (transaction) => {

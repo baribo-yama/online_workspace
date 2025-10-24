@@ -37,7 +37,7 @@ const toastStyles = {
  * トースト通知を表示する関数
  * 
  * @param {string} message - 表示するメッセージ
- * @param {string} type - 通知タイプ: 'success' | 'error' | 'info' | 'warning'
+ * @param {'success' | 'error' | 'info' | 'warning'} type - 通知タイプ
  * @param {number} duration - 表示時間（ミリ秒） デフォルト: 3000
  */
 export const showToast = (message, type = 'info', duration = 3000) => {
@@ -68,9 +68,7 @@ export const showToast = (message, type = 'info', duration = 3000) => {
   setTimeout(() => {
     toast.classList.add('animate-fade-out');
     setTimeout(() => {
-      if (toast.parentNode) {
-        toast.parentNode.removeChild(toast);
-      }
+      toast.remove();
     }, 300);
   }, duration);
 };
