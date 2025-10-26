@@ -14,12 +14,9 @@ import { RoomChat } from "./RoomChat";
 
 export const RoomMainContent = ({
   roomId,
-  roomTitle,
   isHost,
   canStartGame,
   gameStatus,
-  onLeaveRoom,
-  onEndRoom,
   onGameStart,
 }) => {
   return (

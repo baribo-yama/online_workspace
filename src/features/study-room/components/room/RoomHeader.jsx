@@ -4,11 +4,11 @@
  * 責務:
  * - ルームタイトルの表示
  * - ゲスト: 退出ボタンのみ表示
- * - ホスト: 終了ボタンのみ表示
+ * - ホスト: 退出ボタンと終了ボタンの両方を表示
  *
  * 仕様:
- * - ホストには部屋を終了するボタンだけが表示される
- * - ゲストにはルーム一覧に戻るボタンだけが表示される
+ * - ホストには「ルーム一覧に戻る」ボタンと「部屋を終了」ボタンが表示される
+ * - ゲストには「ルーム一覧に戻る」ボタンだけが表示される
  */
 import { Home, Trash2 } from "lucide-react";
 import { ROOM_DEFAULTS } from "../../constants";
@@ -23,19 +23,17 @@ export const RoomHeader = ({
   return (
     <div className="p-6 border-b border-gray-700">
       <div className="flex gap-2 mb-4">
-        {/* ゲストには退出ボタンのみ表示 */}
-        {!isHost && (
-          <button
-            onClick={onLeaveRoom}
-            className="flex items-center gap-2 text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 px-3 py-2 rounded-lg transition-all duration-200 border border-transparent hover:border-blue-500/30"
-            aria-label="ルーム一覧に戻る"
-          >
-            <Home className="w-4 h-4" />
-            ルーム一覧に戻る
-          </button>
-        )}
+        {/* ゲストとホストの両方に「ルーム一覧に戻る」ボタンを表示 */}
+        <button
+          onClick={onLeaveRoom}
+          className="flex items-center gap-2 text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 px-3 py-2 rounded-lg transition-all duration-200 border border-transparent hover:border-blue-500/30"
+          aria-label="ルーム一覧に戻る"
+        >
+          <Home className="w-4 h-4" />
+          ルーム一覧に戻る
+        </button>
 
-        {/* ホストには終了ボタンのみ表示 */}
+        {/* ホストのみに「部屋を終了」ボタンを表示 */}
         {isHost && (
           <button
             onClick={onEndRoom}

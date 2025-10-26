@@ -36,7 +36,9 @@ import {
   onSnapshot,
   query,
   orderBy,
-  updateDoc
+  updateDoc,
+  where,
+  limit
 } from "firebase/firestore";
 import { getRoomsCollection } from "../../../shared/services/firebase";
 
@@ -85,7 +87,44 @@ const handleReloadEntry = async (roomId, userName) => {
     const existingParticipantId = localStorage.getItem(`participantId_${roomId}`);
     
     if (!existingParticipantId) {
-      // localStorageにIDがない場合は初回入室扱い
+      // localStorageにIDがない場合は同じ名前の既存参加者を検索して再利用
+      console.log("[handleReloadEntry] localStorageに participantId がない - 同じ名前の参加者を検索");
+      
+      try {
+        const participantsRef = collection(getRoomsCollection(), roomId, "participants");
+        const q = query(participantsRef, where("name", "==", userName), limit(1));
+        const snapshot = await getDocs(q);
+        
+        if (snapshot.docs.length > 0) {
+          // 同じ名前の参加者が見つかった - 既存ドキュメントを再利用
+          const existingDoc = snapshot.docs[0];
+          const foundParticipantId = existingDoc.id;
+          console.log("[handleReloadEntry] 同じ名前の参加者を発見 - 既存ID再利用:", foundParticipantId);
+          
+          // localStorageに保存
+          localStorage.setItem(`participantId_${roomId}`, foundParticipantId);
+          
+          // 状態を更新
+          await updateDoc(
+            doc(getRoomsCollection(), roomId, "participants", foundParticipantId),
+            {
+              active: true,
+              lastActivity: serverTimestamp()
+            }
+          );
+          
+          return foundParticipantId;
+        } else {
+          // 既存参加者なし - 新規作成にフォールバック
+          console.log("[handleReloadEntry] 既存参加者なし - 新規参加者を作成します");
+        }
+      } catch (searchError) {
+        console.error("[handleReloadEntry] 同じ名前の参加者検索エラー（ネットワーク障害などの可能性）:", searchError);
+        console.log("[handleReloadEntry] エラー発生のため、新規参加者を作成します");
+        // ネットワークエラーなどの場合は初回入室処理にフォールバック
+      }
+      
+      // 同じ名前の参加者が見つからない場合は初回入室扱い
       return await handleFirstTimeEntry(roomId, userName);
     }
     
