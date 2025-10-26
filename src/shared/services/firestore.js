@@ -216,9 +216,9 @@ export const transferHostAuthority = async (db, roomId, currentHostId) => {
       return null;
     }
     
-    // 修正案1追加：ホスト候補がゲスト（isHost=false）であることを確認
-    // 重要：isHost が false のゲストのみを抽出（厳密な比較）
-    const hostCandidates = participants.filter(p => p.isHost === false);
+    // 修正案1追加：ホスト候補がゲスト（isHost=false または未定義）であることを確認
+    // 重要：isHost が true でないゲストのみを抽出（未定義も含む）
+    const hostCandidates = participants.filter(p => p.isHost !== true);
     
     console.log('[transferHostAuthority] ホスト候補:', {
       count: hostCandidates.length,
@@ -240,7 +240,7 @@ export const transferHostAuthority = async (db, roomId, currentHostId) => {
     // 2. 新ホストを決定（ホスト候補のみから選択）
     // joinedAt が最も早い参加者 → doc.id の辞書順
     const newHost = hostCandidates.sort((a, b) => {
-      const timeCompare = (a.joinedAt?.toDate?.() || 0) - (b.joinedAt?.toDate?.() || 0);
+      const timeCompare = (a.joinedAt?.toDate?.() ?? Number.MAX_SAFE_INTEGER) - (b.joinedAt?.toDate?.() ?? Number.MAX_SAFE_INTEGER);
       if (timeCompare !== 0) return timeCompare;
       return a.id.localeCompare(b.id);
     })[0];
