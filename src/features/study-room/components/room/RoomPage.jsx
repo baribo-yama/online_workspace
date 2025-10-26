@@ -22,6 +22,7 @@ import { LoadingScreen } from "../shared/LoadingScreen";
 import { RoomSidebar } from "./RoomSidebar";
 import { RoomMainContent } from "./RoomMainContent";
 import { GameOverlay } from "../game/GameOverlay";
+import { showHostPromotionToast } from "../../../../shared/utils/toastNotification";
 import { GAME_STATUS, ROOM_DEFAULTS } from "../../constants";
 
 function RoomPage() {
@@ -41,12 +42,22 @@ function RoomPage() {
   const { isHost, canStartGame, gameStatus } = useRoomPermissions(room, myParticipantId);
 
   // ===== 操作ロジック =====
-  const { handleLeaveRoom, handleEndRoom } = useRoomActions(roomId, leaveRoom, isHost);
+  const { handleLeaveRoom, handleEndRoom } = useRoomActions(roomId, leaveRoom, isHost, myParticipantId);
 
   // ===== ローカル状態管理 =====
   const [showGame, setShowGame] = useState(false);
+  const [wasHost, setWasHost] = useState(false);
 
   // ===== 副作用 =====
+
+  // ホスト権限昇格の通知
+  useEffect(() => {
+    if (!wasHost && isHost) {
+      console.log("[RoomPage] ホスト権限を昇格");
+      showHostPromotionToast();
+    }
+    setWasHost(isHost);
+  }, [isHost, wasHost]);
 
   // ゲーム状態の自動監視
   useEffect(() => {
@@ -109,12 +120,9 @@ function RoomPage() {
       {/* 右メインコンテンツ: ヘッダー & タイマー & コントロール */}
       <RoomMainContent
         roomId={roomId}
-        roomTitle={room.title}
         isHost={isHost}
         canStartGame={canStartGame}
         gameStatus={gameStatus}
-        onLeaveRoom={handleLeaveRoom}
-        onEndRoom={handleEndRoom}
         onGameStart={() => setShowGame(true)}
       />
 

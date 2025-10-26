@@ -1,7 +1,6 @@
 // 個人用ポモドーロタイマーコンポーネント
 import { Clock, Play, Pause, RotateCcw, Coffee, ZapOff, FastForward } from "lucide-react";
 import { usePersonalTimer, TIMER_STATE } from "../hooks/usePersonalTimer";
-// eslint-disable-next-line no-unused-vars
 import { motion, AnimatePresence } from "framer-motion";
 
 // 円形タイマーは廃止（棒状タイマーに統一）
