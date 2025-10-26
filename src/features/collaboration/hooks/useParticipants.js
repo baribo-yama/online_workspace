@@ -114,10 +114,14 @@ const handleReloadEntry = async (roomId, userName) => {
           );
           
           return foundParticipantId;
+        } else {
+          // 既存参加者なし - 新規作成にフォールバック
+          console.log("[handleReloadEntry] 既存参加者なし - 新規参加者を作成します");
         }
       } catch (searchError) {
-        console.warn("[handleReloadEntry] 同じ名前の参加者検索エラー:", searchError);
-        // エラーの場合は初回入室処理にフォールバック
+        console.error("[handleReloadEntry] 同じ名前の参加者検索エラー（ネットワーク障害などの可能性）:", searchError);
+        console.log("[handleReloadEntry] エラー発生のため、新規参加者を作成します");
+        // ネットワークエラーなどの場合は初回入室処理にフォールバック
       }
       
       // 同じ名前の参加者が見つからない場合は初回入室扱い

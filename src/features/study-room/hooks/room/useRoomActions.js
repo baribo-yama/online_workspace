@@ -23,6 +23,9 @@ import { transferHostAuthority } from "../../../../shared/services/firestore";
 import { showHostTransferSuccessToast, showErrorToast } from "../../../../shared/utils/toastNotification";
 import { ROOM_ERRORS, ROOM_CONFIRMS } from "../../constants";
 
+// LiveKit 切断完了待機時間（ミリ秒）
+const LIVEKIT_DISCONNECT_DELAY_MS = 500;
+
 export const useRoomActions = (roomId, leaveRoom, isHost, myParticipantId) => {
   const navigate = useNavigate();
   const db = getFirestore();
@@ -58,8 +61,8 @@ export const useRoomActions = (roomId, leaveRoom, isHost, myParticipantId) => {
       console.log("[useRoomActions] LiveKit接続を切断");
       await leaveRoom();
       
-      // 500ms 待機（接続切断完了を確保）
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // LiveKit 切断完了を待機（ナビゲーション前に接続状態を確実にするため）
+      await new Promise(resolve => setTimeout(resolve, LIVEKIT_DISCONNECT_DELAY_MS));
 
       // ホームページへ遷移
       console.log("[useRoomActions] ホームページに遷移");
