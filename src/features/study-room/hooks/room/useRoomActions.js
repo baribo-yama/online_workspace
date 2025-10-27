@@ -75,19 +75,23 @@ export const useRoomActions = (roomId, leaveRoom, isHost, myParticipantId) => {
   }, [leaveRoom, navigate, isHost, myParticipantId, roomId, db]);
 
   // 終了処理（ホスト権限チェック付き）
-  const handleEndRoom = useCallback(async () => {
+  const handleEndRoom = useCallback(async (skipConfirm = false) => {
     // バグ修正: ホスト権限チェック
     if (!isHost) {
-      alert(ROOM_ERRORS.NOT_HOST);
+      if (!skipConfirm) {
+        alert(ROOM_ERRORS.NOT_HOST);
+      }
       console.warn("[useRoomActions] ホスト権限なし - 部屋終了を拒否");
       return;
     }
 
-    // 確認ダイアログ
-    const confirmEnd = window.confirm(ROOM_CONFIRMS.END_ROOM);
-    if (!confirmEnd) {
-      console.log("[useRoomActions] 終了キャンセル");
-      return;
+    // 確認ダイアログ（自動終了時はスキップ）
+    if (!skipConfirm) {
+      const confirmEnd = window.confirm(ROOM_CONFIRMS.END_ROOM);
+      if (!confirmEnd) {
+        console.log("[useRoomActions] 終了キャンセル");
+        return;
+      }
     }
 
     try {
@@ -97,7 +101,9 @@ export const useRoomActions = (roomId, leaveRoom, isHost, myParticipantId) => {
       navigate("/");
     } catch (error) {
       console.error("[useRoomActions] 終了エラー:", error);
-      alert(ROOM_ERRORS.END_FAILED);
+      if (!skipConfirm) {
+        alert(ROOM_ERRORS.END_FAILED);
+      }
     }
   }, [roomId, isHost, navigate]);
 

@@ -23,7 +23,7 @@ export const useHostInactivity = (roomId, isHost, room, onRoomEnd) => {
       }
 
       if (onRoomEnd) {
-        await onRoomEnd();
+        await onRoomEnd(true); // skipConfirm = true を渡す
       }
 
       navigate("/");
