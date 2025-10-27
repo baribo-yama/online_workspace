@@ -15,6 +15,6 @@ export const ROOM_LIMITS = {
 // ホスト確認通知の設定
 export const HOST_INACTIVITY_CONFIG = {
   ROOM_CHECK_INTERVAL_MS: 60 * 60 * 1000,    // 2時間（ミリ秒）2 * 60 * 60 * 1000- ルーム作成から定期通知の間隔
-  CONFIRMATION_TOAST_DURATION_MS: 10 * 601000, // 10分（ミリ秒）10 * 60 * 1000- 確認トーストの表示時間
+  CONFIRMATION_TOAST_DURATION_MS: 10 * 60 *1000, // 10分（ミリ秒）10 * 60 * 1000- 確認トーストの表示時間
 };
 
