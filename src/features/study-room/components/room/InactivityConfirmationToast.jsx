@@ -15,7 +15,7 @@
 export const InactivityConfirmationToast = ({ onConfirm, countdown }) => {
   return (
     <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-50 animate-fade-in">
-      <div className="bg-yellow-500 text-white px-6 py-4 rounded-lg shadow-lg max-w-md">
+      <div className="bg-yellow-500 text-white px-6 py-4 rounded-lg shadow-lg max-w-2xl">
         <div className="flex items-center gap-3">
           {/* アイコン */}
           <span className="text-2xl">⚠️</span>

@@ -208,7 +208,7 @@ const { ToastComponent: InactivityToast } = useHostInactivity(
 
 ---
 
-## 🧪 实测動作確認
+## 実測動作確認
 
 ### **実装された機能**
 - ✅ ルーム作成から2時間後にトースト表示
