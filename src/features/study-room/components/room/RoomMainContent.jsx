@@ -18,17 +18,18 @@ export const RoomMainContent = ({
   canStartGame,
   gameStatus,
   onGameStart,
+  myParticipantId,
 }) => {
   return (
     <div className="w-1/2 bg-gray-800 flex flex-col">
       {/* ポモドーロタイマー（タイマーボタンが見えるサイズ） */}
       <div className="flex-1 p-6 items-center justify-center border-b border-gray-700">
-        <SharedTimer roomId={roomId} isHost={isHost} />
+        <SharedTimer roomId={roomId} isHost={isHost} myParticipantId={myParticipantId} />
       </div>
 
       {/* チャット */}
       <div className="h-1/3 overflow-hidden">
-        <RoomChat roomId={roomId} />
+        <RoomChat roomId={roomId} myParticipantId={myParticipantId} />
       </div>
 
       {/* ホストコントロール */}
