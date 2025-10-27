@@ -18,6 +18,8 @@ import { useNotification } from "../../../entertainment/hooks/useNotification";
 import { useRoomData } from "../../hooks/room/useRoomData";
 import { useRoomActions } from "../../hooks/room/useRoomActions";
 import { useRoomPermissions } from "../../hooks/room/useRoomPermissions";
+import { useHostInactivity } from "../../hooks/room/useHostInactivity";
+import { InactivityConfirmationToast } from "./InactivityConfirmationToast";
 import { LoadingScreen } from "../shared/LoadingScreen";
 import { RoomSidebar } from "./RoomSidebar";
 import { RoomMainContent } from "./RoomMainContent";
@@ -43,6 +45,14 @@ function RoomPage() {
 
   // ===== 操作ロジック =====
   const { handleLeaveRoom, handleEndRoom } = useRoomActions(roomId, leaveRoom, isHost, myParticipantId);
+
+  // ===== ホスト非活動監視 =====
+  const { showToast, countdown, handleConfirm } = useHostInactivity(
+    roomId,
+    isHost,
+    room,
+    handleEndRoom
+  );
 
   // ===== ローカル状態管理 =====
   const [showGame, setShowGame] = useState(false);
@@ -124,6 +134,7 @@ function RoomPage() {
         canStartGame={canStartGame}
         gameStatus={gameStatus}
         onGameStart={() => setShowGame(true)}
+        myParticipantId={myParticipantId}
       />
 
       {/* ゲームオーバーレイ */}
@@ -134,6 +145,11 @@ function RoomPage() {
         isHost={isHost}
         onClose={() => setShowGame(false)}
       />
+
+      {/* ホスト非活動確認トースト */}
+      {showToast && (
+        <InactivityConfirmationToast onConfirm={handleConfirm} countdown={countdown} />
+      )}
     </div>
   );
 }
