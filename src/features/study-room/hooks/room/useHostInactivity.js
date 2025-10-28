@@ -4,6 +4,8 @@ import { HOST_INACTIVITY_CONFIG } from "../../constants";
 
 const { ROOM_CHECK_INTERVAL_MS, CONFIRMATION_TOAST_DURATION_MS } = HOST_INACTIVITY_CONFIG;
 const COUNTDOWN_INTERVAL_MS = 1000;
+const MS_TO_SECONDS = 1000;
+const MS_TO_HOURS = 60 * 60 * 1000;
 
 export const useHostInactivity = (roomId, isHost, room, onRoomEnd) => {
   const navigate = useNavigate();
@@ -44,7 +46,7 @@ export const useHostInactivity = (roomId, isHost, room, onRoomEnd) => {
       clearInterval(countdownIntervalRef.current);
     }
 
-    setCountdown(Math.floor(CONFIRMATION_TOAST_DURATION_MS / 1000));
+    setCountdown(Math.floor(CONFIRMATION_TOAST_DURATION_MS / MS_TO_SECONDS));
 
     countdownIntervalRef.current = setInterval(() => {
       setCountdown((prev) => {
@@ -79,14 +81,14 @@ export const useHostInactivity = (roomId, isHost, room, onRoomEnd) => {
       const elapsedMs = nowMs - createdAtMs;
       const nextNotificationMs = ROOM_CHECK_INTERVAL_MS - (elapsedMs % ROOM_CHECK_INTERVAL_MS);
       
-      console.log(`[useHostInactivity] 次の通知まで: ${Math.floor(nextNotificationMs / 1000)}秒`);
+      console.log(`[useHostInactivity] 次の通知まで: ${Math.floor(nextNotificationMs / MS_TO_SECONDS)}秒`);
 
       if (notificationTimerRef.current) {
         clearTimeout(notificationTimerRef.current);
       }
 
       notificationTimerRef.current = setTimeout(() => {
-        console.log("[useHostInactivity] 2時間経過 - 通知表示");
+        console.log(`[useHostInactivity] ${ROOM_CHECK_INTERVAL_MS / MS_TO_HOURS}時間経過 - 通知表示`);
         setShowToast(true);
         scheduleNextNotification();
       }, nextNotificationMs);
