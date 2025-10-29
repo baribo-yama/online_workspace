@@ -8,6 +8,7 @@
  */
 import { lazy, Suspense } from "react";
 import { LOADING_MESSAGES } from "../../constants";
+import { FEATURES } from "../../../../config/features";
 
 const FaceObstacleGame = lazy(() => import("../../../entertainment/components/FaceObstacleGame"));
 
@@ -18,7 +19,8 @@ export const GameOverlay = ({
   isHost,
   onClose
 }) => {
-  if (!show) return null;
+  // ゲーム機能が無効な場合は何も表示しない
+  if (!FEATURES.GAME_ENABLED || !show) return null;
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50">
