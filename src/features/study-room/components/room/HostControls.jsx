@@ -9,6 +9,7 @@
  * RoomPage から抽出
  */
 import { GAME_STATUS } from "../../constants";
+import { FEATURES } from "../../../../config/features";
 
 export const HostControls = ({ 
   isHost, 
@@ -20,8 +21,8 @@ export const HostControls = ({
 
   return (
     <div className="space-y-3">
-      {/* ゲーム開始ボタン */}
-      {canStartGame && gameStatus !== GAME_STATUS.PLAYING && (
+      {/* ゲーム開始ボタン - フィーチャーフラグで制御 */}
+      {FEATURES.GAME_ENABLED && canStartGame && gameStatus !== GAME_STATUS.PLAYING && (
         <button
           onClick={onGameStart}
           className="bg-orange-600 hover:bg-orange-700 px-4 py-2 rounded text-white font-medium transition-colors flex items-center gap-2 w-full justify-center"
@@ -31,8 +32,8 @@ export const HostControls = ({
         </button>
       )}
 
-      {/* ゲーム中表示 */}
-      {gameStatus === GAME_STATUS.PLAYING && (
+      {/* ゲーム中表示 - フィーチャーフラグで制御 */}
+      {FEATURES.GAME_ENABLED && gameStatus === GAME_STATUS.PLAYING && (
         <div
           className="p-3 bg-green-900/20 border border-green-500 rounded text-green-200 text-sm"
           role="status"
@@ -52,7 +53,11 @@ export const HostControls = ({
         <div className="flex items-center gap-2">
           <span className="font-semibold">👑 あなたがホストです</span>
         </div>
-        <p className="text-xs mt-1">タイマーとゲームの制御ができます</p>
+        <p className="text-xs mt-1">
+          {FEATURES.GAME_ENABLED 
+            ? "タイマーとゲームの制御ができます"
+            : "タイマーの制御ができます"}
+        </p>
       </div>
     </div>
   );
