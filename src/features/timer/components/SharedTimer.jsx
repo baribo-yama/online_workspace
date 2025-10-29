@@ -4,10 +4,13 @@ import { Clock, Play, Pause, RotateCcw, Coffee } from "lucide-react";
 import { useSharedTimer } from "../hooks/useSharedTimer";
 import { formatTime, calculateProgress } from "../../../shared/utils/timer";
 import { useNotification } from "../../entertainment/hooks/useNotification";
+import { useTips } from "../../entertainment/hooks/useTips";
+import { TipsDisplay } from "../../entertainment/components/TipsDisplay";
 
 const SharedTimer = memo(function SharedTimer({ roomId, isHost = false }) {
   const { timer, isLoading, startTimer, resetTimer, switchMode, isAutoCycle } = useSharedTimer(roomId);
   const { notifyTimerComplete } = useNotification(); // 通知機能を追加
+  const { currentTip, isVisible, showRandomTip, hideTip } = useTips(); // Tips機能を追加（showNextTip削除）
   const hasNotifiedRef = useRef(false); // 通知済みフラグ
   const lastNotifiedModeRef = useRef(null); // 最後に通知したモードを記録
   const prevModeRef = useRef(null); // 直前のモード
@@ -41,6 +44,21 @@ const SharedTimer = memo(function SharedTimer({ roomId, isHost = false }) {
     prevModeRef.current = currentMode;
     prevTimeLeftRef.current = currentTimeLeft;
   }, [timer?.timeLeft, timer?.mode, notifyTimerComplete]);
+
+  // 休憩時間開始時にTipsを表示、作業時間に戻ったら非表示
+  useEffect(() => {
+    const currentMode = timer?.mode;
+    
+    // 休憩時間が開始されたらTipsを表示
+    if (currentMode === 'break' && !isVisible) {
+      showRandomTip();
+    }
+    
+    // 作業時間に戻ったらTipsを非表示
+    if (currentMode === 'work' && isVisible) {
+      hideTip();
+    }
+  }, [timer?.mode, isVisible, showRandomTip, hideTip]);
 
   if (isLoading) {
     return (
@@ -79,7 +97,7 @@ const SharedTimer = memo(function SharedTimer({ roomId, isHost = false }) {
           {formatTime(timer?.timeLeft || 0)}
         </div>
 
-        <div className={`w-full h-2 rounded-full mb-6 ${
+        <div className={`w-11/12 max-w-2xl mx-auto h-2 rounded-full mb-6 ${
           timer?.mode === 'work' ? 'bg-blue-200' : 'bg-green-200'
         }`}>
           <div
@@ -155,6 +173,13 @@ const SharedTimer = memo(function SharedTimer({ roomId, isHost = false }) {
         </div>
       )}
 
+      {/* Tips表示 - タイマー操作ボタンの直後に配置 */}
+      <TipsDisplay
+        tip={currentTip}
+        isVisible={isVisible}
+      />
+
+      {/* モード別メッセージ */}
       {timer?.mode === 'work' && (
         <div className="text-center">
           <p className="text-gray-300 text-sm">
