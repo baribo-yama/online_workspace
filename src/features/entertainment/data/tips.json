@@ -1,0 +1,578 @@
+[
+  {
+    "id": "git-001",
+    "category": "git",
+    "content": "git commit --amend で直前のコミットメッセージを修正できる。push前なら履歴を綺麗に保てる。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "git-002",
+    "category": "git",
+    "content": "git rebase -i HEAD~3 で過去3コミットをまとめられる。PR前の履歴整理に便利。",
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "git-003",
+    "category": "git",
+    "content": "git stash でWIPを一時保存。別ブランチに切り替えたい時に便利。",
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "react-001",
+    "category": "react",
+    "content": "useCallback は関数の再生成を防ぐ。子コンポーネントへの props として渡す関数には必須。",
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "react-002",
+    "category": "react",
+    "content": "React.memo は props が変わらない限り再レンダリングをスキップ。重いコンポーネントに有効。",
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "react-003",
+    "category": "react",
+    "content": "useState の初期値に関数を渡すと初回のみ実行。重い計算を最適化できる。",
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "react-004",
+    "category": "react",
+    "content": "useReducer は複雑な状態管理に。複数の setState より追跡しやすい。",
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "team-001",
+    "category": "teamwork",
+    "content": "PR は小さく分割。レビュアーが理解しやすく、マージも早い。1PR = 1機能が理想。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "team-002",
+    "category": "teamwork",
+    "content": "レビューコメントには「なぜ」を書く。「ここ直して」より「〇〇の理由で△△に変更してほしい」",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "team-003",
+    "category": "teamwork",
+    "content": "ペアプログラミングで知識を共有。1人で悩むより2人で進める方が早い。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "javascript-001",
+    "category": "javascript",
+    "content": "Optional chaining (?.) で undefined チェックを簡潔に。user?.profile?.name",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "javascript-002",
+    "category": "javascript",
+    "content": "Nullish coalescing (??) は null/undefined のみを判定。|| は 0 や '' も false 扱いなので注意。",
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "javascript-003",
+    "category": "javascript",
+    "content": "Promise.all() で複数の非同期処理を並行実行。順次実行より高速。",
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "javascript-004",
+    "category": "javascript",
+    "content": "async/await の try-catch でエラーハンドリング。.catch() より読みやすい。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "vscode-001",
+    "category": "tools",
+    "content": "Cmd+Shift+P でコマンドパレット。「Format Document」で即座に整形できる。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "vscode-002",
+    "category": "tools",
+    "content": "Multi-cursor 編集: Option+クリック で複数カーソル。同じ単語を一括変更できる。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "vscode-003",
+    "category": "tools",
+    "content": "npx で一時的にパッケージ実行。create-react-app など、グローバルインストール不要。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "performance-001",
+    "category": "performance",
+    "content": "React DevTools の Profiler で再レンダリング回数を可視化。最適化の第一歩。",
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "performance-002",
+    "category": "performance",
+    "content": "useTransition で UI のブロッキングを防ぐ。重い更新を低優先度にできる。",
+    "difficulty": "advanced"
+  },
+  {
+    "id": "performance-003",
+    "category": "performance",
+    "content": "早すぎる最適化は悪。まず動くコードを書き、ボトルネックを測定してから最適化。",
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "firebase-001",
+    "category": "firebase",
+    "content": "onSnapshot は自動でリアルタイム更新。get() は1回だけ取得。用途で使い分ける。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "firebase-002",
+    "category": "firebase",
+    "content": "Firestore の where() は複合インデックスが必要な場合がある。エラーメッセージのリンクから自動作成可能。",
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "firebase-003",
+    "category": "firebase",
+    "content": "Firestore は読み取り回数で課金。不要な onSnapshot は避け、必要な時だけ get()。",
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "css-001",
+    "category": "css",
+    "content": "Flexbox の gap プロパティで要素間の余白を一括指定。margin の計算不要。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "css-002",
+    "category": "css",
+    "content": "CSS Grid の minmax() で柔軟なレイアウト。grid-template-columns: repeat(auto-fit, minmax(200px, 1fr))",
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "debugging-001",
+    "category": "debugging",
+    "content": "console.table() で配列やオブジェクトを表形式で表示。データ構造の理解が早い。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "debugging-002",
+    "category": "debugging",
+    "content": "debugger; をコードに書くとブレークポイントに。Chrome DevTools で変数をリアルタイム確認。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "debugging-003",
+    "category": "debugging",
+    "content": "エラーメッセージを最後まで読む。解決のヒントが書いてあることが多い。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "security-001",
+    "category": "security",
+    "content": "localStorage にトークンを保存しない。XSS 攻撃のリスク。HttpOnly Cookie が安全。",
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "security-002",
+    "category": "security",
+    "content": "ユーザー入力は必ずサニタイズ。dangerouslySetInnerHTML は最後の手段。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "testing-001",
+    "category": "testing",
+    "content": "単体テストは「何をテストするか」より「何をテストしないか」が重要。実装詳細はテストしない。",
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "testing-002",
+    "category": "testing",
+    "content": "テストの AAA パターン: Arrange(準備), Act(実行), Assert(検証)。この順で書くと読みやすい。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "refactoring-001",
+    "category": "refactoring",
+    "content": "関数は1つのことだけをする。名前がつけにくいなら、責務が多すぎる証拠。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "refactoring-002",
+    "category": "refactoring",
+    "content": "マジックナンバーは定数に。const MAX_RETRY_COUNT = 3 の方が意図が明確。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "architecture-001",
+    "category": "architecture",
+    "content": "Feature-based architecture: 機能ごとにフォルダを分ける。components/, hooks/, utils/ のフラットな構造より保守しやすい。",
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "architecture-002",
+    "category": "architecture",
+    "content": "UI とロジックを分離。カスタムフックでロジックを切り出すと、テストしやすく再利用しやすい。",
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "collaboration-001",
+    "category": "collaboration",
+    "content": "コードレビューは「学びの場」。指摘される側も指摘する側も成長できる。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "collaboration-002",
+    "category": "collaboration",
+    "content": "レビューは24時間以内に。待たせるとモチベーションが下がる。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "collaboration-003",
+    "category": "collaboration",
+    "content": "nit(nitpick)コメントは「好みの問題」を明示。MUST ではないことを伝える。",
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "productivity-001",
+    "category": "productivity",
+    "content": "ポモドーロテクニックは集中力を高める。25分作業 + 5分休憩の繰り返し。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "productivity-002",
+    "category": "productivity",
+    "content": "TODO コメントは issue に変換。コードに埋もれると忘れられる。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "productivity-003",
+    "category": "productivity",
+    "content": "タスクは分割する。「機能実装」より「ボタン追加」「API接続」「テスト作成」に分ける。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "productivity-004",
+    "category": "productivity",
+    "content": "2時間悩んだら相談。1人で抱え込むより、チームで解決する方が早い。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "career-001",
+    "category": "career",
+    "content": "技術ブログを書くと理解が深まる。アウトプットは最高のインプット。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "career-002",
+    "category": "career",
+    "content": "OSS への貢献は履歴書になる。小さなドキュメント修正から始めよう。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "ai-001",
+    "category": "ai",
+    "content": "GitHub Copilot はコメントから実装を生成。良いコメントを書く習慣が重要。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "ai-002",
+    "category": "ai",
+    "content": "AI にコードレビューしてもらう。「このコードの問題点は？」と聞くだけで学びがある。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "documentation-001",
+    "category": "documentation",
+    "content": "README には「なぜ」を書く。「何を」はコードが語る。「なぜこの設計にしたか」が重要。",
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "documentation-002",
+    "category": "documentation",
+    "content": "コメントは「なぜ」を書く。「何をしているか」はコードで分かる。「なぜそうしたか」を残す。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "api-001",
+    "category": "api",
+    "content": "REST API の命名: 複数形を使う。/users, /posts。単数形は混乱の元。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "api-002",
+    "category": "api",
+    "content": "API レスポンスにバージョンを含める。互換性のない変更時に段階的移行できる。",
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "api-003",
+    "category": "api",
+    "content": "HTTP ステータスコード: 200(成功), 400(クライアントエラー), 500(サーバーエラー)。適切に使い分ける。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "api-004",
+    "category": "api",
+    "content": "CORS エラーは「ブラウザがブロック」。サーバー側で Access-Control-Allow-Origin を設定。",
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "typescript-001",
+    "category": "typescript",
+    "content": "any を避ける。unknown を使って型安全に。型が分からないなら unknown で後で narrowing。",
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "typescript-002",
+    "category": "typescript",
+    "content": "Type vs Interface: 拡張性が必要なら interface。Union が必要なら type。",
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "monitoring-001",
+    "category": "monitoring",
+    "content": "console.log は本番環境で残さない。環境変数で制御するか、ロギングライブラリを使う。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "monitoring-002",
+    "category": "monitoring",
+    "content": "エラーログには context を含める。「エラーが起きた」だけでなく「どのユーザーのどの操作で」を記録。",
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "deployment-001",
+    "category": "deployment",
+    "content": "環境変数は .env に。秘密情報は絶対にコミットしない。.gitignore で除外必須。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "deployment-002",
+    "category": "deployment",
+    "content": "本番デプロイ前にステージング環境でテスト。本番で問題が起きると影響が大きい。",
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "ux-001",
+    "category": "ux",
+    "content": "ローディング状態を表示する。ユーザーは「待たされている」より「処理中」が安心。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "ux-002",
+    "category": "ux",
+    "content": "エラーメッセージは具体的に。「エラーが発生しました」より「パスワードは8文字以上必要です」",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "accessibility-001",
+    "category": "accessibility",
+    "content": "alt 属性は必須。スクリーンリーダーのユーザーのために画像の説明を書く。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "accessibility-002",
+    "category": "accessibility",
+    "content": "キーボードだけで操作できるか確認。Tab キーで全ての機能にアクセスできるべき。",
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "accessibility-003",
+    "category": "accessibility",
+    "content": "タッチ領域は最低44x44px。指で押しやすいサイズを確保。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "learning-001",
+    "category": "learning",
+    "content": "公式ドキュメントを読む習慣。Stack Overflow より正確で最新。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "learning-002",
+    "category": "learning",
+    "content": "成長マインドセット: 「まだできない」は「いつかできる」。能力は固定ではない。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "learning-003",
+    "category": "learning",
+    "content": "他人と比較しない。昨日の自分と比較する。小さな成長を積み重ねる。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "mental-health-001",
+    "category": "mental-health",
+    "content": "休憩は罪悪感なく取る。疲れた頭ではバグを生む。休憩は投資。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "mental-health-002",
+    "category": "mental-health",
+    "content": "完璧主義をやめる。Done is better than perfect. まず動くものを作る。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "naming-001",
+    "category": "naming",
+    "content": "変数名は長くてもいい。user より authenticatedUser の方が意図が明確。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "naming-002",
+    "category": "naming",
+    "content": "boolean は is/has で始める。isLoading, hasError。読みやすさが段違い。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "version-control-001",
+    "category": "version-control",
+    "content": "コミットメッセージは「なぜ」を書く。「fix」より「Fix: ユーザーが退出時に無限ループする問題」",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "hooks-001",
+    "category": "hooks",
+    "content": "useEffect の依存配列を空にすると mount 時のみ実行。cleanup 関数で unmount 時の処理。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "hooks-002",
+    "category": "hooks",
+    "content": "カスタムフックは use で始める。React が Hook として認識し、ルールをチェック。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "build-tools-001",
+    "category": "build-tools",
+    "content": "Vite は esbuild で高速ビルド。Webpack より10-100倍速い。開発体験が激変。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "build-tools-002",
+    "category": "build-tools",
+    "content": "code splitting で初回ロードを高速化。dynamic import で必要な時だけロード。",
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "websocket-001",
+    "category": "websocket",
+    "content": "WebSocket は双方向通信。HTTP はクライアント→サーバーのみ。リアルタイム機能に必須。",
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "websocket-002",
+    "category": "websocket",
+    "content": "WebSocket の再接続処理は必須。ネットワーク不安定時に自動で再接続する仕組みを。",
+    "difficulty": "advanced"
+  },
+  {
+    "id": "livekit-001",
+    "category": "livekit",
+    "content": "LiveKit はビデオ通話のインフラ。WebRTC の複雑さを隠蔽してくれる。",
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "livekit-002",
+    "category": "livekit",
+    "content": "LiveKit の track は subscribe/unsubscribe で制御。不要な映像は unsubscribe で帯域節約。",
+    "difficulty": "advanced"
+  },
+  {
+    "id": "component-design-001",
+    "category": "component-design",
+    "content": "Atomic Design: atoms(ボタン) → molecules(検索バー) → organisms(ヘッダー)。段階的に組み立てる。",
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "component-design-002",
+    "category": "component-design",
+    "content": "Container/Presentational パターン: ロジック(Container)とUI(Presentational)を分離。",
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "data-fetching-001",
+    "category": "data-fetching",
+    "content": "SWR や React Query でキャッシュ管理。同じAPIを何度も叩かない。",
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "data-fetching-002",
+    "category": "data-fetching",
+    "content": "楽観的更新(Optimistic Update)で UX 向上。API 成功を待たずに UI 更新。",
+    "difficulty": "advanced"
+  },
+  {
+    "id": "error-handling-001",
+    "category": "error-handling",
+    "content": "Error Boundary でReact エラーをキャッチ。アプリ全体がクラッシュするのを防ぐ。",
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "error-handling-002",
+    "category": "error-handling",
+    "content": "ユーザーにエラーの原因と対処法を伝える。「エラー」だけでなく「ネットワークを確認してください」",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "responsive-001",
+    "category": "responsive",
+    "content": "レスポンシブデザインはモバイルファースト。スマホから設計すると制約が明確。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "innovation-001",
+    "category": "innovation",
+    "content": "新しい技術を試す。個人プロジェクトで実験し、良ければチームに提案。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "innovation-002",
+    "category": "innovation",
+    "content": "失敗から学ぶ。失敗は悪ではなく、次への改善材料。ポストモーテムを書く。",
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "communication-001",
+    "category": "communication",
+    "content": "質問は「試したこと」も書く。「エラーが出ます」より「〇〇を試しましたがダメでした」",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "communication-002",
+    "category": "communication",
+    "content": "結論から話す。PREP法: Point(結論), Reason(理由), Example(例), Point(結論)。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "firebase-004",
+    "category": "firebase",
+    "content": "Firebase Hosting は無料枠で十分。静的サイトなら月5万アクセスまで無料。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "npm-001",
+    "category": "npm",
+    "content": "npm ci は package-lock.json から正確にインストール。CI/CD では npm install より推奨。",
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "optimization-001",
+    "category": "optimization",
+    "content": "React DevTools の Profiler で再レンダリングを可視化。勘ではなくデータで最適化。",
+    "difficulty": "intermediate"
+  },
+  {
+    "id": "team-004",
+    "category": "teamwork",
+    "content": "非同期コミュニケーションを活用。Slack のスレッド機能で文脈を保つ。",
+    "difficulty": "beginner"
+  },
+  {
+    "id": "career-003",
+    "category": "career",
+    "content": "技術カンファレンスに参加する。最新トレンドと人脈が得られる。",
+    "difficulty": "beginner"
+  }
+]

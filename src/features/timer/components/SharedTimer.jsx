@@ -4,14 +4,21 @@ import { Clock, Play, Pause, RotateCcw, Coffee } from "lucide-react";
 import { useSharedTimer } from "../hooks/useSharedTimer";
 import { formatTime, calculateProgress } from "../../../shared/utils/timer";
 import { useNotification } from "../../entertainment/hooks/useNotification";
+import { useTips } from "../../entertainment/hooks/useTips";
+import { TipsDisplay } from "../../entertainment/components/TipsDisplay";
 
 const SharedTimer = memo(function SharedTimer({ roomId, isHost = false }) {
   const { timer, isLoading, startTimer, resetTimer, switchMode, isAutoCycle } = useSharedTimer(roomId);
   const { notifyTimerComplete } = useNotification(); // 通知機能を追加
+  const { currentTip, isVisible, showRandomTip, hideTip } = useTips(); // Tips機能を追加（showNextTip削除）
   const hasNotifiedRef = useRef(false); // 通知済みフラグ
   const lastNotifiedModeRef = useRef(null); // 最後に通知したモードを記録
   const prevModeRef = useRef(null); // 直前のモード
   const prevTimeLeftRef = useRef(null); // 直前の残り秒数
+  // Tips表示制御用の参照（カウントダウン開始検知とサイクル単位の一回表示）
+  const prevModeForTipsRef = useRef(null);
+  const prevTimeLeftForTipsRef = useRef(null);
+  const lastBreakCycleShownRef = useRef(null);
 
   const duration = timer?.mode === 'work' ? 25*60 : 5*60;
   const progress = calculateProgress(timer?.timeLeft || 0, duration);
@@ -41,6 +48,39 @@ const SharedTimer = memo(function SharedTimer({ roomId, isHost = false }) {
     prevModeRef.current = currentMode;
     prevTimeLeftRef.current = currentTimeLeft;
   }, [timer?.timeLeft, timer?.mode, notifyTimerComplete]);
+
+  // 休憩タイマーが実際にスタートしたタイミングでTipsを表示（サイクルごとに一度だけ）
+  useEffect(() => {
+    const mode = timer?.mode;
+    const isRunning = !!timer?.isRunning;
+    const timeLeft = typeof timer?.timeLeft === 'number' ? timer.timeLeft : null;
+    const cycle = timer?.cycle ?? null;
+
+    const justEnteredBreak = prevModeForTipsRef.current !== 'break' && mode === 'break';
+    const countdownStarted =
+      mode === 'break' &&
+      isRunning &&
+      typeof timeLeft === 'number' &&
+      typeof prevTimeLeftForTipsRef.current === 'number' &&
+      timeLeft < prevTimeLeftForTipsRef.current;
+
+    if (mode === 'break') {
+      if (
+        isRunning &&
+        (justEnteredBreak || countdownStarted) &&
+        lastBreakCycleShownRef.current !== cycle
+      ) {
+        showRandomTip();
+        lastBreakCycleShownRef.current = cycle;
+      }
+    } else if (mode === 'work') {
+      if (isVisible) hideTip();
+    }
+
+    // 前回値を更新
+    prevModeForTipsRef.current = mode;
+    prevTimeLeftForTipsRef.current = timeLeft;
+  }, [timer?.mode, timer?.isRunning, timer?.timeLeft, timer?.cycle, isVisible, showRandomTip, hideTip]);
 
   if (isLoading) {
     return (
@@ -79,7 +119,7 @@ const SharedTimer = memo(function SharedTimer({ roomId, isHost = false }) {
           {formatTime(timer?.timeLeft || 0)}
         </div>
 
-        <div className={`w-full h-2 rounded-full mb-6 ${
+        <div className={`w-11/12 max-w-2xl mx-auto h-2 rounded-full mb-6 ${
           timer?.mode === 'work' ? 'bg-blue-200' : 'bg-green-200'
         }`}>
           <div
@@ -155,6 +195,13 @@ const SharedTimer = memo(function SharedTimer({ roomId, isHost = false }) {
         </div>
       )}
 
+      {/* Tips表示 - タイマー操作ボタンの直後に配置 */}
+      <TipsDisplay
+        tip={currentTip}
+        isVisible={isVisible}
+      />
+
+      {/* モード別メッセージ */}
       {timer?.mode === 'work' && (
         <div className="text-center">
           <p className="text-gray-300 text-sm">
