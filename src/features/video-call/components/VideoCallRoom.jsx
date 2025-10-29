@@ -350,16 +350,52 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
     ].filter(p => p);
 
     setParticipants(prevParticipants => {
-      if (prevParticipants.length !== allParticipants.length) {
-        return allParticipants;
-      }
-      
+      // ===== 観測ログ5: updateParticipants状態更新 =====
       const prevIds = prevParticipants.map(p => p.identity).sort();
       const newIds = allParticipants.map(p => p.identity).sort();
-      if (JSON.stringify(prevIds) !== JSON.stringify(newIds)) {
+      const willUpdate = prevParticipants.length !== allParticipants.length || 
+                        JSON.stringify(prevIds) !== JSON.stringify(newIds);
+
+      if (import.meta.env.DEV) {
+        console.log('[観測5] updateParticipants呼び出し:', {
+          timestamp: Date.now(),
+          prevCount: prevParticipants.length,
+          newCount: allParticipants.length,
+          prevIds,
+          newIds,
+          willUpdate,
+          allRemoteParticipants: Array.from(roomRef.current.remoteParticipants.keys())
+        });
+      }
+
+      if (prevParticipants.length !== allParticipants.length) {
+        if (import.meta.env.DEV) {
+          console.log('[観測5] updateParticipants状態更新確定: 参加者数変更', {
+            timestamp: Date.now(),
+            prevCount: prevParticipants.length,
+            newCount: allParticipants.length
+          });
+        }
         return allParticipants;
       }
       
+      if (JSON.stringify(prevIds) !== JSON.stringify(newIds)) {
+        if (import.meta.env.DEV) {
+          console.log('[観測5] updateParticipants状態更新確定: 参加者ID変更', {
+            timestamp: Date.now(),
+            prevIds,
+            newIds
+          });
+        }
+        return allParticipants;
+      }
+      
+      if (import.meta.env.DEV) {
+        console.log('[観測5] updateParticipants状態更新スキップ', {
+          timestamp: Date.now(),
+          reason: '変更なし'
+        });
+      }
       return prevParticipants;
     });
     
@@ -760,20 +796,68 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
         });
 
         room.on(RoomEvent.ParticipantDisconnected, (participant) => {
+          // ===== 観測ログ1: イベント到達とidentity =====
           if (import.meta.env.DEV) {
-            console.log('参加者が切断されました:', participant.identity);
+            console.log('[観測1] ParticipantDisconnected:', {
+              timestamp: Date.now(),
+              disconnectedIdentity: participant.identity,
+              allRemoteParticipants: Array.from(room.remoteParticipants.keys()),
+              attachedTracksBefore: Array.from(attachedTracksRef.current),
+              remoteVideoRefsBefore: Array.from(remoteVideoRefs.current.keys()),
+              participantsCount: participants.length,
+              allParticipantIds: participants.map(p => p?.identity).filter(Boolean)
+            });
           }
+
+          // ===== 観測ログ4: attachedTracksRefクリーンアップ =====
+          const keysBefore = Array.from(attachedTracksRef.current);
+          const keysToDelete = Array.from(attachedTracksRef.current ?? []).filter(key => key.startsWith(participant.identity));
+          const keysAfter = keysBefore.filter(key => !keysToDelete.includes(key));
+          
+          if (import.meta.env.DEV) {
+            console.log('[観測4] attachedTracksRefクリーンアップ:', {
+              timestamp: Date.now(),
+              participantIdentity: participant.identity,
+              keysBefore,
+              keysToDelete,
+              keysAfter,
+              allParticipants: participants.map(p => p?.identity).filter(Boolean)
+            });
+          }
+          
           // 退出した参加者のリソースをクリーンアップ
           cleanupAudioElement(participant.identity);
-          
-          // 退出した参加者のアタッチ済みトラック記録をクリーンアップ
-          const keysToDelete = Array.from(attachedTracksRef.current ?? []).filter(key => key.startsWith(participant.identity));
           keysToDelete.forEach(key => attachedTracksRef.current?.delete(key));
           
-          // リモートビデオ要素の参照もクリーンアップ
-          remoteVideoRefs.current.delete(participant.identity);
+          // ===== 観測ログ2: remoteVideoRefs操作 =====
+          // React再レンダリング完了後に安全に削除するため、requestAnimationFrameを使用
+          requestAnimationFrame(() => {
+            const beforeDelete = Array.from(remoteVideoRefs.current.keys());
+            
+            // 退出した参加者が本当にいなくなったかを確認してから削除
+            if (!roomRef.current?.remoteParticipants.has(participant.identity)) {
+              remoteVideoRefs.current.delete(participant.identity);
+              const afterDelete = Array.from(remoteVideoRefs.current.keys());
+              
+              if (import.meta.env.DEV) {
+                console.log('[観測2] remoteVideoRefs削除操作:', {
+                  timestamp: Date.now(),
+                  operation: 'delete',
+                  deletedIdentity: participant.identity,
+                  beforeDelete,
+                  afterDelete,
+                  allParticipants: participants.map(p => p?.identity).filter(Boolean)
+                });
+              }
+            } else if (import.meta.env.DEV) {
+              console.log('[観測2] remoteVideoRefs削除スキップ: 参加者がまだ存在します', participant.identity);
+            }
+          });
           
-          updateParticipants();
+          // updateParticipants()もrequestAnimationFrame内で実行してReact再レンダリングとの競合を回避
+          requestAnimationFrame(() => {
+            updateParticipants();
+          });
         });
 
         // トラック購読イベントは下記の統合ハンドラーで処理
@@ -802,34 +886,26 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
         });
 
         // ローカルトラックが公開された時
+        // 注意: LocalTrackPublishedイベントはuseEffect（1494-1537行目）でも処理されるため、
+        // ここではオーディオトラックの音声レベル監視のみを処理
         room.on(RoomEvent.LocalTrackPublished, (publication, participant) => {
           if (import.meta.env.DEV) {
             console.log('ローカルトラック公開:', publication.kind, participant.identity);
           }
-          if (publication.kind === 'video' && publication.track) {
-            // ビデオトラック公開時は参加者リスト更新を最小限に
+          // ビデオトラックの処理はuseEffect内のハンドラーに任せる（重複を避ける）
+          if (publication.kind === 'audio' && publication.track) {
+            // オーディオトラックが公開されたときに音声レベル監視を開始
             if (import.meta.env.DEV) {
-              console.log('ビデオトラック公開検出');
+              console.log('オーディオトラック公開検出 - 音声レベル監視を開始');
             }
-            // ローカルビデオトラックを即座にアタッチ（refを使用）
             setTimeout(() => {
-              if (attachVideoTrackRef.current) {
-                attachVideoTrackRef.current(publication.track, participant, true);
+              // 公開されたトラックを直接使用して音声レベル監視を開始
+              if (startAudioLevelMonitoringWithTrackRef.current) {
+                // 再試行カウンターをリセット
+                audioMonitoringRetryCountRef.current = 0;
+                startAudioLevelMonitoringWithTrackRef.current(publication.track);
               }
-            }, LOCAL_TRACK_ATTACHMENT_DELAY); // ローカルトラックは短い遅延で即座にアタッチ
-            } else if (publication.kind === 'audio' && publication.track) {
-              // オーディオトラックが公開されたときに音声レベル監視を開始
-              if (import.meta.env.DEV) {
-                console.log('オーディオトラック公開検出 - 音声レベル監視を開始');
-              }
-              setTimeout(() => {
-                // 公開されたトラックを直接使用して音声レベル監視を開始
-                if (startAudioLevelMonitoringWithTrackRef.current) {
-                  // 再試行カウンターをリセット
-                  audioMonitoringRetryCountRef.current = 0;
-                  startAudioLevelMonitoringWithTrackRef.current(publication.track);
-                }
-              }, 100); // 遅延を500msから100msに短縮
+            }, 100); // 遅延を500msから100msに短縮
           }
         });
 
@@ -876,12 +952,18 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
 
         // 統合トラック非購読イベントハンドラー（音声・ビデオの受信停止）
         room.on(RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
+          // ===== 観測ログ1: イベント到達とidentity =====
           if (import.meta.env.DEV) {
-            console.log('トラック購読解除:', {
-              trackKind: track.kind,
+            console.log('[観測1] TrackUnsubscribed:', {
+              timestamp: Date.now(),
               participantIdentity: participant.identity,
+              trackKind: track.kind,
+              trackSid: track.sid,
               publicationKind: publication.kind,
-              isSubscribed: publication.isSubscribed
+              isSubscribed: publication.isSubscribed,
+              allRemoteParticipants: Array.from(room.remoteParticipants.keys()),
+              participantsCount: participants.length,
+              allParticipantIds: participants.map(p => p?.identity).filter(Boolean)
             });
           }
           
@@ -890,8 +972,35 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
             cleanupAudioElement(participant.identity);
           }
           
-          // ビデオトラックが非購読された場合は参加者リストを更新
+          // ビデオトラックが非購読された場合の完全なクリーンアップ
           if (track.kind === Track.Kind.Video) {
+            // 1. ビデオトラックをdetach
+            const videoElement = remoteVideoRefs.current.get(participant.identity);
+            if (videoElement && track) {
+              try {
+                track.detach(videoElement);
+                if (import.meta.env.DEV) {
+                  console.log('[観測1] TrackUnsubscribed: ビデオトラックをdetachしました:', participant.identity);
+                }
+              } catch (error) {
+                console.warn('ビデオトラックdetachエラー:', error, participant.identity);
+                // エラーが発生した場合でもsrcObjectをクリア
+                if (videoElement.srcObject) {
+                  videoElement.srcObject = null;
+                }
+              }
+            }
+            
+            // 2. attachedTracksRefからトラック記録を削除
+            const trackId = `${participant.identity}-${track.kind}-${track.sid || track.mediaStreamTrack?.id || 'unknown'}`;
+            if (attachedTracksRef.current.has(trackId)) {
+              attachedTracksRef.current.delete(trackId);
+              if (import.meta.env.DEV) {
+                console.log('[観測1] TrackUnsubscribed: トラック記録を削除しました:', trackId);
+              }
+            }
+            
+            // 3. 参加者リストを更新
             setTimeout(() => {
               updateParticipants();
             }, TRACK_ATTACHMENT_DELAY);
@@ -1215,11 +1324,44 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
     // 重複アタッチをチェック（ローカルトラックは再アタッチを許可）
     // track.sidまたはtrack.mediaStreamTrack.idを含めて一意性を担保
     const trackId = `${participant.identity}-${track.kind}-${track.sid || track.mediaStreamTrack?.id || 'unknown'}`;
+    
+    // リモートトラックの重複チェック: videoElementのsrcObjectも確認
     if (attachedTracksRef.current.has(trackId) && !isLocal) {
-      if (import.meta.env.DEV) {
-        console.log('リモートトラックは既にアタッチ済み:', trackId);
+      const videoElement = remoteVideoRefs.current.get(participant.identity);
+      // videoElementが存在し、実際にトラックがアタッチされているか確認
+      if (videoElement && videoElement.srcObject) {
+        const attachedTracks = videoElement.srcObject.getVideoTracks();
+        const hasActiveTrack = attachedTracks.some(t => 
+          t.id === track.mediaStreamTrack?.id || 
+          t.readyState === 'live'
+        );
+        
+        if (hasActiveTrack) {
+          if (import.meta.env.DEV) {
+            console.log('リモートトラックは既にアタッチ済み（確認済み）:', trackId);
+          }
+          return;
+        } else {
+          // 記録はあるが実際にはアタッチされていない → 強制再アタッチ
+          if (import.meta.env.DEV) {
+            console.log('リモートトラック記録はあるが未アタッチ → 強制再アタッチ:', trackId);
+          }
+          attachedTracksRef.current.delete(trackId);
+        }
+      } else if (!videoElement) {
+        // videoElementが存在しない → 記録を削除してスキップ（後でvideoElementが作成されたときに再アタッチされる）
+        if (import.meta.env.DEV) {
+          console.log('リモートトラック記録はあるがvideoElementなし → 記録削除:', trackId);
+        }
+        attachedTracksRef.current.delete(trackId);
+        return;
+      } else {
+        // videoElementはあるがsrcObjectがない → 強制再アタッチ
+        if (import.meta.env.DEV) {
+          console.log('リモートトラック記録はあるがsrcObjectなし → 強制再アタッチ:', trackId);
+        }
+        attachedTracksRef.current.delete(trackId);
       }
-      return;
     }
     
     // ローカルトラックの場合は既存のアタッチをクリア
@@ -1248,9 +1390,23 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
         });
       }
 
-      // ローカルトラックの場合は既存のトラックをデタッチ
-      if (isLocal && videoElement.srcObject) {
+      // 既存のトラックをクリア
+      // 注意: リモートトラックに対してstop()を呼ばないこと
+      // stop()はローカルトラック専用で、リモートトラックに対して呼ぶと
+      // 他参加者のメディアにも影響を与える可能性がある
+      if (videoElement.srcObject) {
+        if (isLocal) {
+          // ローカルトラックのみstop()を呼ぶ
+          const attachedVideoTracks = videoElement.srcObject.getVideoTracks();
+          attachedVideoTracks.forEach(t => {
+            t.stop();
+          });
+        }
+        // リモートトラックはstop()を呼ばず、srcObjectをクリアするだけ
         videoElement.srcObject = null;
+        if (import.meta.env.DEV && !isLocal) {
+          console.log('リモートビデオ要素の既存トラックをクリア:', participant.identity);
+        }
       }
       
       // トラックの状態をチェック
@@ -1390,22 +1546,42 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
    * 既存ビデオトラックをチェックして適切にアタッチします。
    */
   useEffect(() => {
-    if (!participants.length) return;
+    if (!participants.length || !roomRef.current) return;
 
     participants.forEach(participant => {
       if (participant === localParticipant) return; // ローカル参加者はスキップ
+      
+      // 退出した参加者は処理しない
+      if (!roomRef.current.remoteParticipants.has(participant.identity)) {
+        if (import.meta.env.DEV) {
+          console.log('リモート参加者のビデオトラックアタッチスキップ: 参加者が既に退出', participant.identity);
+        }
+        return;
+      }
 
       // 既存のビデオトラックをチェック
       if (participant.videoTrackPublications) {
         for (const publication of participant.videoTrackPublications.values()) {
           if (publication.track && publication.isSubscribed) {
             if (import.meta.env.DEV) {
-              console.log('リモート参加者の既存ビデオトラックをアタッチ:', participant.identity);
+              console.log('リモート参加者の既存ビデオトラックをアタッチ:', {
+                participantIdentity: participant.identity,
+                trackSid: publication.track.sid,
+                trackState: publication.track.mediaStreamTrack?.readyState,
+                hasVideoElement: !!remoteVideoRefs.current.get(participant.identity),
+                videoElementSrcObject: !!remoteVideoRefs.current.get(participant.identity)?.srcObject
+              });
             }
             // リモートトラック用の遅延でアタッチ（refを使用）
             setTimeout(() => {
-              if (attachVideoTrackRef.current) {
+              if (attachVideoTrackRef.current && 
+                  remoteVideoRefs.current.get(participant.identity) &&
+                  roomRef.current?.remoteParticipants.has(participant.identity)) {
                 attachVideoTrackRef.current(publication.track, participant, false);
+              } else if (import.meta.env.DEV && !remoteVideoRefs.current.get(participant.identity)) {
+                console.log('リモート参加者のビデオトラックアタッチスキップ: videoElementが未作成', participant.identity);
+              } else if (import.meta.env.DEV && !roomRef.current?.remoteParticipants.has(participant.identity)) {
+                console.log('リモート参加者のビデオトラックアタッチスキップ: 参加者が既に退出', participant.identity);
               }
             }, TRACK_ATTACHMENT_DELAY);
             break;
@@ -1533,11 +1709,34 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
                 <div key={`${participant.identity}-${index}`} className="relative bg-gray-800 rounded-lg overflow-hidden">
                   <video
                     ref={isLocal ? localVideoRef : (el) => {
+                      // ===== 観測ログ3: JSX refコールバック =====
+                      // 注意: participantsはレンダリング時に最新値が使用されるため、ログは最新の参加者リストを反映
+                      if (import.meta.env.DEV) {
+                        console.log('[観測3] JSX ref callback:', {
+                          timestamp: Date.now(),
+                          el: el ? 'exists' : 'null',
+                          participantIdentity: participant?.identity,
+                          isLocal,
+                          allParticipants: participants.map(p => p?.identity).filter(Boolean),
+                          remoteVideoRefsSize: remoteVideoRefs.current.size,
+                          remoteVideoRefsKeys: Array.from(remoteVideoRefs.current.keys())
+                        });
+                      }
+                      
+                      // JSX refでの削除は禁止 - ParticipantDisconnectedイベントでのみ削除
+                      // React再レンダリング時にel=nullが呼ばれ、残存参加者のビデオ要素が誤って削除されるのを防ぐため
+                      // ログ分析結果: user2のremoteVideoRefsが誤って削除されていた（原因候補A3確定）
                       if (el) {
                         remoteVideoRefs.current.set(participant.identity, el);
-      } else {
-                        remoteVideoRefs.current.delete(participant.identity);
+                        if (import.meta.env.DEV) {
+                          console.log('[観測3] JSX ref set:', {
+                            timestamp: Date.now(),
+                            participantIdentity: participant?.identity,
+                            remoteVideoRefsKeys: Array.from(remoteVideoRefs.current.keys())
+                          });
+                        }
                       }
+                      // else句での削除処理を削除 - これが残存参加者のカメラ消失の根本原因
                     }}
                     autoPlay
                     playsInline
