@@ -15,6 +15,10 @@ const SharedTimer = memo(function SharedTimer({ roomId, isHost = false }) {
   const lastNotifiedModeRef = useRef(null); // 最後に通知したモードを記録
   const prevModeRef = useRef(null); // 直前のモード
   const prevTimeLeftRef = useRef(null); // 直前の残り秒数
+  // Tips表示制御用の参照（カウントダウン開始検知とサイクル単位の一回表示）
+  const prevModeForTipsRef = useRef(null);
+  const prevTimeLeftForTipsRef = useRef(null);
+  const lastBreakCycleShownRef = useRef(null);
 
   const duration = timer?.mode === 'work' ? 25*60 : 5*60;
   const progress = calculateProgress(timer?.timeLeft || 0, duration);
@@ -45,20 +49,38 @@ const SharedTimer = memo(function SharedTimer({ roomId, isHost = false }) {
     prevTimeLeftRef.current = currentTimeLeft;
   }, [timer?.timeLeft, timer?.mode, notifyTimerComplete]);
 
-  // 休憩時間開始時にTipsを表示、作業時間に戻ったら非表示
+  // 休憩タイマーが実際にスタートしたタイミングでTipsを表示（サイクルごとに一度だけ）
   useEffect(() => {
-    const currentMode = timer?.mode;
-    
-    // 休憩時間が開始されたらTipsを表示
-    if (currentMode === 'break' && !isVisible) {
-      showRandomTip();
+    const mode = timer?.mode;
+    const isRunning = !!timer?.isRunning;
+    const timeLeft = typeof timer?.timeLeft === 'number' ? timer.timeLeft : null;
+    const cycle = timer?.cycle ?? null;
+
+    const justEnteredBreak = prevModeForTipsRef.current !== 'break' && mode === 'break';
+    const countdownStarted =
+      mode === 'break' &&
+      isRunning &&
+      typeof timeLeft === 'number' &&
+      typeof prevTimeLeftForTipsRef.current === 'number' &&
+      timeLeft < prevTimeLeftForTipsRef.current;
+
+    if (mode === 'break') {
+      if (
+        isRunning &&
+        (justEnteredBreak || countdownStarted) &&
+        lastBreakCycleShownRef.current !== cycle
+      ) {
+        showRandomTip();
+        lastBreakCycleShownRef.current = cycle;
+      }
+    } else if (mode === 'work') {
+      if (isVisible) hideTip();
     }
-    
-    // 作業時間に戻ったらTipsを非表示
-    if (currentMode === 'work' && isVisible) {
-      hideTip();
-    }
-  }, [timer?.mode, isVisible, showRandomTip, hideTip]);
+
+    // 前回値を更新
+    prevModeForTipsRef.current = mode;
+    prevTimeLeftForTipsRef.current = timeLeft;
+  }, [timer?.mode, timer?.isRunning, timer?.timeLeft, timer?.cycle, isVisible, showRandomTip, hideTip]);
 
   if (isLoading) {
     return (
