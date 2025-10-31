@@ -46,7 +46,7 @@ export const HostControls = ({
       )}
 
       {/* ホスト情報 */}
-      <div
+      {/* <div
         className="p-3 bg-yellow-900/20 border border-yellow-500 rounded text-yellow-200 text-sm"
         role="status"
       >
@@ -58,7 +58,7 @@ export const HostControls = ({
             ? "タイマーとゲームの制御ができます"
             : "タイマーの制御ができます"}
         </p>
-      </div>
+      </div> */}
     </div>
   );
 };
