@@ -58,7 +58,7 @@ function HomePage() {
       {/* 左側 - 部屋一覧 */}
       <div className="w-1/2 bg-gray-800 border-r border-gray-700 p-6 overflow-y-auto">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-white mb-2">オンラインもくもくアプリ MOKU</h1>
+          <h1 className="text-2xl font-bold text-white mb-2">もくもくアプリ MOKU</h1>
           <p className="text-gray-400">集中して学習できる環境を選んでください</p>
           <p className="text-gray-400 text-sm mt-1">
             現在の部屋数: {rooms.length}

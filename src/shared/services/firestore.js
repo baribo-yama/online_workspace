@@ -4,7 +4,7 @@ import { getRoomsCollection } from './firebase';
 export const POMODORO_SETTINGS = {
   WORK_DURATION: 10,    // 作業時間（秒）デフォルト25 * 60
   SHORT_BREAK: 10,       // 短い休憩（秒） 5 * 60
-  LONG_BREAK: 20,       // 長い休憩（秒）
+  LONG_BREAK: 20,       // 長い休憩（秒）15 * 60
 };
 
 // タイマー状態の初期化
