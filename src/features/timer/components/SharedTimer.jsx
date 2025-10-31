@@ -12,21 +12,21 @@ import { TipsDisplay } from "../../entertainment/components/TipsDisplay";
 
 // 棒状タイマーコンポーネント（PersonalTimerから移植、オーバータイム除外）
 const BarTimer = ({ timeLeft, progress, formatTime, state, mode }) => {
-  const isBlueColor = 
-    state === TIMER_STATE.FOCUS || 
+  const isBlueColor =
+    state === TIMER_STATE.FOCUS ||
     (state === TIMER_STATE.POSE && mode === 'work');
-  
+
   return (
-    <div className="mx-auto space-y-4 transition-all duration-500 w-96">
-      <div className="relative h-8 bg-gray-700 rounded-full overflow-hidden border-2 border-gray-600">
-        <div 
+    <div className="w-full px-[4%] transition-all duration-500">
+      <div className="relative h-[clamp(0.4rem,2vh,0.75rem)] bg-gray-700 rounded-full overflow-hidden border-2 border-gray-600 mb-[0vh]">
+        <div
           className={`absolute top-0 left-0 h-full transition-all duration-500 ${
             isBlueColor ? "bg-blue-500" : "bg-green-500"
           }`}
           style={{ width: `${progress}%` }}
         />
       </div>
-      <div className="text-5xl font-mono font-bold text-white z-10 drop-shadow-lg">
+      <div className="text-[clamp(2.5rem,6vh,4.5rem)] font-mono font-bold text-white z-10 drop-shadow-lg mt-0">
         {formatTime(timeLeft)}
       </div>
     </div>
@@ -48,14 +48,14 @@ const SharedTimer = memo(function SharedTimer({ roomId, isHost = false }) {
 
   // PersonalTimerの状態に変換（表示用）
   const personalState = mapSharedStateToPersonal(timer?.mode || 'work', timer?.isRunning || false, timer?.timeLeft || 0);
-  
+
   const duration = getModeDuration(timer?.mode || 'work');
-  
+
   // 表示用のtimeLeftを計算（REST_OR_INITで負の値の場合は正の値に変換）
   const displayTimeLeft = (personalState === TIMER_STATE.REST_OR_INIT && timer?.timeLeft < 0)
     ? duration
     : Math.max(0, timer?.timeLeft || 0);
-  
+
   const progress = calculateProgress(displayTimeLeft, duration);
 
   // タイマーが0になった時の通知処理（モード切替前のモードで通知）
@@ -131,8 +131,8 @@ const SharedTimer = memo(function SharedTimer({ roomId, isHost = false }) {
   const renderControls = () => {
     if (!isHost) {
       return (
-        <div className="text-gray-400">
-          <p className="text-sm">ホストのみタイマーを操作できます</p>
+        <div className="text-gray-400 w-full">
+          <p className="text-[clamp(0.875rem,2vh,1rem)]">ホストのみタイマーを操作できます</p>
         </div>
       );
     }
@@ -140,77 +140,77 @@ const SharedTimer = memo(function SharedTimer({ roomId, isHost = false }) {
     switch (personalState) {
       case TIMER_STATE.INIT:
         return (
-          <button 
-            onClick={startTimer} 
-            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 text-lg font-semibold rounded-lg shadow-lg hover:shadow-blue-500/25 transition-all duration-200 flex items-center gap-2"
+          <button
+            onClick={startTimer}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-[4%] py-[1.5vh] text-[clamp(1rem,2.5vh,1.25rem)] font-semibold rounded-lg shadow-lg hover:shadow-blue-500/25 transition-all duration-200 flex items-center gap-[0.75vw]"
           >
-            <Play className="w-5 h-5" />
+            <Play className="w-[clamp(1.125rem,2.5vh,1.375rem)] h-[clamp(1.125rem,2.5vh,1.375rem)]" />
             開始
           </button>
         );
       case TIMER_STATE.FOCUS:
         return (
-          <div className="flex flex-col items-center gap-4">
-            <button 
-              onClick={pause} 
-              className="bg-yellow-500 hover:bg-yellow-600 text-white px-8 py-3 text-lg font-semibold rounded-lg shadow-lg transition-all duration-200 flex items-center gap-2 w-48 justify-center"
+          <div className="flex flex-col items-center gap-[1.2vh] w-full">
+            <button
+              onClick={pause}
+              className="bg-yellow-500 hover:bg-yellow-600 text-white px-[3.5%] py-[1.2vh] text-[clamp(0.875rem,2vh,1.125rem)] font-semibold rounded-lg shadow-lg transition-all duration-200 flex items-center gap-[0.6vw]"
             >
-              <Pause className="w-5 h-5" />
+              <Pause className="w-[clamp(1rem,2vh,1.25rem)] h-[clamp(1rem,2vh,1.25rem)]" />
               一時停止
             </button>
-            <button 
-              onClick={finishFocus} 
-              className="bg-red-600 hover:bg-red-700 text-white px-8 py-3 text-lg font-semibold rounded-lg shadow-lg transition-all duration-200 flex items-center gap-2 w-48 justify-center"
+            <button
+              onClick={finishFocus}
+              className="bg-red-600 hover:bg-red-700 text-white px-[3.5%] py-[1.2vh] text-[clamp(0.875rem,2vh,1.125rem)] font-semibold rounded-lg shadow-lg transition-all duration-200 flex items-center gap-[0.6vw]"
             >
-              <ZapOff className="w-5 h-5" />
+              <ZapOff className="w-[clamp(1rem,2vh,1.25rem)] h-[clamp(1rem,2vh,1.25rem)]" />
               終了
             </button>
           </div>
         );
       case TIMER_STATE.POSE:
         return (
-          <button 
-            onClick={resume} 
-            className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 text-lg font-semibold rounded-lg shadow-lg hover:shadow-blue-500/25 transition-all duration-200 flex items-center gap-2"
+          <button
+            onClick={resume}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-[4%] py-[1.5vh] text-[clamp(1rem,2.5vh,1.25rem)] font-semibold rounded-lg shadow-lg hover:shadow-blue-500/25 transition-all duration-200 flex items-center gap-[0.75vw]"
           >
-            <Play className="w-5 h-5" />
+            <Play className="w-[clamp(1.125rem,2.5vh,1.375rem)] h-[clamp(1.125rem,2.5vh,1.375rem)]" />
             再開
           </button>
         );
       case TIMER_STATE.REST_OR_INIT:
         return (
-          <div className="flex flex-col items-center gap-4">
-            <button 
-              onClick={startRest} 
-              className="bg-green-600 hover:bg-green-700 text-white px-8 py-3 text-lg font-semibold rounded-lg shadow-lg transition-all duration-200 flex items-center gap-2 w-48 justify-center"
+          <div className="flex flex-col items-center gap-[1.2vh] w-full">
+            <button
+              onClick={startRest}
+              className="bg-green-600 hover:bg-green-700 text-white px-[3.5%] py-[1.2vh] text-[clamp(0.875rem,2vh,1.125rem)] font-semibold rounded-lg shadow-lg transition-all duration-200 flex items-center gap-[0.6vw] w-[min(70%,14rem)] justify-center"
             >
-              <Coffee className="w-5 h-5" />
+              <Coffee className="w-[clamp(1rem,2vh,1.25rem)] h-[clamp(1rem,2vh,1.25rem)]" />
               休憩
             </button>
-            <button 
-              onClick={endSession} 
-              className="bg-red-600 hover:bg-red-700 text-white px-8 py-3 text-lg font-semibold rounded-lg shadow-lg transition-all duration-200 flex items-center gap-2 w-48 justify-center"
+            <button
+              onClick={endSession}
+              className="bg-red-600 hover:bg-red-700 text-white px-[3.5%] py-[1.2vh] text-[clamp(0.875rem,2vh,1.125rem)] font-semibold rounded-lg shadow-lg transition-all duration-200 flex items-center gap-[0.6vw] w-[min(70%,14rem)] justify-center"
             >
-              <ZapOff className="w-5 h-5" />
+              <ZapOff className="w-[clamp(1rem,2vh,1.25rem)] h-[clamp(1rem,2vh,1.25rem)]" />
               終了
             </button>
           </div>
         );
       case TIMER_STATE.REST:
         return (
-          <div className="flex flex-col items-center gap-4">
-            <button 
-              onClick={pause} 
-              className="bg-yellow-500 hover:bg-yellow-600 text-white px-8 py-3 text-lg font-semibold rounded-lg shadow-lg transition-all duration-200 flex items-center gap-2 w-48 justify-center"
+          <div className="flex flex-col items-center gap-[1.2vh] w-full">
+            <button
+              onClick={pause}
+              className="bg-yellow-500 hover:bg-yellow-600 text-white px-[3.5%] py-[1.2vh] text-[clamp(0.875rem,2vh,1.125rem)] font-semibold rounded-lg shadow-lg transition-all duration-200 flex items-center gap-[0.6vw]"
             >
-              <Pause className="w-5 h-5" />
+              <Pause className="w-[clamp(1rem,2vh,1.25rem)] h-[clamp(1rem,2vh,1.25rem)]" />
               一時停止
             </button>
-            <button 
-              onClick={endSession} 
-              className="bg-red-600 hover:bg-red-700 text-white px-8 py-3 text-lg font-semibold rounded-lg shadow-lg transition-all duration-200 flex items-center gap-2 w-48 justify-center"
+            <button
+              onClick={endSession}
+              className="bg-red-600 hover:bg-red-700 text-white px-[3.5%] py-[1.2vh] text-[clamp(0.875rem,2vh,1.125rem)] font-semibold rounded-lg shadow-lg transition-all duration-200 flex items-center gap-[0.6vw]"
             >
-              <ZapOff className="w-5 h-5" />
+              <ZapOff className="w-[clamp(1rem,2vh,1.25rem)] h-[clamp(1rem,2vh,1.25rem)]" />
               終了
             </button>
           </div>
@@ -224,17 +224,17 @@ const SharedTimer = memo(function SharedTimer({ roomId, isHost = false }) {
     return (
       <div className="flex h-full bg-gray-900 items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
-          <p className="text-white">タイマーを読み込み中...</p>
+          <div className="animate-spin rounded-full w-[clamp(3rem,6vh,4rem)] h-[clamp(3rem,6vh,4rem)] border-b-2 border-white mx-auto mb-[2vh]"></div>
+          <p className="text-white text-[clamp(0.875rem,2vh,1rem)]">タイマーを読み込み中...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex flex-col h-full bg-gray-900 text-center space-y-8 relative">
-      {/* ステータスメッセージ */}
-      <div className="relative z-10 h-12 flex items-center justify-center">
+    <div className="flex flex-col h-full w-full min-h-0 bg-gray-900 text-center relative px-[3%] py-[2vh]">
+      {/* ステータスメッセージ - 相対的な高さ（約8%） */}
+      <div className="relative z-10 flex-shrink-0 flex items-center justify-center pt-[1vh] pb-[0.5vh]" style={{ maxHeight: '8%' }}>
         <AnimatePresence mode="wait">
           <motion.h2
             key={getStatusMessage()}
@@ -242,28 +242,26 @@ const SharedTimer = memo(function SharedTimer({ roomId, isHost = false }) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
             transition={{ duration: 0.2 }}
-            className="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent"
+            className="text-[clamp(1.5rem,3.5vh,2.25rem)] font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent"
           >
             {getStatusMessage()}
           </motion.h2>
         </AnimatePresence>
       </div>
 
-      {/* タイマー表示 */}
-      <div className="relative h-40 flex items-start justify-center">
-        <div className="absolute left-1/2 -translate-x-1/2 top-0 z-10">
-          <BarTimer 
-            state={personalState} 
-            timeLeft={displayTimeLeft} 
-            progress={progress} 
-            formatTime={formatTime}
-            mode={timer?.mode || 'work'}
-          />
-        </div>
+      {/* タイマー表示 - 相対的な高さ（約25%） */}
+      <div className="relative flex-shrink-0 flex items-center justify-center pt-[0.5vh] pb-[2vh]" style={{ maxHeight: '25%' }}>
+        <BarTimer
+          state={personalState}
+          timeLeft={displayTimeLeft}
+          progress={progress}
+          formatTime={formatTime}
+          mode={timer?.mode || 'work'}
+        />
       </div>
 
-      {/* コントロールボタン */}
-      <div className="flex gap-4 justify-center items-center h-32">
+      {/* コントロールボタン - 相対的な高さ（約15%） */}
+      <div className="flex gap-[1.5vh] justify-center items-center flex-shrink-0 pt-[2vh] pb-[2vh]" style={{ maxHeight: '15%' }}>
         <AnimatePresence mode="wait">
           <motion.div
             key={personalState}
@@ -271,22 +269,25 @@ const SharedTimer = memo(function SharedTimer({ roomId, isHost = false }) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             transition={{ duration: 0.2 }}
+            className="w-full flex justify-center"
           >
             {renderControls()}
           </motion.div>
         </AnimatePresence>
       </div>
 
-      {/* サイクル表示 */}
-      <div className="text-sm text-gray-400 relative z-10">
+      {/* サイクル表示 - 相対的な高さ（約4%） */}
+      <div className="text-[clamp(0.875rem,2vh,1rem)] text-gray-400 relative z-10 flex-shrink-0 pt-[2vh] pb-[1vh] mb-[5vh]" style={{ maxHeight: '4%' }}>
         サイクル: {timer?.cycle || 0}
       </div>
 
-      {/* Tips表示 */}
-      <TipsDisplay
-        tip={currentTip}
-        isVisible={isVisible}
-      />
+      {/* Tips表示 - 残りのスペースを埋める（柔軟、最低30%） */}
+      <div className="flex-1 min-h-0 overflow-y-auto flex items-start justify-center pt-[1vh] pb-[1vh]" style={{ minHeight: '30%' }}>
+        <TipsDisplay
+          tip={currentTip}
+          isVisible={isVisible}
+        />
+      </div>
     </div>
   );
 });
