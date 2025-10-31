@@ -15,33 +15,29 @@ import { RoomChat } from "./RoomChat";
 export const RoomMainContent = ({
   roomId,
   isHost,
-  canStartGame,
-  gameStatus,
-  onGameStart,
   myParticipantId,
 }) => {
   return (
-    <div className="w-1/2 bg-gray-800 flex flex-col">
+    <div className="w-1/2 bg-gray-800 flex flex-col h-screen">
       {/* ポモドーロタイマー（タイマーボタンが見えるサイズ） */}
-      <div className="flex-1 p-6 items-center justify-center border-b border-gray-700">
+      <div className="h-3/5 border-b border-gray-700 flex">
         <SharedTimer roomId={roomId} isHost={isHost} myParticipantId={myParticipantId} />
       </div>
 
       {/* チャット */}
-      <div className="h-1/3 overflow-hidden">
+      <div className="flex-1 overflow-hidden">
         <RoomChat roomId={roomId} myParticipantId={myParticipantId} />
       </div>
 
       {/* ホストコントロール */}
-      <div className="p-6">
+      {/* <div className="p-6">
         <HostControls
           isHost={isHost}
           canStartGame={canStartGame}
           gameStatus={gameStatus}
           onGameStart={onGameStart}
         />
-      </div>
+      </div> */}
     </div>
   );
 };
-

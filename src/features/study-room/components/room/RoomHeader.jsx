@@ -18,7 +18,7 @@ export const RoomHeader = ({
   roomId,
   isHost,
   onLeaveRoom,
-  onEndRoom
+  onEndRoom,
 }) => {
   return (
     <div className="p-6 border-b border-gray-700">
@@ -44,6 +44,16 @@ export const RoomHeader = ({
             部屋を終了
           </button>
         )}
+
+        {/* ホストバッジ */}
+        {isHost && (
+          <div
+            className="flex items-center gap-2 text-yellow-400 bg-yellow-900/20 border border-yellow-500 rounded-lg px-3 py-2"
+            role="status"
+          >
+            <span className="font-semibold text-sm">👑 あなたがホストです</span>
+          </div>
+        )}
       </div>
 
       <h1 className="text-2xl font-bold text-white mb-2">
@@ -55,4 +65,3 @@ export const RoomHeader = ({
     </div>
   );
 };
-
