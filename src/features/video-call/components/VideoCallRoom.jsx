@@ -1063,6 +1063,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
       isConnectingRef.current = false;
       setIsConnecting(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [updateParticipants, initializeCameraAndMicrophone, attachAudioTrack, cleanupAudioElement]);
 
   /**
