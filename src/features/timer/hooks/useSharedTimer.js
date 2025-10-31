@@ -185,7 +185,7 @@ export const useSharedTimer = (roomId) => {
             ...timer,
             isRunning: true,
             startTime: serverTimestamp(),
-            timeLeft: timer.timeLeft || getModeDuration(timer.mode),
+            timeLeft: getModeDuration(timer.mode),
             pausedAt: null,
             isAutoCycle: true, // Firestoreに自動サイクル状態を保存
             lastUpdated: serverTimestamp()
@@ -256,12 +256,148 @@ export const useSharedTimer = (roomId) => {
     }
   };
 
+  // pause/resume関数（PersonalTimerスタイル）
+  const pauseTimer = async () => {
+    if (!roomId || !timer.isRunning) return;
+    
+    try {
+      setIsAutoCycle(false);
+      const roomRef = doc(getRoomsCollection(), roomId);
+      await updateDoc(roomRef, {
+        timer: {
+          ...timer,
+          isRunning: false,
+          pausedAt: serverTimestamp(),
+          isAutoCycle: false,
+          lastUpdated: serverTimestamp()
+        }
+      });
+    } catch (error) {
+      console.error("一時停止エラー:", error);
+    }
+  };
+
+  const resumeTimer = async () => {
+    if (!roomId || timer.isRunning) return;
+    
+    try {
+      setIsAutoCycle(true);
+      const roomRef = doc(getRoomsCollection(), roomId);
+      await updateDoc(roomRef, {
+        timer: {
+          ...timer,
+          isRunning: true,
+          startTime: serverTimestamp(),
+          pausedAt: null,
+          isAutoCycle: true,
+          lastUpdated: serverTimestamp()
+        }
+      });
+    } catch (error) {
+      console.error("再開エラー:", error);
+    }
+  };
+
+  const finishFocus = async () => {
+    if (!roomId) return;
+    
+    try {
+      setIsAutoCycle(false);
+      const roomRef = doc(getRoomsCollection(), roomId);
+      await updateDoc(roomRef, {
+        timer: {
+          ...timer,
+          mode: 'break',
+          timeLeft: -1,
+          isRunning: false,
+          isAutoCycle: false,
+          lastUpdated: serverTimestamp()
+        }
+      });
+    } catch (error) {
+      console.error("作業終了エラー:", error);
+    }
+  };
+
+  const startRest = async () => {
+    if (!roomId) return;
+    
+    try {
+      setIsAutoCycle(true);
+      const roomRef = doc(getRoomsCollection(), roomId);
+      await updateDoc(roomRef, {
+        timer: {
+          ...timer,
+          mode: 'break',
+          timeLeft: getModeDuration('break'),
+          isRunning: true,
+          startTime: serverTimestamp(),
+          isAutoCycle: true,
+          lastUpdated: serverTimestamp()
+        }
+      });
+    } catch (error) {
+      console.error("休憩開始エラー:", error);
+    }
+  };
+
+  const endSession = async () => {
+    if (!roomId) return;
+    
+    try {
+      setIsAutoCycle(false);
+      const roomRef = doc(getRoomsCollection(), roomId);
+      await updateDoc(roomRef, {
+        timer: {
+          ...timer,
+          mode: 'work',
+          timeLeft: getModeDuration('work'),
+          isRunning: false,
+          startTime: null,
+          cycle: 0,
+          isAutoCycle: false,
+          lastUpdated: serverTimestamp()
+        }
+      });
+    } catch (error) {
+      console.error("セッション終了エラー:", error);
+    }
+  };
+
+  const resumeFocusFromRest = async () => {
+    if (!roomId) return;
+    
+    try {
+      setIsAutoCycle(true);
+      const roomRef = doc(getRoomsCollection(), roomId);
+      await updateDoc(roomRef, {
+        timer: {
+          ...timer,
+          mode: 'work',
+          timeLeft: getModeDuration('work'),
+          isRunning: true,
+          startTime: serverTimestamp(),
+          isAutoCycle: true,
+          lastUpdated: serverTimestamp()
+        }
+      });
+    } catch (error) {
+      console.error("作業再開エラー:", error);
+    }
+  };
+
   return {
     timer,
     isLoading,
     startTimer,
     resetTimer,
     switchMode: switchTimerModeManual,
+    pause: pauseTimer,
+    resume: resumeTimer,
+    finishFocus,
+    startRest,
+    endSession,
+    resumeFocusFromRest,
     isAutoCycle
   };
 };
