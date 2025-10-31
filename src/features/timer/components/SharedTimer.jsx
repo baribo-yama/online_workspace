@@ -34,7 +34,7 @@ const BarTimer = ({ timeLeft, progress, formatTime, state, mode }) => {
 };
 
 const SharedTimer = memo(function SharedTimer({ roomId, isHost = false }) {
-  const { timer, isLoading, startTimer, pause, resume, finishFocus, startRest, endSession, resumeFocusFromRest } = useSharedTimer(roomId);
+  const { timer, isLoading, startTimer, pause, resume, finishFocus, startRest, endSession } = useSharedTimer(roomId);
   const { notifyTimerComplete } = useNotification(); // 通知機能を追加
   const { currentTip, isVisible, showRandomTip, hideTip } = useTips(); // Tips機能を追加（showNextTip削除）
   const hasNotifiedRef = useRef(false); // 通知済みフラグ
