@@ -1,8 +1,15 @@
 import { getRoomsCollection } from './firebase';
 
+// ポモドーロタイマー設定
+export const POMODORO_SETTINGS = {
+  WORK_DURATION: 10,    // 作業時間（秒）デフォルト25 * 60
+  SHORT_BREAK: 10,       // 短い休憩（秒） 5 * 60
+  LONG_BREAK: 20,       // 長い休憩（秒）15 * 60
+};
+
 // タイマー状態の初期化
 export const createInitialTimer = () => ({
-  timeLeft: 25 * 60,
+  timeLeft: POMODORO_SETTINGS.WORK_DURATION,
   isRunning: false,
   mode: "work",
   cycle: 0,
@@ -11,6 +18,7 @@ export const createInitialTimer = () => ({
   pausedAt: null,
   totalWorkTime: 0,
   totalBreakTime: 0,
+  isAutoCycle: false,
 });
 
 // rooms の初期形
@@ -24,7 +32,7 @@ export const defaultRoom = {
   isActive: true,
   category: "数学",
   timer: {
-    timeLeft: 25 * 60,
+    timeLeft: POMODORO_SETTINGS.WORK_DURATION,
     isRunning: false,
     mode: "work",
     cycle: 0,
@@ -33,6 +41,7 @@ export const defaultRoom = {
     pausedAt: null,
     totalWorkTime: 0,
     totalBreakTime: 0,
+    isAutoCycle: false,
   },
   game: {
     status: "idle", // "idle" | "playing"
@@ -86,13 +95,6 @@ export const ROOM_CATEGORIES = [
   "その他"
 ];
 
-// ポモドーロタイマー設定
-export const POMODORO_SETTINGS = {
-  WORK_DURATION: 25 * 60,    // 作業時間（秒）デフォルト25 * 60
-  SHORT_BREAK: 5 * 60,       // 短い休憩（秒） 5 * 60
-  LONG_BREAK: 15 * 60,       // 長い休憩（秒）
-};
-
 // タイマー状態のスキーマ
 export const TIMER_SCHEMA = {
   timeLeft: 0,              // 残り時間（秒）
@@ -104,6 +106,7 @@ export const TIMER_SCHEMA = {
   pausedAt: null,           // 一時停止時刻（Firestore Timestamp）
   totalWorkTime: 0,         // 累計作業時間（秒）
   totalBreakTime: 0,        // 累計休憩時間（秒）
+  isAutoCycle: false,       // 自動サイクル実行中かどうか
 };
 
 
