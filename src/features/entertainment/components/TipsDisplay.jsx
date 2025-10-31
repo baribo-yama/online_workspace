@@ -6,9 +6,9 @@ import PropTypes from 'prop-types';
  * タイマーとチャットの間にインライン表示
  */
 export function TipsDisplay({ tip, isVisible }) {
-  // 非表示時は最小限の高さを確保してレイアウトシフトを防ぐ
+  // 非表示時は最小限の高さを確保してレイアウトシフトを防ぐ（相対的な高さ）
   if (!isVisible || !tip) {
-    return <div className="min-h-[120px]" />;
+    return <div className="min-h-[15vh]" />;
   }
 
   // カテゴリごとの背景色
@@ -65,26 +65,26 @@ export function TipsDisplay({ tip, isVisible }) {
   };
 
   return (
-    <div className="w-11/12 max-w-2xl mx-auto my-4 animate-slide-down">
-      <div className={`rounded-lg border-2 ${colorClass} shadow-md p-4`}>
+    <div className="w-11/12 max-w-2xl mx-auto animate-slide-down">
+      <div className={`rounded-lg border-2 ${colorClass} shadow-md p-[clamp(0.75rem,2vh,1rem)]`}>
         {/* ヘッダー */}
-        <div className="flex items-center gap-2 mb-3">
-          <span className="text-xl">💡</span>
-          <span className="font-semibold text-gray-700">休憩中のTips</span>
+        <div className="flex items-center gap-[0.5vw] mb-[1.5vh]">
+          <span className="text-[clamp(1rem,2.5vh,1.25rem)]">💡</span>
+          <span className="font-semibold text-gray-700 text-[clamp(0.875rem,2vh,1rem)]">休憩中のTips</span>
         </div>
 
         {/* カテゴリと難易度 */}
-        <div className="flex gap-2 mb-3">
-          <span className="px-2 py-1 bg-white rounded text-xs font-medium text-gray-600">
+        <div className="flex gap-[0.5vw] mb-[1.5vh]">
+          <span className="px-[clamp(0.375rem,1vw,0.5rem)] py-[clamp(0.25rem,0.75vh,0.375rem)] bg-white rounded text-[clamp(0.625rem,1.25vh,0.75rem)] font-medium text-gray-600">
             {tip.category}
           </span>
-          <span className="px-2 py-1 bg-white rounded text-xs font-medium text-gray-600">
+          <span className="px-[clamp(0.375rem,1vw,0.5rem)] py-[clamp(0.25rem,0.75vh,0.375rem)] bg-white rounded text-[clamp(0.625rem,1.25vh,0.75rem)] font-medium text-gray-600">
             {difficultyLabels[tip.difficulty] || tip.difficulty}
           </span>
         </div>
 
         {/* Tipsの内容 */}
-        <p className="text-gray-800 leading-relaxed text-sm">{tip.content}</p>
+        <p className="text-gray-800 leading-relaxed text-[clamp(0.75rem,1.75vh,0.875rem)]">{tip.content}</p>
       </div>
     </div>
   );
