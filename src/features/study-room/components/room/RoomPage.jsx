@@ -41,7 +41,7 @@ function RoomPage() {
   const { requestPermission } = useNotification();
 
   // ===== 権限チェック =====
-  const { isHost, canStartGame, gameStatus } = useRoomPermissions(room, myParticipantId);
+  const { isHost, gameStatus } = useRoomPermissions(room, myParticipantId);
 
   // ===== 操作ロジック =====
   const { handleLeaveRoom, handleEndRoom } = useRoomActions(roomId, leaveRoom, isHost, myParticipantId);
@@ -131,9 +131,9 @@ function RoomPage() {
       <RoomMainContent
         roomId={roomId}
         isHost={isHost}
-        canStartGame={canStartGame}
-        gameStatus={gameStatus}
-        onGameStart={() => setShowGame(true)}
+        // canStartGame={canStartGame}
+        // gameStatus={gameStatus}
+        // onGameStart={() => setShowGame(true)}
         myParticipantId={myParticipantId}
       />
 
