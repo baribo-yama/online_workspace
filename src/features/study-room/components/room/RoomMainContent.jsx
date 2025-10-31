@@ -33,14 +33,14 @@ export const RoomMainContent = ({
       </div>
 
       {/* ホストコントロール */}
-      <div className="p-6">
+      {/* <div className="p-6">
         <HostControls
           isHost={isHost}
           canStartGame={canStartGame}
           gameStatus={gameStatus}
           onGameStart={onGameStart}
         />
-      </div>
+      </div> */}
     </div>
   );
 };
