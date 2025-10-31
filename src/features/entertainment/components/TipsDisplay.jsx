@@ -65,7 +65,7 @@ export function TipsDisplay({ tip, isVisible }) {
   };
 
   return (
-    <div className="w-11/12 max-w-2xl mx-auto my-[0vh] animate-slide-down">
+    <div className="w-11/12 max-w-2xl mx-auto animate-slide-down">
       <div className={`rounded-lg border-2 ${colorClass} shadow-md p-[clamp(0.75rem,2vh,1rem)]`}>
         {/* ヘッダー */}
         <div className="flex items-center gap-[0.5vw] mb-[1.5vh]">

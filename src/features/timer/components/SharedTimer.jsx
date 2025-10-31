@@ -18,7 +18,7 @@ const BarTimer = ({ timeLeft, progress, formatTime, state, mode }) => {
 
   return (
     <div className="w-full px-[4%] transition-all duration-500">
-      <div className="relative h-[clamp(0.4rem,2vh,0.75rem)] bg-gray-700 rounded-full overflow-hidden border-2 border-gray-600 mb-[0vh]">
+      <div className="relative h-[clamp(0.4rem,2vh,0.75rem)] bg-gray-700 rounded-full overflow-hidden border-2 border-gray-600">
         <div
           className={`absolute top-0 left-0 h-full transition-all duration-500 ${
             isBlueColor ? "bg-blue-500" : "bg-green-500"
@@ -234,7 +234,7 @@ const SharedTimer = memo(function SharedTimer({ roomId, isHost = false }) {
   return (
     <div className="flex flex-col h-full w-full min-h-0 bg-gray-900 text-center relative px-[3%] py-[2vh]">
       {/* ステータスメッセージ - 相対的な高さ（約8%） */}
-      <div className="relative z-10 flex-shrink-0 flex items-center justify-center pt-[1vh] pb-[0.5vh]" style={{ maxHeight: '8%' }}>
+      <div className="relative z-10 flex-shrink-0 flex items-center justify-center pt-[1vh] pb-[0.5vh] max-h-[8%]">
         <AnimatePresence mode="wait">
           <motion.h2
             key={getStatusMessage()}
@@ -250,7 +250,7 @@ const SharedTimer = memo(function SharedTimer({ roomId, isHost = false }) {
       </div>
 
       {/* タイマー表示 - 相対的な高さ（約25%） */}
-      <div className="relative flex-shrink-0 flex items-center justify-center pt-[0.5vh] pb-[2vh]" style={{ maxHeight: '25%' }}>
+      <div className="relative flex-shrink-0 flex items-center justify-center pt-[0.5vh] pb-[2vh] max-h-[25%]">
         <BarTimer
           state={personalState}
           timeLeft={displayTimeLeft}
@@ -261,7 +261,7 @@ const SharedTimer = memo(function SharedTimer({ roomId, isHost = false }) {
       </div>
 
       {/* コントロールボタン - 相対的な高さ（約15%） */}
-      <div className="flex gap-[1.5vh] justify-center items-center flex-shrink-0 pt-[2vh] pb-[2vh]" style={{ maxHeight: '15%' }}>
+      <div className="flex gap-[1.5vh] justify-center items-center flex-shrink-0 pt-[2vh] pb-[2vh] max-h-[15%]">
         <AnimatePresence mode="wait">
           <motion.div
             key={personalState}
@@ -277,12 +277,12 @@ const SharedTimer = memo(function SharedTimer({ roomId, isHost = false }) {
       </div>
 
       {/* サイクル表示 - 相対的な高さ（約4%） */}
-      <div className="text-[clamp(0.875rem,2vh,1rem)] text-gray-400 relative z-10 flex-shrink-0 pt-[2vh] pb-[1vh] mb-[5vh]" style={{ maxHeight: '4%' }}>
+      <div className="text-[clamp(0.875rem,2vh,1rem)] text-gray-400 relative z-10 flex-shrink-0 pt-[2vh] pb-[1vh] mb-[5vh] max-h-[4%]">
         サイクル: {timer?.cycle || 0}
       </div>
 
       {/* Tips表示 - 残りのスペースを埋める（柔軟、最低30%） */}
-      <div className="flex-1 min-h-0 overflow-y-auto flex items-start justify-center pt-[1vh] pb-[1vh]" style={{ minHeight: '30%' }}>
+      <div className="flex-1 min-h-[30%] overflow-y-auto flex items-start justify-center pt-[1vh] pb-[1vh]">
         <TipsDisplay
           tip={currentTip}
           isVisible={isVisible}
