@@ -6,6 +6,8 @@ import { lazy, Suspense } from "react";
 const HomePage = lazy(() => import("./features/study-room/components/home/HomePage"));
 const RoomPage = lazy(() => import("./features/study-room/components/room/RoomPage"));
 
+
+
 function App() {
   return (
     <BrowserRouter>

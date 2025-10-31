@@ -1063,6 +1063,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
       isConnectingRef.current = false;
       setIsConnecting(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [updateParticipants, initializeCameraAndMicrophone, attachAudioTrack, cleanupAudioElement]);
 
   /**
@@ -1705,6 +1706,22 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
           }`}>
             {participants.map((participant, index) => {
               const isLocal = participant.identity === localParticipant?.identity;
+              
+              // カメラが有効かどうかを判定
+              const hasActiveCamera = isLocal 
+                ? isVideoEnabled 
+                : (() => {
+                    // リモート参加者の場合、videoTrackPublicationsをチェック
+                    if (participant.videoTrackPublications && participant.videoTrackPublications.size > 0) {
+                      for (const publication of participant.videoTrackPublications.values()) {
+                        if (publication.isSubscribed && publication.track) {
+                          return true;
+                        }
+                      }
+                    }
+                    return false;
+                  })();
+              
               return (
                 <div key={`${participant.identity}-${index}`} className="relative bg-gray-800 rounded-lg overflow-hidden">
                   <video
@@ -1752,6 +1769,13 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
                       console.error('ビデオ要素エラー:', e, participant.identity);
                     }}
                   />
+                  
+                  {/* カメラがオフの時にVideoOffアイコンを表示 */}
+                  {!hasActiveCamera && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
+                      <VideoOff className="w-16 h-16 text-gray-600 opacity-50" />
+                    </div>
+                  )}
                   
                   <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
                     {participant?.identity || 'Unknown'}
