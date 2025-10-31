@@ -1,6 +1,6 @@
 // 共有ポモドーロタイマーコンポーネント
 import { memo, useEffect, useRef } from "react";
-import { Play, Pause, Coffee, ZapOff, FastForward } from "lucide-react";
+import { Play, Pause, Coffee, ZapOff} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSharedTimer } from "../hooks/useSharedTimer";
 import { formatTime, calculateProgress, TIMER_STATE } from "../../../shared/utils/timer";
@@ -50,7 +50,13 @@ const SharedTimer = memo(function SharedTimer({ roomId, isHost = false }) {
   const personalState = mapSharedStateToPersonal(timer?.mode || 'work', timer?.isRunning || false, timer?.timeLeft || 0);
   
   const duration = getModeDuration(timer?.mode || 'work');
-  const progress = calculateProgress(timer?.timeLeft || 0, duration);
+  
+  // 表示用のtimeLeftを計算（REST_OR_INITで負の値の場合は正の値に変換）
+  const displayTimeLeft = (personalState === TIMER_STATE.REST_OR_INIT && timer?.timeLeft < 0)
+    ? duration
+    : Math.max(0, timer?.timeLeft || 0);
+  
+  const progress = calculateProgress(displayTimeLeft, duration);
 
   // タイマーが0になった時の通知処理（モード切替前のモードで通知）
   useEffect(() => {
@@ -248,7 +254,7 @@ const SharedTimer = memo(function SharedTimer({ roomId, isHost = false }) {
         <div className="absolute left-1/2 -translate-x-1/2 top-0 z-10">
           <BarTimer 
             state={personalState} 
-            timeLeft={timer?.timeLeft || 0} 
+            timeLeft={displayTimeLeft} 
             progress={progress} 
             formatTime={formatTime}
             mode={timer?.mode || 'work'}

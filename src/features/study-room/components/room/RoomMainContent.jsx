@@ -21,7 +21,7 @@ export const RoomMainContent = ({
   myParticipantId,
 }) => {
   return (
-    <div className=" w-1/2 bg-gray-800 flex flex-col h-screen">
+    <div className="w-1/2 bg-gray-800 flex flex-col h-screen">
       {/* ポモドーロタイマー（タイマーボタンが見えるサイズ） */}
       <div className="h-3/5 p-6 items-center justify-center border-b border-gray-700">
         <SharedTimer roomId={roomId} isHost={isHost} myParticipantId={myParticipantId} />
