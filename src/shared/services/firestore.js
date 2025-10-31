@@ -71,11 +71,11 @@ export const defaultSignal = (from, type, payload = {}) => ({
   createdAt: null,
 });
 
-// MVP制限設定
-export const MVP_LIMITS = {
-  MAX_ROOMS: 3,           // 最大部屋数
-  MAX_PARTICIPANTS: 5,    // 1部屋あたりの最大参加者数
-};
+// // MVP制限設定
+// export const MVP_LIMITS = {
+//   MAX_ROOMS: 3,           // 最大部屋数
+//   MAX_PARTICIPANTS: 5,    // 1部屋あたりの最大参加者数
+// };
 
 // タイマー関連の定数
 export const TIMER_CONSTANTS = {
