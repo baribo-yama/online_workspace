@@ -11,6 +11,7 @@
 import { Users } from "lucide-react";
 import { RoomCard } from "./RoomCard";
 
+
 export const RoomList = ({ rooms, roomParticipants, loading, onJoinRoom }) => {
   // ローディング中
   if (loading) {
@@ -40,10 +41,11 @@ export const RoomList = ({ rooms, roomParticipants, loading, onJoinRoom }) => {
   // 部屋が存在しない場合
   return (
     <div className="text-center py-8">
-      <Users className="w-12 h-12 text-gray-600 mx-auto mb-3" />
+      <Users className="w-16 h-16 text-gray-600 mx-auto mb-3" />
       <p className="text-gray-400">現在アクティブな部屋がありません</p>
-      <p className="text-gray-500 text-sm mt-1">新しい部屋を作成してみましょう</p>
+      <p className="text-gray-500 text-sm mt-1">
+        新しい部屋を作成してみましょう
+      </p>
     </div>
   );
 };
-

@@ -131,9 +131,9 @@ function RoomPage() {
       <RoomMainContent
         roomId={roomId}
         isHost={isHost}
-        canStartGame={canStartGame}
-        gameStatus={gameStatus}
-        onGameStart={() => setShowGame(true)}
+        // canStartGame={canStartGame}
+        // gameStatus={gameStatus}
+        // onGameStart={() => setShowGame(true)}
         myParticipantId={myParticipantId}
       />
 
