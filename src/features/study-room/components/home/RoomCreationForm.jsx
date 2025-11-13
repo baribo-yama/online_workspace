@@ -27,6 +27,7 @@ export const RoomCreationForm = ({
   disabled,
   slackNotificationEnabled,
   onSlackNotificationChange,
+  showSlackCheckbox = true,
 }) => {
   const isLimitReached = currentRoomCount >= ROOM_LIMITS.MAX_ACTIVE_ROOMS;
 
@@ -61,16 +62,18 @@ export const RoomCreationForm = ({
             部屋を作成
           </button>
           
-          {/* Slack通知チェックボックス */}
-          <label className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={slackNotificationEnabled}
-              onChange={(e) => onSlackNotificationChange(e.target.checked)}
-              className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0"
-            />
-            <span className="text-sm text-gray-300">Slackで募集する</span>
-          </label>
+          {/* Slack通知チェックボックス（機能フラグがONのときのみ表示） */}
+          {showSlackCheckbox && (
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={slackNotificationEnabled}
+                onChange={(e) => onSlackNotificationChange(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0"
+              />
+              <span className="text-sm text-gray-300">Slackで募集する</span>
+            </label>
+          )}
         </div>
         
         {isLimitReached && (

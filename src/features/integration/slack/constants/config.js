@@ -14,6 +14,7 @@
 export const SLACK_CONFIG = {
   functionUrl: import.meta.env.VITE_SLACK_FUNCTION_URL,
   channelId: import.meta.env.VITE_SLACK_CHANNEL_ID,
+  featureEnabledRaw: import.meta.env.VITE_SLACK_FEATURE_ENABLED,
   timeout: 5000, // 5秒
 };
 
@@ -26,9 +27,28 @@ if (!SLACK_CONFIG.functionUrl || !SLACK_CONFIG.channelId) {
 }
 
 /**
+ * Slack機能フラグが有効かどうか
+ * - 既定: true（未設定時はオン）
+ * - 許容: "true"/"false"/"1"/"0"（大文字小文字無視）
+ */
+export const isSlackFeatureEnabled = () => {
+  const raw = SLACK_CONFIG.featureEnabledRaw;
+  if (raw == null || raw === '') return true; // default ON
+  const v = String(raw).trim().toLowerCase();
+  if (v === 'true' || v === '1') return true;
+  if (v === 'false' || v === '0') return false;
+  // 不正値は安全側でON
+  return true;
+};
+
+/**
  * Slack連携が有効かどうかを判定
  * @returns {boolean} 環境変数が正しく設定されている場合 true
  */
 export const isSlackEnabled = () => {
-  return Boolean(SLACK_CONFIG.functionUrl && SLACK_CONFIG.channelId);
+  return Boolean(
+    isSlackFeatureEnabled() &&
+    SLACK_CONFIG.functionUrl &&
+    SLACK_CONFIG.channelId
+  );
 };
