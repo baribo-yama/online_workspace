@@ -75,6 +75,14 @@ VITE_LIVEKIT_API_SECRET=your_livekit_api_secret
 
 # WebSocket設定
 VITE_WEBSOCKET_URL=ws://localhost:8080  # 開発環境
+
+# Slack連携（任意・Cloud Functions経由）
+# 機能フラグ: true/false/1/0（未設定時はtrue）
+VITE_SLACK_FEATURE_ENABLED=true
+# Slack投稿用のCloud Function URL（トークンはフロントに置かない）
+VITE_SLACK_FUNCTION_URL=https://your-cloud-function-url
+# 投稿先チャンネルID（例: C0123456789）
+VITE_SLACK_CHANNEL_ID=
 ```
 
 ### インストールと起動
@@ -195,6 +203,15 @@ online_workspace/
 **注意**:
 - 環境変数を変更した場合は、開発サーバーを再起動してください
 - 本番環境では`.env.production`ファイルの設定が自動的に使用されます
+ - SlackのBot Tokenなどの秘密値はフロントの.envに置かないでください（Cloud Functions/Secret Managerで管理）
+
+### Slack機能フラグの挙動
+- `VITE_SLACK_FEATURE_ENABLED=true` のとき
+  - ホーム画面に「Slackで募集する」チェックボックスが表示されます
+  - チェックON時のみSlackへ通知（Cloud Functions経由）
+  - ただし `VITE_SLACK_FUNCTION_URL` と `VITE_SLACK_CHANNEL_ID` が未設定なら送信は行われません（安全なno-op）
+- `VITE_SLACK_FEATURE_ENABLED=false` のとき
+  - チェックボックスは表示されず、Slack通知は常にオフ（過去仕様）
 
 ## 主要コンポーネント
 
