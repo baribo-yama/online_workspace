@@ -111,11 +111,18 @@ MVPは完成済み。
 ## 関連ドキュメント
 
 ### **AI駆動開発の総合ガイド**
-- [AI_DRIVEN_DEVELOPMENT_STRATEGY.md](./AI_DRIVEN_DEVELOPMENT_STRATEGY.md) - AI駆動開発戦略（必読・最重要）
-- [AI_GUIDELINES.md](./AI_GUIDELINES.md) - AI支援開発の基本
-- [AI_REFACTORING_WORKFLOW.md](./AI_REFACTORING_WORKFLOW.md) - リファクタリング手法
-- [QUICKSTART_REFACTORING.md](./QUICKSTART_REFACTORING.md) - すぐ使える指示テンプレート集
 
+---
+
+## 付録: Slack連携の環境フラグ
+
+- `VITE_SLACK_FEATURE_ENABLED`
+  - 受理値: `true`/`false`/`1`/`0`（未設定時は`true`）
+  - `false` の場合はホーム画面のチェックボックスを非表示にし、Slack通知は常に無効（過去仕様）
+  - `true` の場合はチェックボックスを表示し、ONのときのみ通知を実行
+- 送信要件
+  - `VITE_SLACK_FUNCTION_URL` と `VITE_SLACK_CHANNEL_ID` が設定されている場合のみ送信
+  - 未設定時は安全に no-op（アプリ動作は継続）
 ### **設計・ガイドライン**
 - [ARCHITECTURE.md](./ARCHITECTURE.md) - アーキテクチャ設計
 - [CODING_RULES.md](./CODING_RULES.md) - コーディング規約
