@@ -49,6 +49,9 @@ export const defaultRoom = {
     endTime: null,
     lastUpdated: null,
   },
+  // Slack連携関連フィールド
+  slackNotificationEnabled: false, // Slack通知の有効/無効
+  slackThreadTs: null,            // Slackスレッド識別子
 };
 
 // participants の初期形
@@ -71,11 +74,11 @@ export const defaultSignal = (from, type, payload = {}) => ({
   createdAt: null,
 });
 
-// MVP制限設定
-export const MVP_LIMITS = {
-  MAX_ROOMS: 3,           // 最大部屋数
-  MAX_PARTICIPANTS: 5,    // 1部屋あたりの最大参加者数
-};
+// // MVP制限設定
+// export const MVP_LIMITS = {
+//   MAX_ROOMS: 3,           // 最大部屋数
+//   MAX_PARTICIPANTS: 5,    // 1部屋あたりの最大参加者数
+// };
 
 // タイマー関連の定数
 export const TIMER_CONSTANTS = {
@@ -281,6 +284,26 @@ export const transferHostAuthority = async (db, roomId, currentHostId) => {
 
   } catch (error) {
     console.error('権限移譲処理エラー:', error);
+    throw error;
+  }
+};
+
+/**
+ * 部屋データを部分更新
+ * 
+ * @param {string} roomId - 部屋ID
+ * @param {Object} updates - 更新するフィールド
+ * @returns {Promise<void>}
+ * @throws {Error} 更新に失敗した場合
+ */
+export const updateRoom = async (roomId, updates) => {
+  const { doc, updateDoc } = await import('firebase/firestore');
+  
+  try {
+    const roomRef = doc(getRoomsCollection(), roomId);
+    await updateDoc(roomRef, updates);
+  } catch (error) {
+    console.error('[updateRoom] 部屋データの更新に失敗:', error);
     throw error;
   }
 };
