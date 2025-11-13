@@ -9,6 +9,7 @@ export const ROOM_LIMITS = {
   MAX_PARTICIPANTS: 8,            // 1部屋の最大参加者数
   MAX_ACTIVE_ROOMS: 20,            // 同時に存在できる最大部屋数（MVP制限）
   ROOMS_LIST_LIMIT: 20,           // 部屋一覧の取得上限
+
 };
 
 // ホスト確認通知の設定
