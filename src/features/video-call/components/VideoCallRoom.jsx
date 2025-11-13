@@ -21,7 +21,7 @@ import {
   LocalParticipant,
   Track,
 } from "livekit-client";
-import { Video, VideoOff, Mic, MicOff, Phone, Users } from "lucide-react";
+import { Video, VideoOff, Mic, MicOff, Users } from "lucide-react";
 import {
   LIVEKIT_CONFIG,
   generateRoomName,
