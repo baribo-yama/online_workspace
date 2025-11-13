@@ -4,10 +4,14 @@
  * 責務:
  * - タイトル入力フィールドの表示
  * - 名前入力フィールドの表示（共通コンポーネント使用）
+ * - Slack通知チェックボックスの表示
  * - 作成ボタンの表示と制御
  * - 制限メッセージの表示
  *
  * HomePage から抽出
+ *
+ * 機能追加 (2025-11-12):
+ * - Slack通知チェックボックスを追加
  */
 import { Users } from "lucide-react";
 import { UserNameInput } from "../shared/UserNameInput";
@@ -21,6 +25,8 @@ export const RoomCreationForm = ({
   onCreateRoom,
   currentRoomCount,
   disabled,
+  slackNotificationEnabled,
+  onSlackNotificationChange,
 }) => {
   const isLimitReached = currentRoomCount >= ROOM_LIMITS.MAX_ACTIVE_ROOMS;
 
@@ -39,20 +45,34 @@ export const RoomCreationForm = ({
       {/* 名前入力 */}
       <UserNameInput value={name} onChange={onNameChange} />
 
-      {/* 部屋を作成ボタン */}
+      {/* 部屋を作成ボタン & Slackチェックボックス */}
       <div className="mb-6">
-        <button
-          onClick={onCreateRoom}
-          disabled={disabled || isLimitReached}
-          className={`w-full font-semibold py-3 px-4 rounded-lg shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${
-            !disabled && !isLimitReached
-              ? 'bg-blue-600 hover:bg-blue-700 text-white hover:shadow-blue-500/25'
-              : 'bg-gray-600 text-gray-300 cursor-not-allowed'
-          }`}
-        >
-          <Users className="w-5 h-5" />
-          部屋を作成
-        </button>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={onCreateRoom}
+            disabled={disabled || isLimitReached}
+            className={`font-semibold py-3 px-6 rounded-lg shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${
+              !disabled && !isLimitReached
+                ? 'bg-blue-600 hover:bg-blue-700 text-white hover:shadow-blue-500/25'
+                : 'bg-gray-600 text-gray-300 cursor-not-allowed'
+            }`}
+          >
+            <Users className="w-5 h-5" />
+            部屋を作成
+          </button>
+          
+          {/* Slack通知チェックボックス */}
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={slackNotificationEnabled}
+              onChange={(e) => onSlackNotificationChange(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-blue-600 focus:ring-2 focus:ring-blue-500 focus:ring-offset-0"
+            />
+            <span className="text-sm text-gray-300">Slackで募集する</span>
+          </label>
+        </div>
+        
         {isLimitReached && (
           <div className="mt-2 p-3 bg-red-900/50 border border-red-600 rounded text-red-200 text-sm">
             同時に存在できる部屋数の上限（{ROOM_LIMITS.MAX_ACTIVE_ROOMS}部屋）に達しています

@@ -10,6 +10,9 @@
  * - ロジックをhooksに分離
  * - UIコンポーネントを分割
  * - 268行 → 約100行に削減
+ *
+ * 機能追加 (2025-11-12):
+ * - Slack連携機能を追加
  */
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -26,6 +29,7 @@ import { validateUserName } from "../../utils";
 function HomePage() {
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
+  const [slackNotificationEnabled, setSlackNotificationEnabled] = useState(true); // デフォルトON
 
   // カスタムフック
   const { rooms, loading } = useRoomsList();
@@ -35,7 +39,7 @@ function HomePage() {
 
   // 部屋作成ハンドラ
   const handleCreateRoom = () => {
-    createRoom(title, name, rooms.length).then((success) => {
+    createRoom(title, name, rooms.length, slackNotificationEnabled).then((success) => {
       if (success) {
         setTitle(""); // 作成成功時のみタイトルをクリア
       }
@@ -74,6 +78,8 @@ function HomePage() {
           onCreateRoom={handleCreateRoom}
           currentRoomCount={rooms.length}
           disabled={creating}
+          slackNotificationEnabled={slackNotificationEnabled}
+          onSlackNotificationChange={setSlackNotificationEnabled}
         />
 
         {/* 部屋一覧 */}

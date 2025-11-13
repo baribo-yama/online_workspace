@@ -7,6 +7,7 @@
  * - 作成者を参加者として登録
  * - hostIdとcreatedByの設定
  * - 作成後のナビゲーション
+ * - Slack通知の実行（オプション）
  *
  * HomePage から抽出したロジック
  *
@@ -14,6 +15,10 @@
  * - 部屋作成時にhostIdとcreatedByを設定
  * - 作成者を即座に参加者として登録
  * - リロード時のホスト権限移り変わりを修正
+ *
+ * 機能追加 (2025-11-12):
+ * - Slack連携機能を追加
+ * - slackNotificationEnabledパラメータを受け取り
  *
  * @returns {Object} { createRoom, creating }
  */
@@ -24,13 +29,15 @@ import { getRoomsCollection } from "../../../../shared/services/firebase";
 import { defaultRoom, defaultParticipant } from "../../../../shared/services/firestore";
 import { ROOM_LIMITS, ROOM_ERRORS } from "../../constants";
 import { validateRoomTitle, validateUserName } from "../../utils";
+import { useSlackNotification } from "../../../integration/slack/hooks/useSlackNotification";
 
 export const useRoomCreation = () => {
   const navigate = useNavigate();
   const [creating, setCreating] = useState(false);
+  const { notifyRoomCreated } = useSlackNotification();
 
   // 部屋作成処理
-  const createRoom = useCallback(async (title, userName, currentRoomCount) => {
+  const createRoom = useCallback(async (title, userName, currentRoomCount, slackNotificationEnabled = false) => {
     // バリデーション
     const titleValidation = validateRoomTitle(title);
     if (!titleValidation.valid) {
@@ -59,6 +66,8 @@ export const useRoomCreation = () => {
         title: title.trim(),
         createdAt: serverTimestamp(),
         createdBy: userName.trim(),  // 作成者名を設定
+        slackNotificationEnabled,    // Slack通知設定を保存
+        slackThreadTs: null,         // 初期値null
       });
 
       console.log("部屋作成成功:", roomRef.id);
@@ -85,7 +94,19 @@ export const useRoomCreation = () => {
       // 4. localStorageに参加者IDを保存（リロード時の重複防止）
       localStorage.setItem(`participantId_${roomRef.id}`, participantRef.id);
 
+      // 5. 画面遷移（即座に実行・Slack通知を待たない）
       navigate(`/room/${roomRef.id}`, { state: { name: userName.trim() } });
+
+      // 6. Slack通知（非同期・バックグラウンド実行）
+      if (slackNotificationEnabled) {
+        notifyRoomCreated({
+          roomId: roomRef.id,
+          roomTitle: title.trim(),
+          hostName: userName.trim()
+        });
+        // エラーハンドリングはuseSlackNotification内で完結
+      }
+
       return true;
     } catch (error) {
       console.error("部屋作成エラー:", error);
@@ -94,7 +115,7 @@ export const useRoomCreation = () => {
     } finally {
       setCreating(false);
     }
-  }, [navigate]);
+  }, [navigate, notifyRoomCreated]);
 
   return {
     createRoom,
