@@ -55,26 +55,26 @@ const debounce = (func, delay) => {
 const handleFirstTimeEntry = async (roomId, userName) => {
   try {
     console.log("初回入室処理開始:", userName);
-    
+
     // 1. Firestore へ新規参加者を登録
     const participantRef = await addDoc(
       collection(getRoomsCollection(), roomId, "participants"),
       {
         name: userName,
         createdAt: serverTimestamp(),
-        active: true,
+
         isHost: false, // ホスト判定は後で行う
         joinedAt: serverTimestamp(),
         lastActivity: serverTimestamp()
       }
     );
-    
+
     // 2. doc.idをlocalStorageに保存
     localStorage.setItem(`participantId_${roomId}`, participantRef.id);
-    
+
     console.log("初回入室完了:", participantRef.id);
     return participantRef.id;
-    
+
   } catch (error) {
     console.error("初回入室エラー:", error);
     throw error;
@@ -85,34 +85,34 @@ const handleFirstTimeEntry = async (roomId, userName) => {
 const handleReloadEntry = async (roomId, userName) => {
   try {
     const existingParticipantId = localStorage.getItem(`participantId_${roomId}`);
-    
+
     if (!existingParticipantId) {
       // localStorageにIDがない場合は同じ名前の既存参加者を検索して再利用
       console.log("[handleReloadEntry] localStorageに participantId がない - 同じ名前の参加者を検索");
-      
+
       try {
         const participantsRef = collection(getRoomsCollection(), roomId, "participants");
         const q = query(participantsRef, where("name", "==", userName), limit(1));
         const snapshot = await getDocs(q);
-        
+
         if (snapshot.docs.length > 0) {
           // 同じ名前の参加者が見つかった - 既存ドキュメントを再利用
           const existingDoc = snapshot.docs[0];
           const foundParticipantId = existingDoc.id;
           console.log("[handleReloadEntry] 同じ名前の参加者を発見 - 既存ID再利用:", foundParticipantId);
-          
+
           // localStorageに保存
           localStorage.setItem(`participantId_${roomId}`, foundParticipantId);
-          
+
           // 状態を更新
           await updateDoc(
             doc(getRoomsCollection(), roomId, "participants", foundParticipantId),
             {
-              active: true,
+
               lastActivity: serverTimestamp()
             }
           );
-          
+
           return foundParticipantId;
         } else {
           // 既存参加者なし - 新規作成にフォールバック
@@ -123,39 +123,39 @@ const handleReloadEntry = async (roomId, userName) => {
         console.log("[handleReloadEntry] エラー発生のため、新規参加者を作成します");
         // ネットワークエラーなどの場合は初回入室処理にフォールバック
       }
-      
+
       // 同じ名前の参加者が見つからない場合は初回入室扱い
       return await handleFirstTimeEntry(roomId, userName);
     }
-    
+
     // Firestoreで既存参加者の存在を確認
     const participantDoc = await getDoc(
       doc(getRoomsCollection(), roomId, "participants", existingParticipantId)
     );
-    
+
     if (participantDoc.exists()) {
       // 復帰処理
       console.log("復帰処理開始:", existingParticipantId);
-      
+
       // active=trueに更新（必要に応じて）
       await updateDoc(
         doc(getRoomsCollection(), roomId, "participants", existingParticipantId),
         {
-          active: true,
+
           lastActivity: serverTimestamp()
         }
       );
-      
+
       console.log("復帰完了:", existingParticipantId);
       return existingParticipantId;
-      
+
     } else {
       // docが欠落している例外時のみ新規入室扱い
       console.log("参加者docが欠落、初回入室にフォールバック");
       localStorage.removeItem(`participantId_${roomId}`);
       return await handleFirstTimeEntry(roomId, userName);
     }
-    
+
   } catch (error) {
     console.error("復帰処理エラー:", error);
     throw error;
@@ -166,17 +166,17 @@ const handleReloadEntry = async (roomId, userName) => {
 const handleExplicitExit = async (roomId, participantId) => {
   try {
     console.log("明示退出開始:", participantId);
-    
+
     // 1. Firestoreから参加者docを削除
     await deleteDoc(
       doc(getRoomsCollection(), roomId, "participants", participantId)
     );
-    
+
     // 2. localStorage.participantIdをクリア
     localStorage.removeItem(`participantId_${roomId}`);
-    
+
     console.log("明示退出完了");
-    
+
   } catch (error) {
     console.error("明示退出エラー:", error);
     // エラーが発生してもlocalStorageはクリア
@@ -190,7 +190,7 @@ const handleUnexpectedTermination = (roomId, participantId) => {
   const handleBeforeUnload = () => {
     // Firestoreは削除しないことを保証
     console.log("予期しない終了検出、Firestoreは削除しない");
-    
+
     // 必要に応じてlastActivityを更新
     updateDoc(
       doc(getRoomsCollection(), roomId, "participants", participantId),
@@ -199,9 +199,9 @@ const handleUnexpectedTermination = (roomId, participantId) => {
       console.error("lastActivity更新エラー:", error);
     });
   };
-  
+
   window.addEventListener('beforeunload', handleBeforeUnload);
-  
+
   return () => {
     window.removeEventListener('beforeunload', handleBeforeUnload);
   };
@@ -223,7 +223,7 @@ const cleanupDuplicateParticipants = async (roomId, myParticipantId) => {
 
     // 自分以外の参加者で、localStorageに保存されているIDと一致しない参加者を削除
     const storedId = localStorage.getItem(`participantId_${roomId}`);
-    
+
     if (!storedId || storedId !== myParticipantId) {
       if (import.meta.env.DEV) {
         console.warn("localStorage の participantId が不正です");
@@ -279,7 +279,7 @@ export const useParticipants = (roomId, userName) => {
     debounce(async (roomId, count) => {
       try {
         const roomRef = doc(getRoomsCollection(), roomId);
-        
+
         // ルームドキュメントの存在確認
         const roomDoc = await getDoc(roomRef);
         if (!roomDoc.exists()) {
@@ -288,11 +288,11 @@ export const useParticipants = (roomId, userName) => {
           }
           return;
         }
-        
+
         await updateDoc(roomRef, {
           participantsCount: count
         });
-        
+
         if (import.meta.env.DEV) {
           console.log("参加者数を更新:", count);
         }
@@ -320,19 +320,19 @@ export const useParticipants = (roomId, userName) => {
 
         // リロード/復帰処理（仕様書通り）
         participantId = await handleReloadEntry(roomId, userName);
-        
+
         if (!isUnmountingRef.current) {
           setMyParticipantId(participantId);
-          
+
           // 参加者ID取得後にクリーンアップを設定（PRレビュー対応）
           cleanup = handleUnexpectedTermination(roomId, participantId);
-          
+
           // 参加者ID取得後、重複データをクリーンアップ
           setTimeout(() => {
             cleanupDuplicateParticipants(roomId, participantId);
           }, 2000); // 2秒後にクリーンアップ実行（Firestore同期を待つ）
         }
-        
+
       } catch (error) {
         console.error("参加者登録エラー:", error);
       }
@@ -345,11 +345,11 @@ export const useParticipants = (roomId, userName) => {
       if (cleanup) {
         cleanup();
       }
-      
+
       // 明示退出時のみ削除処理
       // リロード時は削除しない
     };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [roomId, userName]); // myParticipantIdは依存配列から削除（重複登録防止のため）
 
   // 参加者リストの監視（仕様書完全準拠 + 参加者数更新）
@@ -365,16 +365,13 @@ export const useParticipants = (roomId, userName) => {
         ...doc.data()
       }));
 
-      // アクティブな参加者のみをフィルタリング
-      const activeParticipants = participants.filter(participant => 
-        participant.active !== false
-      );
 
-      setParticipants(activeParticipants);
+
+      setParticipants(participants);
       setParticipantsLoading(false);
-      
+
       // デバウンス付きで参加者数を更新
-      updateParticipantsCountRef.current(roomId, activeParticipants.length);
+      updateParticipantsCountRef.current(roomId, participants.length);
     });
 
     return unsubscribe;

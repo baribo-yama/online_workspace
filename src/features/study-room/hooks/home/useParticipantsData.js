@@ -3,7 +3,6 @@
  *
  * 責務:
  * - 各部屋の参加者をFirestoreから取得
- * - アクティブな参加者のみをフィルタ
  * - 部屋IDをキーとした参加者マップを返す
  *
  * HomePage から抽出したロジック
@@ -14,7 +13,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { collection, query, orderBy, getDocs } from "firebase/firestore";
 import { getRoomsCollection } from "../../../../shared/services/firebase";
-import { isParticipantActive } from "../../utils";
+
 
 export const useParticipantsData = (rooms) => {
   const [roomParticipants, setRoomParticipants] = useState({});
@@ -35,11 +34,8 @@ export const useParticipantsData = (rooms) => {
           ...doc.data()
         }));
 
-        // アクティブな参加者のみをフィルタ
-        const now = Date.now();
-        const activeParticipants = participants.filter(p => isParticipantActive(p, now));
-
-        return { roomId: room.id, participants: activeParticipants.map(p => p.name) };
+      // 取得した参加者名をそのまま返却する
+      return { roomId: room.id, participants: participants.map(p => p.name) };
       } catch (error) {
         console.error(`部屋 ${room.id} の参加者取得エラー:`, error);
         return { roomId: room.id, participants: [] };
