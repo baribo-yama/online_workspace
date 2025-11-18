@@ -105,6 +105,16 @@ npm run lint
    - Verify dist/ folder is created with all assets
    - Run `npm run preview` and test basic functionality
 
+6. **Slack Feature Flag Validation:**
+    - Set `VITE_SLACK_FEATURE_ENABLED=false` and restart dev server
+       - Verify the Slack checkbox does not appear on Home
+       - Create a room and ensure no Slack network calls are attempted
+    - Set `VITE_SLACK_FEATURE_ENABLED=true` (leave Function URL/Channel ID empty)
+       - Verify the Slack checkbox appears
+       - Create a room with checkbox ON: verify no errors, and notifications are safely no-op
+    - Set all Slack envs valid (Function URL + Channel ID) and feature flag true
+       - Create a room with checkbox ON: verify Slack thread creation and thread_ts stored
+
 ## Build Times and Timeouts
 
 - **NEVER CANCEL** any build or long-running command
@@ -189,7 +199,28 @@ VITE_LIVEKIT_API_SECRET=your_api_secret
 VITE_WEBSOCKET_URL=ws://localhost:8080
 ```
 
+**Optional: Slack Integration**
+```bash
+# Feature flag - toggles UI and notifications
+# Accepts: true/false/1/0 (defaults to true when unset)
+VITE_SLACK_FEATURE_ENABLED=true
+
+# Cloud Function proxy that posts to Slack (do NOT expose tokens in frontend)
+VITE_SLACK_FUNCTION_URL=https://your-cloud-function-url
+
+# Target Slack channel ID (e.g., C0123456789)
+VITE_SLACK_CHANNEL_ID=
+```
+
 **Note:** Application works without valid credentials using demo/local data.
+
+### Slack Feature Flag Behavior
+- When `VITE_SLACK_FEATURE_ENABLED=false`:
+   - Hide the Slack checkbox on Home; notifications are always off
+- When `VITE_SLACK_FEATURE_ENABLED=true` but Slack URL/Channel are empty:
+   - Show the checkbox, but sending is safely no-op
+- When all Slack envs are set and flag is true:
+   - Checkbox ON will post via Cloud Functions and store thread_ts
 
 ## Known Issues and Workarounds
 
