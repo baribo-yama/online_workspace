@@ -19,20 +19,17 @@ import {
   RoomEvent,
   RemoteParticipant,
   LocalParticipant,
-  Track
-} from 'livekit-client';
-import { 
-  Video, 
-  VideoOff, 
-  Mic, 
-  MicOff, 
-  Phone,
-  Users
-} from 'lucide-react';
-import { LIVEKIT_CONFIG, generateRoomName, generateParticipantName, fetchLivekitToken } from '../config/livekit';
-import { TIMINGS, AUDIO } from '../constants';
-import { stopAllLocalTracks } from '../utils/streamUtils';
-
+  Track,
+} from "livekit-client";
+import { Video, VideoOff, Mic, MicOff, Phone, Users } from "lucide-react";
+import {
+  LIVEKIT_CONFIG,
+  generateRoomName,
+  generateParticipantName,
+  fetchLivekitToken,
+} from "../config/livekit";
+import { TIMINGS, AUDIO } from "../constants";
+import { stopAllLocalTracks } from "../utils/streamUtils";
 
 // =============================================
 // Configuration constants
@@ -754,9 +751,9 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
 
       // LiveKit設定を確認
       if (import.meta.env.DEV) {
-      console.log('LiveKit設定確認:', {
-        serverUrl: LIVEKIT_CONFIG.serverUrl,
-      });
+        console.log("LiveKit設定確認:", {
+          serverUrl: LIVEKIT_CONFIG.serverUrl,
+        });
       }
 
       // アクセストークンを生成
@@ -764,19 +761,21 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
       try {
         token = await fetchLivekitToken(roomName, participantName);
         if (!token) {
-          throw new Error('トークンの取得に失敗しました');
+          throw new Error("トークンの取得に失敗しました");
         }
       } catch (tokenError) {
-        console.error('LiveKitトークン取得エラー:', tokenError);
-        
+        console.error("LiveKitトークン取得エラー:", tokenError);
+
         // Cloud Functionsのエラーを判定
-        let errorMessage = 'ビデオ通話の認証に失敗しました。もう一度お試しください。';
-        if (tokenError.code === 'functions/unavailable') {
-          errorMessage = 'サーバーに接続できませんでした。ネットワークを確認してください。';
-        } else if (tokenError.code === 'functions/invalid-argument') {
-          errorMessage = '認証情報が不正です。';
+        let errorMessage =
+          "ビデオ通話の認証に失敗しました。もう一度お試しください。";
+        if (tokenError.code === "functions/unavailable") {
+          errorMessage =
+            "サーバーに接続できませんでした。ネットワークを確認してください。";
+        } else if (tokenError.code === "functions/invalid-argument") {
+          errorMessage = "認証情報が不正です。";
         }
-        
+
         setError(errorMessage);
         throw tokenError; // 外側のcatchに伝播させて処理を中断（既にsetErrorでエラー表示済み）
       }
