@@ -17,9 +17,26 @@ import { httpsCallable } from 'firebase/functions';
 import { functions } from '@/shared/services/firebase';
 
 export const fetchLivekitToken = async (roomName, identity) => {
-  const callable = httpsCallable(functions, 'createLivekitToken');
-  const { data } = await callable({ roomName, identity });
-  return data.token;
+  try {
+    const callable = httpsCallable(functions, 'createLivekitToken');
+    const { data } = await callable({ roomName, identity });
+    
+    if (!data || !data.token) {
+      throw new Error('トークンが返されませんでした');
+    }
+    
+    return data.token;
+  } catch (error) {
+    console.error('LiveKitトークン取得失敗:', error);
+    
+    // HttpsErrorの場合はcodeプロパティを保持してそのまま再スロー
+    if (error.code) {
+      throw error;
+    }
+    
+    // その他のエラーの場合は新しいErrorをスロー
+    throw new Error(`トークン取得エラー: ${error.message}`);
+  }
 };
 
 export const LIVEKIT_CONFIG = {
@@ -64,6 +81,9 @@ export const LIVEKIT_CONFIG = {
 
 // LiveKitルーム名を生成（Firebaseの部屋IDを使用）
 export const generateRoomName = (roomId) => {
+  if (!roomId || typeof roomId !== 'string') {
+    throw new Error('roomId is required and must be a string');
+  }
   return `room-${roomId}`;
 };
 
