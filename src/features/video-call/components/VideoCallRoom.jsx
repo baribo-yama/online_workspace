@@ -29,7 +29,7 @@ import {
   Phone,
   Users
 } from 'lucide-react';
-import { LIVEKIT_CONFIG, generateRoomName, generateParticipantName, generateAccessToken } from '../config/livekit';
+import { LIVEKIT_CONFIG, generateRoomName, generateParticipantName, fetchLivekitToken } from '../config/livekit';
 import { TIMINGS, AUDIO } from '../constants';
 import { stopAllLocalTracks } from '../utils/streamUtils';
 
@@ -749,13 +749,11 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
       if (import.meta.env.DEV) {
       console.log('LiveKit設定確認:', {
         serverUrl: LIVEKIT_CONFIG.serverUrl,
-        apiKey: LIVEKIT_CONFIG.apiKey ? '設定済み' : '未設定',
-        apiSecret: LIVEKIT_CONFIG.apiSecret ? '設定済み' : '未設定'
       });
       }
 
       // アクセストークンを生成
-      const token = await generateAccessToken(roomName, participantName);
+      const token = await fetchLivekitToken(roomName, participantName);
 
       // 既存の接続を切断
       if (roomRef.current) {

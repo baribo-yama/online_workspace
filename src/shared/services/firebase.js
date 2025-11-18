@@ -1,6 +1,7 @@
 // Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
 import { getFirestore, collection } from "firebase/firestore";
+import { getFunctions } from "firebase/functions";
 // TODO: Add SDKs for Firebase products that you want to use
 // https://firebase.google.com/docs/web/setup#available-libraries
 
@@ -20,6 +21,10 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 // Firestoreを使えるようにexport
 export const db = getFirestore(app);
+
+// firebase cloud functionsの初期化
+const functions = getFunctions(app, "asia-northeast1");
+export { functions };
 
 // 環境（本番、開発）ごとにコレクションの接頭辞を変える
 export const DB_PREFIX = import.meta.env.MODE === "production" ? "prod_" : "dev_";

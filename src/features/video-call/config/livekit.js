@@ -13,11 +13,18 @@
  */
 
 // === LiveKit基本設定 ===
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '@/shared/services/firebase';
+
+export const fetchLivekitToken = async (roomName, identity) => {
+  const callable = httpsCallable(functions, 'createLivekitToken');
+  const { data } = await callable({ roomName, identity });
+  return data.token;
+};
+
 export const LIVEKIT_CONFIG = {
   // 環境変数から取得（フォールバック付き）
   serverUrl: import.meta.env.VITE_LIVEKIT_URL || 'https://onlineworkspace-xu7dilqe.livekit.cloud',
-  apiKey: import.meta.env.VITE_LIVEKIT_API_KEY || 'dev-api-key',
-  apiSecret: import.meta.env.VITE_LIVEKIT_API_SECRET || 'dev-api-secret',
   
   // デフォルト設定
   defaultOptions: {
@@ -65,53 +72,53 @@ export const generateParticipantName = (userName) => {
   return userName || 'Guest';
 };
 
-// LiveKitトークンを生成するための関数（開発用）
-export const generateAccessToken = async (roomName, participantName) => {
-  // 注意: 本番環境では、サーバーサイドでトークンを生成する必要があります
-  // ここでは開発用のクライアントサイド実装です
+// // LiveKitトークンを生成するための関数（開発用）
+// export const generateAccessToken = async (roomName, participantName) => {
+//   // 注意: 本番環境では、サーバーサイドでトークンを生成する必要があります
+//   // ここでは開発用のクライアントサイド実装です
   
-  if (!LIVEKIT_CONFIG.apiKey || !LIVEKIT_CONFIG.apiSecret) {
-    console.error('LiveKit API KeyまたはSecretが設定されていません');
-    return null;
-  }
+//   if (!LIVEKIT_CONFIG.apiKey || !LIVEKIT_CONFIG.apiSecret) {
+//     console.error('LiveKit API KeyまたはSecretが設定されていません');
+//     return null;
+//   }
 
-  try {
-    // 設定値をログ出力（デバッグ用）
-    console.log('LiveKit設定確認:', {
-      serverUrl: LIVEKIT_CONFIG.serverUrl,
-      hasApiKey: !!LIVEKIT_CONFIG.apiKey,
-      hasApiSecret: !!LIVEKIT_CONFIG.apiSecret,
-      apiKeyLength: LIVEKIT_CONFIG.apiKey?.length,
-      apiSecretLength: LIVEKIT_CONFIG.apiSecret?.length,
-      isUsingEnvVars: !!(import.meta.env.VITE_LIVEKIT_URL && import.meta.env.VITE_LIVEKIT_API_KEY && import.meta.env.VITE_LIVEKIT_API_SECRET)
-    });
+//   try {
+//     // 設定値をログ出力（デバッグ用）
+//     console.log('LiveKit設定確認:', {
+//       serverUrl: LIVEKIT_CONFIG.serverUrl,
+//       hasApiKey: !!LIVEKIT_CONFIG.apiKey,
+//       hasApiSecret: !!LIVEKIT_CONFIG.apiSecret,
+//       apiKeyLength: LIVEKIT_CONFIG.apiKey?.length,
+//       apiSecretLength: LIVEKIT_CONFIG.apiSecret?.length,
+//       isUsingEnvVars: !!(import.meta.env.VITE_LIVEKIT_URL && import.meta.env.VITE_LIVEKIT_API_KEY && import.meta.env.VITE_LIVEKIT_API_SECRET)
+//     });
 
-    // joseライブラリを使用してJWTトークンを生成
-    const { SignJWT } = await import('jose');
+//     // joseライブラリを使用してJWTトークンを生成
+//     const { SignJWT } = await import('jose');
     
-    const secret = new TextEncoder().encode(LIVEKIT_CONFIG.apiSecret);
+//     const secret = new TextEncoder().encode(LIVEKIT_CONFIG.apiSecret);
     
-    const token = await new SignJWT({
-      video: {
-        room: roomName,
-        roomJoin: true,
-        canPublish: true,
-        canSubscribe: true,
-      },
-    })
-      .setProtectedHeader({ alg: 'HS256' })
-      .setIssuedAt()
-      .setExpirationTime('1h')
-      .setIssuer(LIVEKIT_CONFIG.apiKey)
-      .setSubject(participantName)
-      .sign(secret);
+//     const token = await new SignJWT({
+//       video: {
+//         room: roomName,
+//         roomJoin: true,
+//         canPublish: true,
+//         canSubscribe: true,
+//       },
+//     })
+//       .setProtectedHeader({ alg: 'HS256' })
+//       .setIssuedAt()
+//       .setExpirationTime('1h')
+//       .setIssuer(LIVEKIT_CONFIG.apiKey)
+//       .setSubject(participantName)
+//       .sign(secret);
     
-    console.log('開発用トークン生成完了:', { roomName, participantName, tokenLength: token.length });
-    return token;
+//     console.log('開発用トークン生成完了:', { roomName, participantName, tokenLength: token.length });
+//     return token;
     
-  } catch (error) {
-    console.error('トークン生成エラー:', error);
-    return null;
-  }
-};
+//   } catch (error) {
+//     console.error('トークン生成エラー:', error);
+//     return null;
+//   }
+// };
 
