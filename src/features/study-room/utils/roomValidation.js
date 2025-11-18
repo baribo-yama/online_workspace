@@ -43,21 +43,5 @@ export const canCreateRoom = (currentRoomCount) => {
   return currentRoomCount < ROOM_LIMITS.MAX_ACTIVE_ROOMS;
 };
 
-/**
- * 参加者がアクティブかどうかの判定
- * @param {Object} participant - 参加者オブジェクト
- * @param {number} now - 現在時刻（ミリ秒）
- * @returns {boolean} アクティブならtrue
- */
-export const isParticipantActive = (participant, now) => {
-  if (!participant.joinedAt) {
-    return true; // joinedAtがない場合はアクティブとみなす
-  }
 
-  const joinedTime = participant.joinedAt.toDate
-    ? participant.joinedAt.toDate().getTime()
-    : participant.joinedAt;
-
-  return (now - joinedTime) <= ROOM_LIMITS.PARTICIPANT_TIMEOUT_MS;
-};
 
