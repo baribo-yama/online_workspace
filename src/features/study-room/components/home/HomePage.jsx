@@ -10,6 +10,9 @@
  * - ロジックをhooksに分離
  * - UIコンポーネントを分割
  * - 268行 → 約100行に削減
+ *
+ * 機能追加 (2025-11-12):
+ * - Slack連携機能を追加
  */
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -21,11 +24,14 @@ import { useUserName } from "../../hooks/shared/useUserName";
 import { RoomCreationForm } from "./RoomCreationForm";
 import { RoomList } from "./RoomList";
 import { ROOM_LIMITS } from "../../constants";
+import { isSlackFeatureEnabled } from "../../../integration/slack/constants/config";
 import { validateUserName } from "../../utils";
 
 function HomePage() {
   const navigate = useNavigate();
   const [title, setTitle] = useState("");
+  const [slackNotificationEnabled, setSlackNotificationEnabled] = useState(true); // デフォルトON
+  const slackFeatureOn = isSlackFeatureEnabled();
 
   // カスタムフック
   const { rooms, loading } = useRoomsList();
@@ -35,7 +41,9 @@ function HomePage() {
 
   // 部屋作成ハンドラ
   const handleCreateRoom = () => {
-    createRoom(title, name, rooms.length).then((success) => {
+    // 機能フラグがOFFなら強制的にfalseで渡す
+    const effectiveSlack = slackFeatureOn && slackNotificationEnabled;
+    createRoom(title, name, rooms.length, effectiveSlack).then((success) => {
       if (success) {
         setTitle(""); // 作成成功時のみタイトルをクリア
       }
@@ -74,6 +82,9 @@ function HomePage() {
           onCreateRoom={handleCreateRoom}
           currentRoomCount={rooms.length}
           disabled={creating}
+          slackNotificationEnabled={slackNotificationEnabled}
+          onSlackNotificationChange={setSlackNotificationEnabled}
+          showSlackCheckbox={slackFeatureOn}
         />
 
         {/* 部屋一覧 */}

@@ -10,15 +10,19 @@
  * - ロジックをhooksに分離
  * - UIコンポーネントを分割
  * - 238行 → 約100行に削減
+ *
+ * 機能追加 (2025-11-12):
+ * - Slack連携機能（参加通知）を追加
  */
 import { useParams, useLocation, useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParticipants } from "../../../collaboration/hooks/useParticipants";
 import { useNotification } from "../../../entertainment/hooks/useNotification";
 import { useRoomData } from "../../hooks/room/useRoomData";
 import { useRoomActions } from "../../hooks/room/useRoomActions";
 import { useRoomPermissions } from "../../hooks/room/useRoomPermissions";
 import { useHostInactivity } from "../../hooks/room/useHostInactivity";
+import { useSlackNotification } from "../../../integration/slack/hooks/useSlackNotification";
 import { InactivityConfirmationToast } from "./InactivityConfirmationToast";
 import { LoadingScreen } from "../shared/LoadingScreen";
 import { RoomSidebar } from "./RoomSidebar";
@@ -39,6 +43,7 @@ function RoomPage() {
   const { participants, participantsLoading, myParticipantId, leaveRoom } =
     useParticipants(roomId, userName);
   const { requestPermission } = useNotification();
+  const { notifyParticipantJoined } = useSlackNotification();
 
   // ===== 権限チェック =====
   const { isHost, gameStatus } = useRoomPermissions(room, myParticipantId);
@@ -57,8 +62,30 @@ function RoomPage() {
   // ===== ローカル状態管理 =====
   const [showGame, setShowGame] = useState(false);
   const [wasHost, setWasHost] = useState(false);
+  const hasNotifiedJoinRef = useRef(false); // Slack通知済みフラグ
 
   // ===== 副作用 =====
+
+  // Slack参加通知（参加者ID取得後、1回のみ実行）
+  useEffect(() => {
+    if (!myParticipantId || hasNotifiedJoinRef.current) return;
+    if (!room?.slackThreadTs) return; // Slack通知が有効な部屋のみ
+    
+    // 自分がホストの場合は通知しない（部屋作成時に既に通知済み）
+    if (isHost) {
+      hasNotifiedJoinRef.current = true;
+      return;
+    }
+
+    // Slack参加通知を送信
+    notifyParticipantJoined({
+      threadTs: room.slackThreadTs,
+      userName,
+      participantCount: participants.length
+    });
+
+    hasNotifiedJoinRef.current = true;
+  }, [myParticipantId, room?.slackThreadTs, isHost, userName, participants.length, notifyParticipantJoined]);
 
   // ホスト権限昇格の通知
   useEffect(() => {
