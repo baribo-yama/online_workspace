@@ -6,10 +6,10 @@
 
 // ルーム制限
 export const ROOM_LIMITS = {
-  MAX_PARTICIPANTS: 8,            // 1部屋の最大参加者数10にするにはVideoCallRoom.jsxのグリッド設定を10人以上に対応させる必要あり
-  MAX_ACTIVE_ROOMS: 10,            // 同時に存在できる最大部屋数（MVP制限）
-  PARTICIPANT_TIMEOUT_MS: 300000, // 参加者のタイムアウト（5分）
-  ROOMS_LIST_LIMIT: 10,           // 部屋一覧の取得上限
+  MAX_PARTICIPANTS: 8,            // 1部屋の最大参加者数
+  MAX_ACTIVE_ROOMS: 20,            // 同時に存在できる最大部屋数（MVP制限）
+  ROOMS_LIST_LIMIT: 20,           // 部屋一覧の取得上限
+
 };
 
 // ホスト確認通知の設定
