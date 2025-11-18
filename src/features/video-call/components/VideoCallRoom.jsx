@@ -1011,10 +1011,9 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
               // 音声トラックを即座にアタッチして自動再生（遅延なし）
               attachAudioTrack(track, participant);
               
-              // 音声トラックの場合も参加者リストを更新
-              setTimeout(() => {
-                updateParticipants();
-              }, TRACK_ATTACHMENT_DELAY);
+              // 音声トラックの場合も参加者リストを即座に更新
+              // ビデオトラックと一貫性を保つため、即座に実行する
+              updateParticipants();
             }
           }
         );
@@ -1273,6 +1272,11 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
         newAudioState
       );
       setIsAudioEnabled(newAudioState);
+      
+      // 参加者情報を更新してReactの再描画を発生させる
+      // LiveKit側の参加者情報が変わったことをReactに反映させる
+      // toggleVideoと一貫性を保つため、updateParticipants()を呼び出す
+      updateParticipants();
 
       if (import.meta.env.DEV) {
         console.log("マイク状態切り替え:", newAudioState);
@@ -1280,7 +1284,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
     } catch (error) {
       console.error("マイク切り替えエラー:", error);
     }
-  }, [isAudioEnabled]);
+  }, [isAudioEnabled, updateParticipants]);
 
   // === コンポーネントライフサイクル管理 ===
   // コンポーネントマウント時に接続（依存配列を空にしてリロード時の再実行を防ぐ）
