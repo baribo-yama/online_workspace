@@ -7,7 +7,7 @@ import { ROOM_LIMITS } from "./limits";
 
 // エラーメッセージ（動的に生成）
 export const ROOM_ERRORS = {
-  NOT_FOUND: "部屋が見つかりません",
+  NOT_FOUND: "部屋が終了しました",
   ROOM_FULL: "この部屋は満員です",
   NOT_HOST: "部屋を終了できるのはホストのみです",
   END_FAILED: "部屋の終了に失敗しました。もう一度お試しください",
