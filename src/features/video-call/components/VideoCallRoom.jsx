@@ -997,6 +997,10 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
                   attachVideoTrackRef.current(track, participant, false);
                 }
               }, TRACK_ATTACHMENT_DELAY);
+              
+              // 参加者情報を即座に更新してReactの再描画を発生させる
+              // setTimeoutで遅延させると、リモート参加者のカメラ状態変更が即座に反映されない
+              updateParticipants();
             }
 
             // 音声トラックの処理（即座に実行）
@@ -1006,12 +1010,12 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
               }
               // 音声トラックを即座にアタッチして自動再生（遅延なし）
               attachAudioTrack(track, participant);
+              
+              // 音声トラックの場合も参加者リストを更新
+              setTimeout(() => {
+                updateParticipants();
+              }, TRACK_ATTACHMENT_DELAY);
             }
-
-            // 参加者リストの更新
-            setTimeout(() => {
-              updateParticipants();
-            }, TRACK_ATTACHMENT_DELAY);
           }
         );
 
@@ -1085,10 +1089,9 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
                 }
               }
 
-              // 3. 参加者リストを更新
-              setTimeout(() => {
-                updateParticipants();
-              }, TRACK_ATTACHMENT_DELAY);
+              // 3. 参加者リストを即座に更新してReactの再描画を発生させる
+              // setTimeoutで遅延させると、リモート参加者のカメラ状態変更が即座に反映されない
+              updateParticipants();
             }
           }
         );
@@ -1238,6 +1241,11 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
       const newVideoState = !isVideoEnabled;
       await roomRef.current.localParticipant.setCameraEnabled(newVideoState);
       setIsVideoEnabled(newVideoState);
+      
+      // 参加者情報を更新してReactの再描画を発生させる
+      // LiveKit側の参加者情報が変わったことをReactに反映させる
+      // リモート参加者の画面でも、ローカル参加者のvideoTrackPublicationsの変更を検知できるようにする
+      updateParticipants();
 
       if (import.meta.env.DEV) {
         console.log("カメラ状態切り替え:", newVideoState);
@@ -1245,7 +1253,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
     } catch (error) {
       console.error("カメラ切り替えエラー:", error);
     }
-  }, [isVideoEnabled]);
+  }, [isVideoEnabled, updateParticipants]);
 
   /**
    * オーディオ（マイク）のオン/オフを切り替える関数
@@ -1691,6 +1699,9 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
                     })`
                   );
                 }
+                // ビデオトラックアタッチ成功後に参加者情報を更新
+                // リモート参加者の画面でも、ローカル参加者のvideoTrackPublicationsの変更を検知できるようにする
+                updateParticipants();
               } catch (error) {
                 console.warn(
                   `ローカルビデオトラックアタッチ失敗 (試行 ${
@@ -1726,7 +1737,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
         );
       }
     };
-  }, [localParticipant]);
+  }, [localParticipant, updateParticipants]);
 
   // === リモートビデオトラック管理 ===
   /**
