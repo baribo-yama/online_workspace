@@ -260,6 +260,81 @@ match /{prefix}_rooms/{roomId} {
 - Firestore ルールで `request.auth.uid` が使えるようになる
 - ユーザーごとの操作を追跡可能
 
+**重要なポイント: 「ログインなし」要件との整合性**
+
+Firebase Auth の匿名認証は、**ユーザーが明示的にログイン操作を行う必要がありません**。以下の特徴があります：
+
+- **自動認証**: アプリ起動時に自動的に匿名ユーザーとして認証される
+- **ユーザー体験**: ユーザーは「ログイン」を意識しない（ログインボタンやフォームが不要）
+- **セキュリティ向上**: サーバー側で管理される `uid` により、クライアント側での改ざんが不可能
+- **追跡可能**: `request.auth.uid` により、ユーザーごとの操作を追跡・制限可能
+
+**UUID と Firebase Auth 匿名認証の違い**
+
+| 項目 | 手動UUID | Firebase Auth匿名認証 |
+|------|---------|---------------------|
+| 生成方法 | クライアント側で生成 | Firebaseが自動生成 |
+| 改ざん可能性 | 自由に設定可能 | サーバー側で管理（改ざん不可） |
+| 追跡可能性 | 困難 | `request.auth.uid`で追跡可能 |
+| レート制限 | 実装が困難 | `request.auth.uid`ベースで実装可能 |
+| ユーザー体験 | ログイン不要 | ログイン不要（自動認証） |
+| セキュリティ | 低（なりすまし可能） | 高（サーバー管理） |
+
+**LiveKit トークン発行時の認証チェック実装例**
+
+```javascript
+// functions/livekit/token.js
+const createLivekitToken = onCall(
+  {
+    region: "asia-northeast1",
+    secrets: ["LIVEKIT_API_KEY", "LIVEKIT_API_SECRET"],
+  },
+  async (request) => {
+    // 匿名認証済みかチェック（ユーザーはログインを意識しない）
+    if (!request.auth) {
+      throw new HttpsError('unauthenticated', '認証が必要です');
+    }
+    
+    const { roomName } = request.data;
+    // identityはrequest.auth.uidから取得（クライアント側で改ざん不可）
+    const identity = request.auth.uid;
+    
+    if (!roomName) {
+      throw new HttpsError("invalid-argument", "roomName は必須です");
+    }
+    
+    // ... トークン生成処理
+  }
+);
+```
+
+**フロントエンド側の実装例**
+
+```javascript
+// src/shared/services/firebase.js
+import { getAuth, signInAnonymously } from 'firebase/auth';
+
+const auth = getAuth(app);
+
+// アプリ起動時に自動的に匿名認証（ユーザー操作不要）
+signInAnonymously(auth).catch((error) => {
+  console.error('匿名認証エラー:', error);
+});
+
+// src/features/video-call/config/livekit.js
+export const fetchLivekitToken = async (roomName) => {
+  const callable = httpsCallable(functions, 'createLivekitToken');
+  // identityは送信しない（サーバー側でrequest.auth.uidから取得）
+  const { data } = await callable({ roomName });
+  return data.token;
+};
+```
+
+**注意点**:
+- 匿名認証は「ログインなし」の要件を満たしますが、セキュリティは大幅に向上します
+- クライアント側で `identity` を自由に設定できなくなるため、なりすましやスパムを防げます
+- レート制限やユーザー追跡が容易になります
+
 ---
 
 ### **2-2. Cloud Functions 経由のデータ操作**
@@ -599,7 +674,7 @@ firebase emulators:start --only firestore
 
 ---
 
-**レポート作成日:** 2025-11-15  
-**最終更新日:** 2025-11-15  
+**レポート作成日:** 2025-11-18
+**最終更新日:** 2025-11-18 
 **次回レビュー予定:** フェーズ1完了後
 

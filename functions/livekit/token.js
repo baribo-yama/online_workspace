@@ -29,6 +29,15 @@ const createLivekitToken = onCall(
         throw new HttpsError("invalid-argument", "roomName と identity は必須です");
       }
 
+      // 型と長さのバリデーション
+      if (typeof roomName !== 'string' || roomName.length === 0 || roomName.length > 100) {
+        throw new HttpsError("invalid-argument", "roomName は1-100文字の文字列である必要があります");
+      }
+
+      if (typeof identity !== 'string' || identity.length === 0 || identity.length > 100) {
+        throw new HttpsError("invalid-argument", "identity は1-100文字の文字列である必要があります");
+      }
+
       const apiKey = process.env.LIVEKIT_API_KEY;
       const apiSecret = process.env.LIVEKIT_API_SECRET;
 

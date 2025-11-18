@@ -68,10 +68,10 @@ VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
 VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
 VITE_FIREBASE_APP_ID=your_app_id
 
-# LiveKit設定
+# LiveKit設定（URLのみ。API Key/Secretはサーバーサイドで管理）
 VITE_LIVEKIT_URL=wss://your-livekit-server.com
-VITE_LIVEKIT_API_KEY=your_livekit_api_key
-VITE_LIVEKIT_API_SECRET=your_livekit_api_secret
+# 注意: VITE_LIVEKIT_API_KEY と VITE_LIVEKIT_API_SECRET は設定しないでください
+# これらは Firebase Secret Manager で管理されます（LIVEKIT_SETUP.md を参照）
 
 # WebSocket設定
 VITE_WEBSOCKET_URL=ws://localhost:8080  # 開発環境
@@ -155,10 +155,10 @@ VITE_FIREBASE_STORAGE_BUCKET=your_project.appspot.com
 VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
 VITE_FIREBASE_APP_ID=your_app_id
 
-# LiveKit設定（開発環境と同じ）
+# LiveKit設定（URLのみ。API Key/Secretはサーバーサイドで管理）
 VITE_LIVEKIT_URL=wss://your-livekit-server.com
-VITE_LIVEKIT_API_KEY=your_livekit_api_key
-VITE_LIVEKIT_API_SECRET=your_livekit_api_secret
+# 注意: VITE_LIVEKIT_API_KEY と VITE_LIVEKIT_API_SECRET は設定しないでください
+# これらは Firebase Secret Manager で管理されます（LIVEKIT_SETUP.md を参照）
 ```
 
 ### インストールと起動
@@ -203,7 +203,8 @@ online_workspace/
 **注意**:
 - 環境変数を変更した場合は、開発サーバーを再起動してください
 - 本番環境では`.env.production`ファイルの設定が自動的に使用されます
- - SlackのBot Tokenなどの秘密値はフロントの.envに置かないでください（Cloud Functions/Secret Managerで管理）
+- **LiveKitのAPI Key/Secretは`.env`ファイルに設定しないでください**（Firebase Secret Managerで管理。詳細は`LIVEKIT_SETUP.md`を参照）
+- SlackのBot Tokenなどの秘密値はフロントの.envに置かないでください（Cloud Functions/Secret Managerで管理）
 
 ### Slack機能フラグの挙動
 - `VITE_SLACK_FEATURE_ENABLED=true` のとき
