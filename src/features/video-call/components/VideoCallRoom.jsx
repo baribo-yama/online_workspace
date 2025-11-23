@@ -13,7 +13,7 @@
  * @param {function} onRoomDisconnected - Room disconnection callback
  * @param {function} onLeaveRoom - Room leave callback
  */
-import React, { useEffect, useState, useRef, useCallback, memo } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo, memo } from 'react';
 import { 
   Room, 
   RoomEvent, 
@@ -34,7 +34,7 @@ import {
 import { LIVEKIT_CONFIG, generateRoomName, generateParticipantName, generateAccessToken } from '../config/livekit';
 import { TIMINGS, AUDIO } from '../constants';
 import { stopAllLocalTracks } from '../utils/streamUtils';
-import { doc, runTransaction, onSnapshot, updateDoc } from 'firebase/firestore';
+import { doc, runTransaction, onSnapshot, updateDoc, getDoc } from 'firebase/firestore';
 import { getRoomsCollection, db } from '../../../shared/services/firebase';
 
 
@@ -63,6 +63,14 @@ const AUDIO_LEVEL_MONITORING_RETRY_CONFIG = {
   FALLBACK_RETRY_DELAY_MS: 1000, // フォールバック再試行時の遅延
 };
 
+// 画面共有状態の定数
+const SHARE_STATE = {
+  IDLE: 'idle',
+  LOCKING: 'locking',
+  SHARING_REQUEST: 'sharingRequest',
+  SHARING_ACTIVE: 'sharingActive',
+};
+
 
 function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
   // =============================================
@@ -76,7 +84,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
   const [isAudioEnabled, setIsAudioEnabled] = useState(false); // オーディオ有効状態（デフォルトOFF）
   const [audioLevel, setAudioLevel] = useState(0); // 音声レベル
   const [isSpeaking, setIsSpeaking] = useState(false); // 話している状態
-  const [shareState, setShareState] = useState('idle'); // 画面共有状態: 'idle' | 'locking' | 'sharingRequest' | 'sharingActive'
+  const [shareState, setShareState] = useState(SHARE_STATE.IDLE); // 画面共有状態
   const [shareOwner, setShareOwner] = useState(null); // 現在の共有者ID
   const [shareError, setShareError] = useState(null); // 画面共有エラーメッセージ
   const [hasScreenShareTrack, setHasScreenShareTrack] = useState(false); // 画面共有トラックが存在するか
@@ -103,6 +111,9 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
   const shareOwnerUnsubscribeRef = useRef(null); // Firebase監視のunsubscribe関数
   const screenShareVideoRef = useRef(null); // 画面共有ビデオ要素の参照
   const screenShareParticipantRef = useRef(null); // 画面共有中の参加者参照
+  const stopScreenShareRef = useRef(null); // 画面共有停止関数の参照（最新版を常に参照）
+  const checkScreenShareTrackRef = useRef(null); // 画面共有トラック確認関数の参照
+  const garbageCollectionTimeoutRef = useRef(null); // ガーベッジコレクション用のタイムアウトID
   
   /**
    * ユーザーインタラクションを有効化する関数
@@ -919,6 +930,10 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
                   console.error('ローカル画面共有トラックアタッチエラー:', error);
                 }
               }
+              // イベント駆動で画面共有トラックの状態を再確認
+              if (checkScreenShareTrackRef.current) {
+                checkScreenShareTrackRef.current();
+              }
             }, TRACK_ATTACHMENT_DELAY);
           }
           
@@ -993,6 +1008,10 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
                     console.error('画面共有トラックアタッチエラー:', error);
                   }
                 }
+                // イベント駆動で画面共有トラックの状態を再確認
+                if (checkScreenShareTrackRef.current) {
+                  checkScreenShareTrackRef.current();
+                }
               }, TRACK_ATTACHMENT_DELAY);
             } else {
               // 通常のカメラトラックをアタッチ（リモート参加者の場合）
@@ -1062,6 +1081,10 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
               }
               screenShareParticipantRef.current = null;
               setHasScreenShareTrack(false);
+              // イベント駆動で画面共有トラックの状態を再確認
+              if (checkScreenShareTrackRef.current) {
+                setTimeout(() => checkScreenShareTrackRef.current(), 100);
+              }
             } else {
               // 通常のカメラトラックの処理
               // 1. ビデオトラックをdetach
@@ -1274,6 +1297,18 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
   }, [isAudioEnabled]);
 
   /**
+   * screenShareOwnerをnullにリセットするヘルパー関数
+   * @param {DocumentReference} roomRef_firestore - Firestoreのルーム参照
+   */
+  const clearScreenShareOwner = useCallback(async (roomRef_firestore) => {
+    try {
+      await updateDoc(roomRef_firestore, { screenShareOwner: null });
+    } catch (updateError) {
+      console.error('screenShareOwner更新エラー:', updateError);
+    }
+  }, []);
+
+  /**
    * 画面共有を停止する関数
    */
   const stopScreenShare = useCallback(async () => {
@@ -1297,9 +1332,9 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
 
       // FirebaseのscreenShareOwnerをnullに更新
       const roomRef_firestore = doc(getRoomsCollection(), roomId);
-      await updateDoc(roomRef_firestore, { screenShareOwner: null });
+      await clearScreenShareOwner(roomRef_firestore);
 
-      setShareState('idle');
+      setShareState(SHARE_STATE.IDLE);
       setShareError(null);
       setHasScreenShareTrack(false);
       screenShareParticipantRef.current = null;
@@ -1314,7 +1349,32 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
       console.error('画面共有停止エラー:', error);
       setShareError('画面共有の停止に失敗しました');
     }
-  }, [roomId, updateParticipants]);
+  }, [roomId, updateParticipants, clearScreenShareOwner]);
+
+  // stopScreenShare関数の参照を設定（最新版を常に参照できるようにする）
+  useEffect(() => {
+    stopScreenShareRef.current = stopScreenShare;
+  }, [stopScreenShare]);
+
+  /**
+   * 画面共有を開始できるかどうかを判定する計算値
+   * startScreenShare関数の所有権チェックと一貫性を保つ
+   */
+  const canStartScreenShare = useMemo(() => {
+    // ユーザー名が設定されていない場合は開始不可
+    if (!userName) {
+      return false;
+    }
+    // 既に処理中（ロック中またはリクエスト中）の場合は開始不可
+    if (shareState === SHARE_STATE.LOCKING || shareState === SHARE_STATE.SHARING_REQUEST) {
+      return false;
+    }
+    // 他のユーザーが画面共有中の場合は開始不可
+    if (shareOwner && shareOwner !== userName) {
+      return false;
+    }
+    return true;
+  }, [shareState, shareOwner, userName]);
 
   /**
    * 画面共有を開始する関数
@@ -1326,17 +1386,24 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
       return;
     }
 
-    if (shareState !== 'idle') {
+    // userNameが利用できない場合は画面共有を防ぐ（排他的ロック機構を保護）
+    if (!userNameRef.current) {
+      setShareError('ユーザー名が設定されていないため、画面共有を開始できません');
+      setShareState(SHARE_STATE.IDLE);
+      return;
+    }
+
+    if (shareState !== SHARE_STATE.IDLE) {
       console.log('画面共有は既に処理中です');
       return;
     }
 
-    setShareState('locking');
+    setShareState(SHARE_STATE.LOCKING);
     setShareError(null);
 
     try {
       const roomRef_firestore = doc(getRoomsCollection(), roomId);
-      const userId = userNameRef.current || 'unknown';
+      const userId = userNameRef.current;
 
       // Firebaseトランザクションで排他制御
       await runTransaction(db, async (transaction) => {
@@ -1358,7 +1425,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
       });
 
       // トランザクション成功後、createLocalScreenTracks()を呼び出し
-      setShareState('sharingRequest');
+      setShareState(SHARE_STATE.SHARING_REQUEST);
       
       try {
         // createLocalScreenTracks()を使用して画面共有トラックを作成
@@ -1395,12 +1462,12 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
         }
 
         screenShareTrackRef.current = { video: videoTrack, audio: audioTrack };
-        setShareState('sharingActive');
+        setShareState(SHARE_STATE.SHARING_ACTIVE);
 
-        // トラックが停止された場合のイベントハンドラー
+        // トラックが停止された場合のイベントハンドラー（refベースで最新版を常に参照）
         videoTrack.on('ended', () => {
-          if (stopScreenShare) {
-            stopScreenShare();
+          if (stopScreenShareRef.current) {
+            stopScreenShareRef.current();
           }
         });
 
@@ -1410,22 +1477,12 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
         // ユーザーがキャンセルした場合
         if (mediaError.name === 'NotAllowedError' || mediaError.name === 'AbortError') {
           setShareError('画面共有がキャンセルされました');
-          // FirebaseのscreenShareOwnerをnullに戻す
-          try {
-            await updateDoc(roomRef_firestore, { screenShareOwner: null });
-          } catch (updateError) {
-            console.error('screenShareOwner更新エラー:', updateError);
-          }
         } else {
           setShareError('画面共有を開始できませんでした');
-          // FirebaseのscreenShareOwnerをnullに戻す
-          try {
-            await updateDoc(roomRef_firestore, { screenShareOwner: null });
-          } catch (updateError) {
-            console.error('screenShareOwner更新エラー:', updateError);
-          }
         }
-        setShareState('idle');
+        // FirebaseのscreenShareOwnerをnullに戻す
+        await clearScreenShareOwner(roomRef_firestore);
+        setShareState(SHARE_STATE.IDLE);
       }
 
     } catch (error) {
@@ -1438,7 +1495,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
       }
       setShareState('idle');
     }
-  }, [roomId, shareState, stopScreenShare]);
+  }, [roomId, shareState, clearScreenShareOwner]);
 
   // FirebaseのscreenShareOwnerを監視し、画面共有トラックの存在を確認
   useEffect(() => {
@@ -1493,6 +1550,9 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
       }
     };
     
+    // checkScreenShareTrack関数の参照を設定（イベントハンドラーから呼び出せるようにする）
+    checkScreenShareTrackRef.current = checkScreenShareTrack;
+    
     const unsubscribe = onSnapshot(roomRef_firestore, (docSnap) => {
       if (docSnap.exists()) {
         const owner = docSnap.data().screenShareOwner;
@@ -1528,22 +1588,39 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
         }
 
         // ガーベッジコレクション: 共有者がLiveKitに存在しない場合、一定時間後にクリア
-        if (owner && owner !== (userNameRef.current || 'unknown')) {
+        // userNameRef.currentがnullの場合は、このユーザーは画面共有を開始できないため、ガーベッジコレクションの対象外
+        if (owner && userNameRef.current && owner !== userNameRef.current) {
           const ownerExists = participants.some(p => p.identity === owner);
           if (!ownerExists) {
+            // 既存のタイムアウトをクリア（ownerが変更された場合の重複実行を防ぐ）
+            if (garbageCollectionTimeoutRef.current) {
+              clearTimeout(garbageCollectionTimeoutRef.current);
+            }
             // 30秒後にクリア
-            setTimeout(async () => {
-              const currentDoc = await docSnap.ref.get();
+            garbageCollectionTimeoutRef.current = setTimeout(async () => {
+              // コンポーネントがマウントされているか確認
+              if (!roomRef.current) return;
+              
+              const currentDoc = await getDoc(roomRef_firestore);
               const currentOwner = currentDoc.data()?.screenShareOwner;
               if (currentOwner === owner) {
                 // まだ同じ共有者が設定されている場合のみクリア
-                const ownerStillMissing = !roomRef.current?.remoteParticipants.has(owner) && 
-                                         owner !== (userNameRef.current || 'unknown');
+                // userNameRef.currentがnullの場合は、このユーザーは画面共有を開始できないため、ガーベッジコレクションを実行しない
+                const ownerStillMissing = userNameRef.current && 
+                                         !roomRef.current?.remoteParticipants.has(owner) && 
+                                         owner !== userNameRef.current;
                 if (ownerStillMissing) {
                   await updateDoc(roomRef_firestore, { screenShareOwner: null });
                 }
               }
+              garbageCollectionTimeoutRef.current = null;
             }, 30000);
+          }
+        } else {
+          // ownerがnullまたは自分自身の場合は、既存のタイムアウトをクリア
+          if (garbageCollectionTimeoutRef.current) {
+            clearTimeout(garbageCollectionTimeoutRef.current);
+            garbageCollectionTimeoutRef.current = null;
           }
         }
       }
@@ -1551,16 +1628,22 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
 
     shareOwnerUnsubscribeRef.current = unsubscribe;
     
-    // 参加者リストが更新されたときも画面共有トラックを確認
+    // フォールバック: 参加者リストが更新されたときも画面共有トラックを確認
+    // イベント駆動のチェックを優先し、ポーリングは5秒間隔に設定（パフォーマンス向上）
     const intervalId = setInterval(() => {
       if (shareOwner && roomRef.current) {
         checkScreenShareTrack();
       }
-    }, 1000);
+    }, 5000);
 
     return () => {
       if (unsubscribe) unsubscribe();
       clearInterval(intervalId);
+      // ガーベッジコレクション用のタイムアウトをクリア
+      if (garbageCollectionTimeoutRef.current) {
+        clearTimeout(garbageCollectionTimeoutRef.current);
+        garbageCollectionTimeoutRef.current = null;
+      }
     };
   }, [roomId, participants, shareOwner, localParticipant]);
 
@@ -2084,24 +2167,26 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
           
           {/* 画面共有ボタン */}
           <button
-            onClick={shareState === 'sharingActive' ? stopScreenShare : startScreenShare}
-            disabled={shareState === 'locking' || shareState === 'sharingRequest' || (shareOwner && shareOwner !== (userNameRef.current || 'unknown'))}
+            onClick={shareState === SHARE_STATE.SHARING_ACTIVE ? stopScreenShare : startScreenShare}
+            disabled={shareState === SHARE_STATE.SHARING_ACTIVE ? false : !canStartScreenShare}
             className={`p-2 rounded-lg transition-colors ${
-              shareState === 'sharingActive'
+              shareState === SHARE_STATE.SHARING_ACTIVE
                 ? 'bg-red-600 hover:bg-red-700'
-                : shareOwner && shareOwner !== (userNameRef.current || 'unknown')
+                : !canStartScreenShare
                 ? 'bg-gray-600 cursor-not-allowed opacity-50'
                 : 'bg-blue-600 hover:bg-blue-700'
             }`}
             title={
-              shareState === 'sharingActive'
+              shareState === SHARE_STATE.SHARING_ACTIVE
                 ? '画面共有を停止'
-                : shareOwner && shareOwner !== (userNameRef.current || 'unknown')
+                : !userNameRef.current
+                ? 'ユーザー名が設定されていないため、画面共有を開始できません'
+                : shareOwner && shareOwner !== userNameRef.current
                 ? `現在、${shareOwner}さんが画面共有中です`
                 : '画面共有を開始'
             }
           >
-            {shareState === 'sharingActive' ? (
+            {shareState === SHARE_STATE.SHARING_ACTIVE ? (
               <Monitor className="w-5 h-5" />
             ) : (
               <Monitor className="w-5 h-5" />
