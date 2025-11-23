@@ -20,6 +20,22 @@ export const TIMINGS = {
 
   // 自動再生制限(NotAllowedError)からのリトライ間隔(ms)
   AUDIO_PLAY_RETRY_MS: [50, 100, 200, 500, 1000],
+
+  // 画面共有トラックのアタッチ遅延(ms)
+  // 画面共有トラックをアタッチするまでの待機時間
+  SCREEN_SHARE_TRACK_ATTACHMENT_DELAY: 100,
+
+  // カメラトラックの再アタッチ遅延(ms)
+  // 画面共有停止後、カメラトラックを再アタッチするまでの待機時間
+  CAMERA_REATTACHMENT_DELAY: 300,
+
+  // 画面共有停止後の参加者リスト更新遅延(ms)
+  // 画面共有停止後、参加者リストを更新するまでの待機時間
+  SCREEN_SHARE_STOP_PARTICIPANT_UPDATE_DELAY: 500,
+
+  // 画面共有トラックの存在確認遅延(ms)
+  // screenShareOwnerが設定された後、トラックの存在を確認するまでの待機時間
+  SCREEN_SHARE_TRACK_CHECK_DELAY: 500,
 };
 
 export const AUDIO = {
