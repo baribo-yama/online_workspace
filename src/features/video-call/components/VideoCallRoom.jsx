@@ -19,7 +19,8 @@ import {
   RoomEvent, 
   RemoteParticipant, 
   LocalParticipant,
-  Track
+  Track,
+  createLocalScreenTracks
 } from 'livekit-client';
 import { 
   Video, 
@@ -27,11 +28,14 @@ import {
   Mic, 
   MicOff, 
   Phone,
-  Users
+  Users,
+  Monitor
 } from 'lucide-react';
 import { LIVEKIT_CONFIG, generateRoomName, generateParticipantName, generateAccessToken } from '../config/livekit';
 import { TIMINGS, AUDIO } from '../constants';
 import { stopAllLocalTracks } from '../utils/streamUtils';
+import { doc, runTransaction, onSnapshot, updateDoc } from 'firebase/firestore';
+import { getRoomsCollection, db } from '../../../shared/services/firebase';
 
 
 // =============================================
@@ -72,6 +76,10 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
   const [isAudioEnabled, setIsAudioEnabled] = useState(false); // オーディオ有効状態（デフォルトOFF）
   const [audioLevel, setAudioLevel] = useState(0); // 音声レベル
   const [isSpeaking, setIsSpeaking] = useState(false); // 話している状態
+  const [shareState, setShareState] = useState('idle'); // 画面共有状態: 'idle' | 'locking' | 'sharingRequest' | 'sharingActive'
+  const [shareOwner, setShareOwner] = useState(null); // 現在の共有者ID
+  const [shareError, setShareError] = useState(null); // 画面共有エラーメッセージ
+  const [hasScreenShareTrack, setHasScreenShareTrack] = useState(false); // 画面共有トラックが存在するか
   
   // =============================================
   // Refs for DOM elements and function references
@@ -91,6 +99,10 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
   const userNameRef = useRef(userName); // ユーザー名の参照
   const audioElementsRef = useRef(new Map()); // 音声要素の管理用Map
   const userInteractionEnabledRef = useRef(false); // ユーザーインタラクション有効フラグ
+  const screenShareTrackRef = useRef(null); // 画面共有トラックの参照
+  const shareOwnerUnsubscribeRef = useRef(null); // Firebase監視のunsubscribe関数
+  const screenShareVideoRef = useRef(null); // 画面共有ビデオ要素の参照
+  const screenShareParticipantRef = useRef(null); // 画面共有中の参加者参照
   
   /**
    * ユーザーインタラクションを有効化する関数
@@ -887,11 +899,29 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
 
         // ローカルトラックが公開された時
         // 注意: LocalTrackPublishedイベントはuseEffect（1494-1537行目）でも処理されるため、
-        // ここではオーディオトラックの音声レベル監視のみを処理
+        // ここではオーディオトラックの音声レベル監視とScreen Shareトラックの処理を行う
         room.on(RoomEvent.LocalTrackPublished, (publication, participant) => {
           if (import.meta.env.DEV) {
-            console.log('ローカルトラック公開:', publication.kind, participant.identity);
+            console.log('ローカルトラック公開:', publication.kind, participant.identity, 'source:', publication.source);
           }
+          
+          // Screen Shareトラックの処理
+          if (publication.kind === 'video' && publication.source === Track.Source.ScreenShare && publication.track) {
+            screenShareParticipantRef.current = participant;
+            setTimeout(() => {
+              if (screenShareVideoRef.current && publication.track) {
+                try {
+                  publication.track.attach(screenShareVideoRef.current);
+                  if (import.meta.env.DEV) {
+                    console.log('ローカル画面共有トラックをアタッチ:', participant.identity);
+                  }
+                } catch (error) {
+                  console.error('ローカル画面共有トラックアタッチエラー:', error);
+                }
+              }
+            }, TRACK_ATTACHMENT_DELAY);
+          }
+          
           // ビデオトラックの処理はuseEffect内のハンドラーに任せる（重複を避ける）
           if (publication.kind === 'audio' && publication.track) {
             // オーディオトラックが公開されたときに音声レベル監視を開始
@@ -911,8 +941,28 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
 
         // ローカルトラックが非公開になった時
         room.on(RoomEvent.LocalTrackUnpublished, (publication, participant) => {
-          console.log('ローカルトラック非公開:', publication.kind, participant.identity);
-        updateParticipants();
+          console.log('ローカルトラック非公開:', publication.kind, participant.identity, 'source:', publication.source);
+          
+          // Screen Shareトラックが非公開になった場合の処理
+          if (publication.kind === 'video' && publication.source === Track.Source.ScreenShare) {
+            if (screenShareVideoRef.current && publication.track) {
+              try {
+                publication.track.detach(screenShareVideoRef.current);
+                if (screenShareVideoRef.current.srcObject) {
+                  screenShareVideoRef.current.srcObject = null;
+                }
+                if (import.meta.env.DEV) {
+                  console.log('ローカル画面共有トラックをdetach:', participant.identity);
+                }
+              } catch (error) {
+                console.warn('ローカル画面共有トラックdetachエラー:', error);
+              }
+            }
+            screenShareParticipantRef.current = null;
+            setHasScreenShareTrack(false);
+          }
+          
+          updateParticipants();
         });
 
 
@@ -925,14 +975,35 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
           // ビデオトラックの処理
           if (track.kind === Track.Kind.Video && track) {
             if (import.meta.env.DEV) {
-              console.log('ビデオトラック処理開始:', participant.identity);
+              console.log('ビデオトラック処理開始:', participant.identity, 'source:', publication.source);
             }
-            // ビデオトラックをアタッチ
-            setTimeout(() => {
-              if (attachVideoTrackRef.current) {
-                attachVideoTrackRef.current(track, participant, false);
+            
+            // Screen Shareトラックの処理
+            if (publication.source === Track.Source.ScreenShare) {
+              screenShareParticipantRef.current = participant;
+              setHasScreenShareTrack(true);
+              setTimeout(() => {
+                if (screenShareVideoRef.current && track) {
+                  try {
+                    track.attach(screenShareVideoRef.current);
+                    if (import.meta.env.DEV) {
+                      console.log('画面共有トラックをアタッチ:', participant.identity);
+                    }
+                  } catch (error) {
+                    console.error('画面共有トラックアタッチエラー:', error);
+                  }
+                }
+              }, TRACK_ATTACHMENT_DELAY);
+            } else {
+              // 通常のカメラトラックをアタッチ（リモート参加者の場合）
+              if (participant.identity !== localParticipant?.identity) {
+                setTimeout(() => {
+                  if (attachVideoTrackRef.current) {
+                    attachVideoTrackRef.current(track, participant, false);
+                  }
+                }, TRACK_ATTACHMENT_DELAY);
               }
-            }, TRACK_ATTACHMENT_DELAY);
+            }
           }
           
           // 音声トラックの処理（即座に実行）
@@ -974,19 +1045,39 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
           
           // ビデオトラックが非購読された場合の完全なクリーンアップ
           if (track.kind === Track.Kind.Video) {
-            // 1. ビデオトラックをdetach
-            const videoElement = remoteVideoRefs.current.get(participant.identity);
-            if (videoElement && track) {
-              try {
-                track.detach(videoElement);
-                if (import.meta.env.DEV) {
-                  console.log('[観測1] TrackUnsubscribed: ビデオトラックをdetachしました:', participant.identity);
+            // Screen Shareトラックの処理
+            if (publication.source === Track.Source.ScreenShare) {
+              if (screenShareVideoRef.current && track) {
+                try {
+                  track.detach(screenShareVideoRef.current);
+                  if (screenShareVideoRef.current.srcObject) {
+                    screenShareVideoRef.current.srcObject = null;
+                  }
+                  if (import.meta.env.DEV) {
+                    console.log('画面共有トラックをdetach:', participant.identity);
+                  }
+                } catch (error) {
+                  console.warn('画面共有トラックdetachエラー:', error);
                 }
-              } catch (error) {
-                console.warn('ビデオトラックdetachエラー:', error, participant.identity);
-                // エラーが発生した場合でもsrcObjectをクリア
-                if (videoElement.srcObject) {
-                  videoElement.srcObject = null;
+              }
+              screenShareParticipantRef.current = null;
+              setHasScreenShareTrack(false);
+            } else {
+              // 通常のカメラトラックの処理
+              // 1. ビデオトラックをdetach
+              const videoElement = remoteVideoRefs.current.get(participant.identity);
+              if (videoElement && track) {
+                try {
+                  track.detach(videoElement);
+                  if (import.meta.env.DEV) {
+                    console.log('[観測1] TrackUnsubscribed: ビデオトラックをdetachしました:', participant.identity);
+                  }
+                } catch (error) {
+                  console.warn('ビデオトラックdetachエラー:', error, participant.identity);
+                  // エラーが発生した場合でもsrcObjectをクリア
+                  if (videoElement.srcObject) {
+                    videoElement.srcObject = null;
+                  }
                 }
               }
             }
@@ -1182,83 +1273,333 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
     }
   }, [isAudioEnabled]);
 
-    // === コンポーネントライフサイクル管理 ===
-    // コンポーネントマウント時に接続（依存配列を空にしてリロード時の再実行を防ぐ）
-    useEffect(() => {
-    if (import.meta.env.DEV) {
-      console.log('VideoCallRoom マウント - 接続開始', { roomId: roomIdRef.current, userName: userNameRef.current });
+  /**
+   * 画面共有を停止する関数
+   */
+  const stopScreenShare = useCallback(async () => {
+    if (!roomRef.current || !roomId) {
+      return;
     }
-    
-    // 既存の接続をクリーンアップ
-    if (roomRef.current) {
-      if (import.meta.env.DEV) {
-        console.log('既存の接続をクリーンアップ');
-      }
-      try {
-        roomRef.current.disconnect();
-      } catch (error) {
-        console.warn('既存接続のクリーンアップエラー:', error);
-      }
-      roomRef.current = null;
-    }
-    
-    // 状態をリセット
-        hasConnectedRef.current = false;
-        isConnectingRef.current = false;
-    setError(null);
-    
-    // ユーザーインタラクションを有効化（自動再生制限回避）
-    enableUserInteraction();
-    
-    // 接続を開始
-    const initializeConnection = async () => {
-      try {
-        if (connectToRoomRef.current) {
-          await connectToRoomRef.current();
+
+    try {
+      // LiveKitトラックを停止
+      if (screenShareTrackRef.current) {
+        if (screenShareTrackRef.current.video) {
+          screenShareTrackRef.current.video.stop();
+          await roomRef.current.localParticipant.unpublishTrack(screenShareTrackRef.current.video);
         }
-      } catch (error) {
-        console.error('初期接続エラー:', error);
+        if (screenShareTrackRef.current.audio) {
+          screenShareTrackRef.current.audio.stop();
+          await roomRef.current.localParticipant.unpublishTrack(screenShareTrackRef.current.audio);
+        }
+        screenShareTrackRef.current = null;
+      }
+
+      // FirebaseのscreenShareOwnerをnullに更新
+      const roomRef_firestore = doc(getRoomsCollection(), roomId);
+      await updateDoc(roomRef_firestore, { screenShareOwner: null });
+
+      setShareState('idle');
+      setShareError(null);
+      setHasScreenShareTrack(false);
+      screenShareParticipantRef.current = null;
+      
+      // 画面共有停止後、カメラトラックが正しく表示されるように参加者リストを更新
+      setTimeout(() => {
+        if (roomRef.current) {
+          updateParticipants();
+        }
+      }, 500);
+    } catch (error) {
+      console.error('画面共有停止エラー:', error);
+      setShareError('画面共有の停止に失敗しました');
+    }
+  }, [roomId, updateParticipants]);
+
+  /**
+   * 画面共有を開始する関数
+   * Firebaseトランザクションで排他制御を行い、成功した場合のみ画面共有を開始
+   */
+  const startScreenShare = useCallback(async () => {
+    if (!roomRef.current || !roomRef.current.localParticipant || !roomId) {
+      console.error('ルームまたはルームIDが存在しません');
+      return;
+    }
+
+    if (shareState !== 'idle') {
+      console.log('画面共有は既に処理中です');
+      return;
+    }
+
+    setShareState('locking');
+    setShareError(null);
+
+    try {
+      const roomRef_firestore = doc(getRoomsCollection(), roomId);
+      const userId = userNameRef.current || 'unknown';
+
+      // Firebaseトランザクションで排他制御
+      await runTransaction(db, async (transaction) => {
+        const roomDoc = await transaction.get(roomRef_firestore);
+        
+        if (!roomDoc.exists()) {
+          throw new Error('ルームが存在しません');
+        }
+
+        const currentOwner = roomDoc.data().screenShareOwner;
+        
+        // 既に誰かが共有中の場合はエラー
+        if (currentOwner !== null && currentOwner !== userId) {
+          throw new Error('LOCK_FAILED');
+        }
+
+        // ロック取得成功: screenShareOwnerを自分のIDに設定
+        transaction.update(roomRef_firestore, { screenShareOwner: userId });
+      });
+
+      // トランザクション成功後、createLocalScreenTracks()を呼び出し
+      setShareState('sharingRequest');
+      
+      try {
+        // createLocalScreenTracks()を使用して画面共有トラックを作成
+        const tracks = await createLocalScreenTracks({
+          audio: true,
+          video: true,
+        });
+
+        if (!tracks || tracks.length === 0) {
+          throw new Error('画面共有トラックの作成に失敗しました');
+        }
+
+        const videoTrack = tracks.find(t => t.kind === Track.Kind.Video);
+        const audioTrack = tracks.find(t => t.kind === Track.Kind.Audio);
+
+        if (!videoTrack) {
+          throw new Error('ビデオトラックが見つかりません');
+        }
+
+        // 音声共有が利用できない場合の通知
+        if (!audioTrack && import.meta.env.DEV) {
+          console.log('この環境では画面の音声共有はサポートされていません（映像のみ共有されます）');
+        }
+
+        // LiveKitにトラックを公開
+        await roomRef.current.localParticipant.publishTrack(videoTrack, {
+          source: Track.Source.ScreenShare,
+        });
+
+        if (audioTrack) {
+          await roomRef.current.localParticipant.publishTrack(audioTrack, {
+            source: Track.Source.ScreenShareAudio,
+          });
+        }
+
+        screenShareTrackRef.current = { video: videoTrack, audio: audioTrack };
+        setShareState('sharingActive');
+
+        // トラックが停止された場合のイベントハンドラー
+        videoTrack.on('ended', () => {
+          if (stopScreenShare) {
+            stopScreenShare();
+          }
+        });
+
+      } catch (mediaError) {
+        console.error('画面共有開始エラー:', mediaError);
+        
+        // ユーザーがキャンセルした場合
+        if (mediaError.name === 'NotAllowedError' || mediaError.name === 'AbortError') {
+          setShareError('画面共有がキャンセルされました');
+          // FirebaseのscreenShareOwnerをnullに戻す
+          try {
+            await updateDoc(roomRef_firestore, { screenShareOwner: null });
+          } catch (updateError) {
+            console.error('screenShareOwner更新エラー:', updateError);
+          }
+        } else {
+          setShareError('画面共有を開始できませんでした');
+          // FirebaseのscreenShareOwnerをnullに戻す
+          try {
+            await updateDoc(roomRef_firestore, { screenShareOwner: null });
+          } catch (updateError) {
+            console.error('screenShareOwner更新エラー:', updateError);
+          }
+        }
+        setShareState('idle');
+      }
+
+    } catch (error) {
+      console.error('画面共有開始エラー:', error);
+      
+      if (error.message === 'LOCK_FAILED') {
+        setShareError('現在、他のユーザーが画面共有中です');
+      } else {
+        setShareError('画面共有を開始できませんでした（通信エラーが発生しました）');
+      }
+      setShareState('idle');
+    }
+  }, [roomId, shareState, stopScreenShare]);
+
+  // FirebaseのscreenShareOwnerを監視し、画面共有トラックの存在を確認
+  useEffect(() => {
+    if (!roomId || !roomRef.current) return;
+
+    const roomRef_firestore = doc(getRoomsCollection(), roomId);
+    
+    // 画面共有トラックの存在を確認する関数
+    const checkScreenShareTrack = () => {
+      if (!roomRef.current) return;
+      
+      let foundScreenShare = false;
+      const allParticipants = [
+        roomRef.current.localParticipant,
+        ...Array.from(roomRef.current.remoteParticipants.values())
+      ].filter(p => p);
+      
+      for (const participant of allParticipants) {
+        if (participant.videoTrackPublications) {
+          for (const publication of participant.videoTrackPublications.values()) {
+            if (publication.source === Track.Source.ScreenShare && 
+                publication.isSubscribed && 
+                publication.track) {
+              foundScreenShare = true;
+              screenShareParticipantRef.current = participant;
+              // トラックをアタッチ
+              setTimeout(() => {
+                if (screenShareVideoRef.current && publication.track) {
+                  try {
+                    publication.track.attach(screenShareVideoRef.current);
+                    if (import.meta.env.DEV) {
+                      console.log('画面共有トラックをアタッチ（定期チェック）:', participant.identity);
+                    }
+                  } catch (error) {
+                    // 既にアタッチされている場合はエラーを無視
+                    if (import.meta.env.DEV) {
+                      console.log('画面共有トラックアタッチ（既にアタッチ済み）:', error.message);
+                    }
+                  }
+                }
+              }, 100);
+              break;
+            }
+          }
+        }
+        if (foundScreenShare) break;
+      }
+      
+      setHasScreenShareTrack(foundScreenShare);
+      if (!foundScreenShare) {
+        screenShareParticipantRef.current = null;
       }
     };
     
-    // 少し遅延させて接続を開始(接続がかぶらないようにする)
-    const timeoutId = setTimeout(initializeConnection, 100);
+    const unsubscribe = onSnapshot(roomRef_firestore, (docSnap) => {
+      if (docSnap.exists()) {
+        const owner = docSnap.data().screenShareOwner;
+        setShareOwner(owner);
+        
+        // screenShareOwnerが設定されている場合、画面共有トラックの存在を確認
+        if (owner) {
+          // 少し待ってからチェック（トラックがアタッチされる時間を考慮）
+          setTimeout(() => {
+            checkScreenShareTrack();
+          }, 500);
+        } else {
+          setHasScreenShareTrack(false);
+          screenShareParticipantRef.current = null;
+          
+          // 画面共有停止後、カメラトラックが正しく表示されるように再アタッチ
+          if (localParticipant && localVideoRef.current) {
+            setTimeout(() => {
+              if (localParticipant.videoTrackPublications) {
+                for (const publication of localParticipant.videoTrackPublications.values()) {
+                  if (publication.track && 
+                      publication.source !== Track.Source.ScreenShare &&
+                      publication.isSubscribed) {
+                    if (attachVideoTrackRef.current) {
+                      attachVideoTrackRef.current(publication.track, localParticipant, true);
+                    }
+                    break;
+                  }
+                }
+              }
+            }, 300);
+          }
+        }
 
-      // クリーンアップ（強化版 - カメラストリーム完全停止）
-      return () => {
-        if (import.meta.env.DEV) {
-          console.log('VideoCallRoom アンマウント - 接続切断', { roomId: roomIdRef.current, userName: userNameRef.current });
-        }
-        clearTimeout(timeoutId);
-        
-        // 音声レベル監視を停止
-        stopAudioLevelMonitoring();
-        
-        // カメラ・マイクストリームの完全停止（PRレビュー対応 - ヘルパー関数使用）
-        if (roomRef.current?.localParticipant) {
-          stopAllLocalTracks(roomRef.current.localParticipant);
-          if (import.meta.env.DEV) {
-            console.log('アンマウント時: すべてのローカルトラックを停止しました');
+        // ガーベッジコレクション: 共有者がLiveKitに存在しない場合、一定時間後にクリア
+        if (owner && owner !== (userNameRef.current || 'unknown')) {
+          const ownerExists = participants.some(p => p.identity === owner);
+          if (!ownerExists) {
+            // 30秒後にクリア
+            setTimeout(async () => {
+              const currentDoc = await docSnap.ref.get();
+              const currentOwner = currentDoc.data()?.screenShareOwner;
+              if (currentOwner === owner) {
+                // まだ同じ共有者が設定されている場合のみクリア
+                const ownerStillMissing = !roomRef.current?.remoteParticipants.has(owner) && 
+                                         owner !== (userNameRef.current || 'unknown');
+                if (ownerStillMissing) {
+                  await updateDoc(roomRef_firestore, { screenShareOwner: null });
+                }
+              }
+            }, 30000);
           }
         }
-        
-        // LiveKitルームから切断
-        if (roomRef.current) {
-          try {
-            roomRef.current.disconnect();
-          } catch (error) {
-            console.warn('切断時のエラー:', error);
-          }
-          roomRef.current = null;
-        }
-        hasConnectedRef.current = false;
-        isConnectingRef.current = false;
-      };
-  }, [enableUserInteraction, stopAudioLevelMonitoring]); // 依存配列にenableUserInteractionとstopAudioLevelMonitoringを指定しているため、マウント時およびこれらが変更されたときに実行される
+      }
+    });
+
+    shareOwnerUnsubscribeRef.current = unsubscribe;
+    
+    // 参加者リストが更新されたときも画面共有トラックを確認
+    const intervalId = setInterval(() => {
+      if (shareOwner && roomRef.current) {
+        checkScreenShareTrack();
+      }
+    }, 1000);
+
+    return () => {
+      if (unsubscribe) unsubscribe();
+      clearInterval(intervalId);
+    };
+  }, [roomId, participants, shareOwner, localParticipant]);
+
+  // 参加者が離脱した際の画面共有クリーンアップ
+  useEffect(() => {
+    if (!roomRef.current || !roomId) return;
+
+    const handleParticipantDisconnected = (participant) => {
+      // 離脱した参加者が画面共有中だった場合、screenShareOwnerをクリア
+      if (shareOwner === participant.identity) {
+        const roomRef_firestore = doc(getRoomsCollection(), roomId);
+        updateDoc(roomRef_firestore, { screenShareOwner: null }).catch(error => {
+          console.error('画面共有クリーンアップエラー:', error);
+        });
+      }
+    };
+
+    roomRef.current.on(RoomEvent.ParticipantDisconnected, handleParticipantDisconnected);
+
+    return () => {
+      if (roomRef.current) {
+        roomRef.current.off(RoomEvent.ParticipantDisconnected, handleParticipantDisconnected);
+      }
+    };
+  }, [roomId, shareOwner]);
+
+    // === コンポーネントライフサイクル管理 ===
+    // ユーザーインタラクションを有効化（自動再生制限回避）
+    useEffect(() => {
+      enableUserInteraction();
+    }, [enableUserInteraction]);
 
   // roomIdとuserNameの変更を監視して接続を更新
   useEffect(() => {
     if (!roomId || !userName) return;
+    
+    if (import.meta.env.DEV) {
+      console.log('VideoCallRoom 接続開始', { roomId, userName });
+    }
     
     // 既に接続済みで、roomIdとuserNameが同じ場合は何もしない
     if (hasConnectedRef.current && 
@@ -1267,7 +1608,9 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
       return;
     }
     
-    console.log('roomId/userName変更検出 - 接続を更新:', { roomId, userName });
+    if (import.meta.env.DEV) {
+      console.log('roomId/userName変更検出 - 接続を更新:', { roomId, userName });
+    }
     
     // 既存の接続を切断
     if (roomRef.current) {
@@ -1299,8 +1642,36 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
     
     return () => {
       clearTimeout(timeoutId);
+      
+      // アンマウント時のクリーンアップ
+      if (import.meta.env.DEV) {
+        console.log('VideoCallRoom アンマウント - 接続切断', { roomId: roomIdRef.current, userName: userNameRef.current });
+      }
+      
+      // 音声レベル監視を停止
+      stopAudioLevelMonitoring();
+      
+      // カメラ・マイクストリームの完全停止
+      if (roomRef.current?.localParticipant) {
+        stopAllLocalTracks(roomRef.current.localParticipant);
+        if (import.meta.env.DEV) {
+          console.log('アンマウント時: すべてのローカルトラックを停止しました');
+        }
+      }
+      
+      // LiveKitルームから切断
+      if (roomRef.current) {
+        try {
+          roomRef.current.disconnect();
+        } catch (error) {
+          console.warn('切断時のエラー:', error);
+        }
+        roomRef.current = null;
+      }
+      hasConnectedRef.current = false;
+      isConnectingRef.current = false;
     };
-  }, [roomId, userName]); // roomIdとuserNameの変更を監視
+  }, [roomId, userName, stopAudioLevelMonitoring]); // roomIdとuserNameの変更を監視
 
   // === ビデオ表示管理 ===
   // ビデオ要素の参照管理（上部で定義済み）
@@ -1473,11 +1844,17 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
    */
   useEffect(() => {
     if (!localParticipant || !localVideoRef.current) return;
+    
+    // 画面共有中はスキップ（画面共有トラックを除外するため）
+    if (shareOwner) return;
 
-    // 既存のビデオトラックをチェック
+    // 既存のビデオトラックをチェック（Screen Shareトラックは除外）
     if (localParticipant.videoTrackPublications) {
       for (const publication of localParticipant.videoTrackPublications.values()) {
-        if (publication.track) {
+        // Screen Shareトラックは除外
+        if (publication.track && 
+            publication.source !== Track.Source.ScreenShare &&
+            publication.isSubscribed) {
           console.log('既存のローカルビデオトラックをアタッチ:', publication.track);
           if (attachVideoTrackRef.current) {
             attachVideoTrackRef.current(publication.track, localParticipant, true);
@@ -1486,7 +1863,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
         }
       }
     }
-  }, [localParticipant]);
+  }, [localParticipant, shareOwner]);
 
   /**
    * ローカルトラック公開イベントの処理を行うuseEffect
@@ -1499,6 +1876,25 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
 
     const handleLocalTrackPublished = (publication, participant) => {
       if (publication.kind === 'video' && publication.track && participant.identity === localParticipant.identity) {
+        // Screen Shareトラックの処理
+        if (publication.source === Track.Source.ScreenShare) {
+          screenShareParticipantRef.current = participant;
+          setHasScreenShareTrack(true);
+          setTimeout(() => {
+            if (screenShareVideoRef.current && publication.track) {
+              try {
+                publication.track.attach(screenShareVideoRef.current);
+                if (import.meta.env.DEV) {
+                  console.log('ローカル画面共有トラックをアタッチ（useEffect）:', participant.identity);
+                }
+              } catch (error) {
+                console.error('ローカル画面共有トラックアタッチエラー（useEffect）:', error);
+              }
+            }
+          }, TRACK_ATTACHMENT_DELAY);
+          return; // Screen Shareトラックの場合は通常のカメラトラック処理をスキップ
+        }
+        
         console.log('ローカルビデオトラック公開イベント受信:', publication.track);
         
         // 適切なリトライメカニズムでローカルトラックをアタッチ
@@ -1560,15 +1956,19 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
         return;
       }
 
-      // 既存のビデオトラックをチェック
+      // 既存のビデオトラックをチェック（Screen Shareトラックは除外）
       if (participant.videoTrackPublications) {
         for (const publication of participant.videoTrackPublications.values()) {
-          if (publication.track && publication.isSubscribed) {
+          // Screen Shareトラックは除外
+          if (publication.track && 
+              publication.isSubscribed && 
+              publication.source !== Track.Source.ScreenShare) {
             if (import.meta.env.DEV) {
               console.log('リモート参加者の既存ビデオトラックをアタッチ:', {
                 participantIdentity: participant.identity,
                 trackSid: publication.track.sid,
                 trackState: publication.track.mediaStreamTrack?.readyState,
+                source: publication.source,
                 hasVideoElement: !!remoteVideoRefs.current.get(participant.identity),
                 videoElementSrcObject: !!remoteVideoRefs.current.get(participant.identity)?.srcObject
               });
@@ -1682,9 +2082,48 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
             )}
           </button>
           
+          {/* 画面共有ボタン */}
+          <button
+            onClick={shareState === 'sharingActive' ? stopScreenShare : startScreenShare}
+            disabled={shareState === 'locking' || shareState === 'sharingRequest' || (shareOwner && shareOwner !== (userNameRef.current || 'unknown'))}
+            className={`p-2 rounded-lg transition-colors ${
+              shareState === 'sharingActive'
+                ? 'bg-red-600 hover:bg-red-700'
+                : shareOwner && shareOwner !== (userNameRef.current || 'unknown')
+                ? 'bg-gray-600 cursor-not-allowed opacity-50'
+                : 'bg-blue-600 hover:bg-blue-700'
+            }`}
+            title={
+              shareState === 'sharingActive'
+                ? '画面共有を停止'
+                : shareOwner && shareOwner !== (userNameRef.current || 'unknown')
+                ? `現在、${shareOwner}さんが画面共有中です`
+                : '画面共有を開始'
+            }
+          >
+            {shareState === 'sharingActive' ? (
+              <Monitor className="w-5 h-5" />
+            ) : (
+              <Monitor className="w-5 h-5" />
+            )}
+          </button>
+          
           {/* 退出ボタンは削除済み: ゲストは「ルーム一覧に戻る」ボタンで十分 */}
         </div>
       </div>
+
+      {/* 画面共有エラーメッセージ */}
+      {shareError && (
+        <div className="bg-red-600 text-white px-4 py-2 text-sm text-center">
+          {shareError}
+          <button
+            onClick={() => setShareError(null)}
+            className="ml-2 underline"
+          >
+            閉じる
+          </button>
+        </div>
+      )}
 
       {/* ビデオエリア */}
       <div className="flex-1 p-4">
@@ -1693,6 +2132,94 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
             <div className="text-center">
               <Users className="w-16 h-16 mx-auto mb-4 opacity-50" />
               <p>参加者を待機中...</p>
+            </div>
+          </div>
+        ) : shareOwner ? (
+          // 画面共有中のレイアウト: メイン表示領域に共有画面、サムネイルにカメラ映像
+          <div className="flex flex-col h-full gap-4">
+            {/* メイン表示領域: 画面共有 */}
+            <div className="flex-1 relative bg-gray-800 rounded-lg overflow-hidden">
+              <video
+                ref={screenShareVideoRef}
+                autoPlay
+                playsInline
+                className="w-full h-full object-contain"
+                onLoadedData={() => {
+                  if (import.meta.env.DEV) {
+                    console.log('画面共有ビデオ要素のデータ読み込み完了');
+                  }
+                }}
+                onError={(e) => {
+                  console.error('画面共有ビデオ要素エラー:', e);
+                }}
+              />
+              {!hasScreenShareTrack && (
+                <div className="absolute inset-0 flex items-center justify-center bg-gray-800 z-10">
+                  <div className="text-center text-gray-400">
+                    <Monitor className="w-16 h-16 mx-auto mb-4 opacity-50" />
+                    <p>画面共有を待機中...</p>
+                  </div>
+                </div>
+              )}
+              {hasScreenShareTrack && shareOwner && (
+                <div className="absolute bottom-2 left-2 bg-black bg-opacity-50 text-white px-2 py-1 rounded text-sm">
+                  {shareOwner} の画面共有
+                </div>
+              )}
+            </div>
+            
+            {/* サムネイル領域: カメラ映像 */}
+            <div className="flex gap-2 overflow-x-auto pb-2">
+              {participants.map((participant) => {
+                const isLocal = participant.identity === localParticipant?.identity;
+                
+                // カメラトラック（Screen Share以外）を検出
+                let cameraTrack = null;
+                if (participant.videoTrackPublications) {
+                  for (const publication of participant.videoTrackPublications.values()) {
+                    if (publication.isSubscribed && 
+                        publication.track && 
+                        publication.source !== Track.Source.ScreenShare) {
+                      cameraTrack = publication.track;
+                      break;
+                    }
+                  }
+                }
+                
+                const hasCamera = isLocal ? isVideoEnabled : !!cameraTrack;
+                
+                return (
+                  <div key={participant.identity} className="relative w-32 h-24 bg-gray-800 rounded overflow-hidden flex-shrink-0">
+                    <video
+                      ref={isLocal ? localVideoRef : (el) => {
+                        if (el) {
+                          remoteVideoRefs.current.set(participant.identity, el);
+                          // リモート参加者のカメラトラックをアタッチ
+                          if (cameraTrack && !isLocal) {
+                            setTimeout(() => {
+                              if (attachVideoTrackRef.current) {
+                                attachVideoTrackRef.current(cameraTrack, participant, false);
+                              }
+                            }, TRACK_ATTACHMENT_DELAY);
+                          }
+                        }
+                      }}
+                      autoPlay
+                      playsInline
+                      muted={isLocal}
+                      className="w-full h-full object-cover"
+                    />
+                    {!hasCamera && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
+                        <VideoOff className="w-8 h-8 text-gray-600 opacity-50" />
+                      </div>
+                    )}
+                    <div className="absolute bottom-1 left-1 bg-black bg-opacity-50 text-white px-1 py-0.5 rounded text-xs">
+                      {participant.identity}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         ) : (
@@ -1726,31 +2253,12 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
                 <div key={`${participant.identity}-${index}`} className="relative bg-gray-800 rounded-lg overflow-hidden">
                   <video
                     ref={isLocal ? localVideoRef : (el) => {
-                      // ===== 観測ログ3: JSX refコールバック =====
-                      // 注意: participantsはレンダリング時に最新値が使用されるため、ログは最新の参加者リストを反映
-                      if (import.meta.env.DEV) {
-                        console.log('[観測3] JSX ref callback:', {
-                          timestamp: Date.now(),
-                          el: el ? 'exists' : 'null',
-                          participantIdentity: participant?.identity,
-                          isLocal,
-                          allParticipants: participants.map(p => p?.identity).filter(Boolean),
-                          remoteVideoRefsSize: remoteVideoRefs.current.size,
-                          remoteVideoRefsKeys: Array.from(remoteVideoRefs.current.keys())
-                        });
-                      }
-                      
                       // JSX refでの削除は禁止 - ParticipantDisconnectedイベントでのみ削除
                       // React再レンダリング時にel=nullが呼ばれ、残存参加者のビデオ要素が誤って削除されるのを防ぐため
-                      // ログ分析結果: user2のremoteVideoRefsが誤って削除されていた（原因候補A3確定）
                       if (el) {
-                        remoteVideoRefs.current.set(participant.identity, el);
-                        if (import.meta.env.DEV) {
-                          console.log('[観測3] JSX ref set:', {
-                            timestamp: Date.now(),
-                            participantIdentity: participant?.identity,
-                            remoteVideoRefsKeys: Array.from(remoteVideoRefs.current.keys())
-                          });
+                        const prevEl = remoteVideoRefs.current.get(participant.identity);
+                        if (prevEl !== el) {
+                          remoteVideoRefs.current.set(participant.identity, el);
                         }
                       }
                       // else句での削除処理を削除 - これが残存参加者のカメラ消失の根本原因
