@@ -16,13 +16,36 @@ service cloud.firestore {
                        request.resource.data.title.size() > 0 &&
                        request.resource.data.title.size() <= 50;
       
-      // 更新: 誰でも可能（MVP段階）
-      // - タイマー操作（ホストのみの制限は将来実装）
-      // - participantsCount 更新
-      // - hostId 設定
-      // - ゲーム状態更新
-      // TODO: ホストのみが更新可能にする（02_expected-spec.md #2 実装時）
-      allow update: if true;
+      // 更新: 許可されたフィールドのみ更新可能
+      // - 重要なフィールド（createdAt, title）の改ざんを防止
+      // - 更新可能なフィールドを制限
+      allow update: if 
+        // 重要なフィールドは変更不可
+        request.resource.data.createdAt == resource.data.createdAt &&
+        request.resource.data.title == resource.data.title &&
+        // 更新可能なフィールドのみ許可
+        (
+          // participantsCount の更新（数値チェック）
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['participantsCount']) &&
+           request.resource.data.participantsCount is int &&
+           request.resource.data.participantsCount >= 0) ||
+          // timer オブジェクトの更新
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['timer']) &&
+           request.resource.data.timer is map) ||
+          // hostId の更新（ホスト権限移譲時）
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['hostId']) &&
+           request.resource.data.hostId is string &&
+           request.resource.data.hostId.size() > 0) ||
+          // Slack連携フィールドの更新
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['slackNotificationEnabled']) &&
+           request.resource.data.slackNotificationEnabled is bool) ||
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['slackThreadTs']) &&
+           (request.resource.data.slackThreadTs is string || request.resource.data.slackThreadTs == null)) ||
+          // 複数フィールドの同時更新
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['hostId', 'participantsCount']) &&
+           request.resource.data.hostId is string && request.resource.data.hostId.size() > 0 &&
+           request.resource.data.participantsCount is int && request.resource.data.participantsCount >= 0)
+        );
       
       // 削除: 誰でも可能（MVP段階）
       // - ルーム終了
@@ -45,9 +68,20 @@ service cloud.firestore {
                          request.resource.data.name.size() <= 20 &&
                          request.resource.data.isHost is bool;
         
-        // 更新: 誰でも可能（MVP段階）
-        // - lastActivity の更新
-        allow update: if true;
+        // 更新: 許可されたフィールドのみ更新可能
+        // - 重要なフィールド（name, joinedAt）の改ざんを防止
+        allow update: if 
+          // 重要なフィールドは変更不可
+          request.resource.data.name == resource.data.name &&
+          request.resource.data.joinedAt == resource.data.joinedAt &&
+          // 更新可能なフィールドのみ許可
+          (
+            // lastActivity の更新
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastActivity']) ||
+            // isHost の更新（ホスト権限移譲時）
+            (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isHost']) &&
+             request.resource.data.isHost is bool)
+          );
         
         // 削除: 誰でも可能
         // - 退出処理
