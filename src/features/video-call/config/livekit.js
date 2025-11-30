@@ -57,6 +57,9 @@ export const LIVEKIT_CONFIG = {
 
 // LiveKitルーム名を生成（Firebaseの部屋IDを使用）
 export const generateRoomName = (roomId) => {
+  if (!roomId || typeof roomId !== 'string') {
+    throw new Error('roomId is required and must be a string');
+  }
   return `room-${roomId}`;
 };
 
@@ -65,10 +68,12 @@ export const generateParticipantName = (userName) => {
   return userName || 'Guest';
 };
 
-// LiveKitトークンを生成するための関数（開発用）
+// LiveKitトークンを生成するための関数
+// 注意: Firebase Cloud Functionsでのトークン生成は使用しません
+// クライアントサイドで直接トークンを生成します
 export const generateAccessToken = async (roomName, participantName) => {
-  // 注意: 本番環境では、サーバーサイドでトークンを生成する必要があります
-  // ここでは開発用のクライアントサイド実装です
+  // クライアントサイドでJWTトークンを生成します
+  // Firebase Cloud Functionsは使用しません
   
   if (!LIVEKIT_CONFIG.apiKey || !LIVEKIT_CONFIG.apiSecret) {
     console.error('LiveKit API KeyまたはSecretが設定されていません');
