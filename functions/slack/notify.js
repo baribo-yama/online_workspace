@@ -1,8 +1,22 @@
 const {onRequest} = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
+const admin = require("firebase-admin");
+const fetch = require("node-fetch");
 
 // Slack API エンドポイント
 const SLACK_API_BASE = "https://slack.com/api";
+
+/**
+ * 複数ワークスペース設定
+ * - 各ワークスペースごとに Secret Manager のシークレット名とチャンネルIDを管理
+ */
+const WORKSPACE_CONFIG = {
+  "workspace-a": {
+    secretEnvVar: "SLACK_BOT_TOKEN", // 環境変数名（既存のシークレット名を使用）
+    channelId: "C09SB7A96DU",
+  },
+  // 新しいワークスペースを追加する場合はここに追記
+};
 
 /**
  * Slack API への汎用POST関数
@@ -39,11 +53,14 @@ const postToSlackApi = async (endpoint, body, botToken) => {
 };
 
 /**
- * Slack通知を送信するHTTPS関数
+ * Slack通知を送信するHTTPS関数（Firebase認証必須 + 複数ワークスペース対応）
+ * 
+ * リクエストヘッダー:
+ * - Authorization: Bearer <Firebase ID Token> (必須)
  * 
  * リクエストボディ:
  * {
- *   "channel": "C09SB7A96DU",
+ *   "workspace": "workspace-a",  // ワークスペース指定（省略時はworkspace-a）
  *   "text": "メッセージ内容",
  *   "thread_ts": "1234567890.123456" (オプション)
  * }
@@ -52,14 +69,20 @@ const postToSlackApi = async (endpoint, body, botToken) => {
  * {
  *   "ok": true,
  *   "ts": "1234567890.123456",
- *   "channel": "C09SB7A96DU"
+ *   "channel": "C09SB7A96DU",
+ *   "workspace": "workspace-a"
  * }
  */
 exports.sendSlackNotification = onRequest(
     {
-      cors: true, // CORS を許可（localhost:5173 からのアクセス）
-      secrets: ["SLACK_BOT_TOKEN"], // Secret Manager から取得
-      region: "asia-northeast1", // 東京リージョン（レイテンシ削減）
+      cors: [
+        "https://online-workspace-1c2a4.web.app",
+        "https://online-workspace-1c2a4.firebaseapp.com",
+        /^http:\/\/localhost:\d+$/, // 開発環境（任意のポート）
+      ],
+      secrets: ["SLACK_BOT_TOKEN"],
+      region: "asia-northeast1",
+      timeoutSeconds: 10,
     },
     async (req, res) => {
       // POST メソッドのみ許可
@@ -71,42 +94,103 @@ exports.sendSlackNotification = onRequest(
         return;
       }
 
-      const {channel, text, thread_ts} = req.body;
-
-      // バリデーション
-      if (!channel || !text) {
-        res.status(400).json({
-          ok: false,
-          error: "Bad Request",
-          message: "channel と text は必須です",
-        });
-        return;
-      }
-
-      // Secret Manager から Bot Token を取得
-      const botToken = process.env.SLACK_BOT_TOKEN;
-      if (!botToken) {
-        logger.error("SLACK_BOT_TOKEN が設定されていません");
-        res.status(500).json({
-          ok: false,
-          error: "Internal Server Error",
-          message: "サーバー設定エラー",
-        });
-        return;
-      }
-
       try {
+        // ❶ Firebase ID Token検証（認証チェック）
+        const authHeader = req.headers.authorization;
+
+        if (!authHeader || !authHeader.startsWith("Bearer ")) {
+          logger.warn("認証ヘッダーが不正または欠落", {
+            ip: req.ip,
+            userAgent: req.headers["user-agent"],
+          });
+          res.status(401).json({
+            ok: false,
+            error: "Unauthorized",
+            message: "Firebase ID Tokenが必要です",
+          });
+          return;
+        }
+
+        const idToken = authHeader.split("Bearer ")[1];
+        let decodedToken;
+
+        try {
+          // ❷ ID Tokenを検証
+          decodedToken = await admin.auth().verifyIdToken(idToken);
+          logger.info("認証成功", {
+            uid: decodedToken.uid,
+            email: decodedToken.email || "(匿名)",
+          });
+        } catch (error) {
+          logger.warn("無効なID Token", {
+            errorCode: error.code,
+            errorMessage: error.message,
+          });
+          res.status(401).json({
+            ok: false,
+            error: "Unauthorized",
+            message: "無効な認証トークンです",
+          });
+          return;
+        }
+
+        // ❸ リクエストボディを取得
+        const {workspace = "workspace-a", text, thread_ts} = req.body;
+
+        // ❹ バリデーション
+        if (!text) {
+          res.status(400).json({
+            ok: false,
+            error: "Bad Request",
+            message: "text は必須です",
+          });
+          return;
+        }
+
+        // ❺ ワークスペース設定を取得
+        const config = WORKSPACE_CONFIG[workspace];
+        if (!config) {
+          logger.warn("無効なワークスペース指定", {workspace});
+          res.status(400).json({
+            ok: false,
+            error: "Bad Request",
+            message: `無効なワークスペース: ${workspace}`,
+          });
+          return;
+        }
+
+        const {secretEnvVar, channelId} = config;
+
+        // ❻ Secret Manager から Bot Token を取得
+        const botToken = process.env[secretEnvVar]?.trim();
+        if (!botToken) {
+          logger.error(`環境変数 ${secretEnvVar} が未設定`, {
+            workspace,
+            availableSecrets: Object.keys(process.env).filter(
+                (k) => k.startsWith("SLACK"),
+            ),
+          });
+          res.status(500).json({
+            ok: false,
+            error: "Internal Server Error",
+            message: "サーバー設定エラー",
+          });
+          return;
+        }
+
         logger.info("Slack通知送信開始", {
-          channel,
+          workspace,
+          channel: channelId,
           textPreview: text.substring(0, 50),
           hasThread: !!thread_ts,
+          userId: decodedToken.uid,
         });
 
-        // Slack API 呼び出し
+        // ❼ Slack API 呼び出し
         const result = await postToSlackApi(
             "chat.postMessage",
             {
-              channel,
+              channel: channelId,
               text,
               ...(thread_ts && {thread_ts}),
             },
@@ -116,17 +200,20 @@ exports.sendSlackNotification = onRequest(
         if (result.ok) {
           logger.info("Slack通知成功", {
             ts: result.ts,
-            channel: result.channel,
+            channel: channelId,
+            workspace,
           });
 
           res.status(200).json({
             ok: true,
             ts: result.ts,
-            channel: result.channel,
+            channel: channelId,
+            workspace,
           });
         } else {
           logger.warn("Slack API エラー", {
             error: result.error,
+            workspace,
           });
 
           res.status(400).json({

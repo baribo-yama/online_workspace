@@ -50,7 +50,7 @@ const sendViaCloudFunction = async (payload) => {
     // ❷ ID Tokenを取得（有効期限1時間、自動更新）
     const idToken = await user.getIdToken();
 
-    // ❸ Cloud FunctionにID Tokenを送信
+    // ❸ Cloud FunctionにID Tokenとワークスペース情報を送信
     const response = await fetch(SLACK_CONFIG.functionUrl, {
       method: 'POST',
       headers: {
@@ -58,7 +58,7 @@ const sendViaCloudFunction = async (payload) => {
         'Authorization': `Bearer ${idToken}`,
       },
       body: JSON.stringify({
-        channel: SLACK_CONFIG.channelId,
+        workspace: SLACK_CONFIG.activeWorkspace, // ワークスペース指定
         ...payload
       }),
       signal: AbortSignal.timeout(SLACK_CONFIG.timeout)
