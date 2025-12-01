@@ -2,27 +2,28 @@
  * Slack連携の環境変数管理
  * 
  * 【役割】
- * - Cloud Functions URL と Channel ID の一元管理
+ * - Cloud Functions URL とワークスペース選択の一元管理
  * - 環境変数の存在チェックとバリデーション
  * - Slack機能の有効/無効判定
  * 
  * 【アーキテクチャ】
- * - Bot Tokenは Secret Manager で管理（セキュリティ強化）
+ * - Bot Token と Channel ID は Secret Manager / Cloud Function で管理（セキュリティ強化）
  * - フロントエンドは Cloud Functions 経由で Slack API を呼び出し
+ * - ワークスペース選択はリクエストパラメータで指定
  */
 
 export const SLACK_CONFIG = {
   functionUrl: import.meta.env.VITE_SLACK_FUNCTION_URL,
-  channelId: import.meta.env.VITE_SLACK_CHANNEL_ID,
+  activeWorkspace: import.meta.env.VITE_SLACK_ACTIVE_WORKSPACE || 'workspace-a', // デフォルト
   featureEnabledRaw: import.meta.env.VITE_SLACK_FEATURE_ENABLED,
   timeout: 5000, // 5秒
 };
 
 // 環境変数バリデーション（起動時チェック）
-if (!SLACK_CONFIG.functionUrl || !SLACK_CONFIG.channelId) {
+if (!SLACK_CONFIG.functionUrl) {
   console.warn(
     '[Integration/Slack] 環境変数未設定。Slack通知機能は無効化されます。\n' +
-    '必要な変数: VITE_SLACK_FUNCTION_URL, VITE_SLACK_CHANNEL_ID'
+    '必要な変数: VITE_SLACK_FUNCTION_URL'
   );
 }
 
@@ -48,7 +49,6 @@ export const isSlackFeatureEnabled = () => {
 export const isSlackEnabled = () => {
   return Boolean(
     isSlackFeatureEnabled() &&
-    SLACK_CONFIG.functionUrl &&
-    SLACK_CONFIG.channelId
+    SLACK_CONFIG.functionUrl
   );
 };
