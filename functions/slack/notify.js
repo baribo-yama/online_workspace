@@ -8,6 +8,7 @@ const SLACK_API_BASE = "https://slack.com/api";
 
 // シークレット定義
 const slackBotTokenA = defineSecret("SLACK_BOT_TOKEN_A");
+const slackBotTokenB = defineSecret("SLACK_BOT_TOKEN_B");
 
 /**
  * 複数ワークスペース設定
@@ -18,6 +19,11 @@ const WORKSPACE_CONFIG = {
     secretParam: slackBotTokenA, // シークレットパラメータ
     channelId: "C09SB7A96DU",
   },
+  "workspace-b": {
+    secretParam: slackBotTokenB, // シークレットパラメータ
+    channelId: "C0A0Z510EP4",
+  },
+
   // 新しいワークスペースを追加する場合はここに追記
 };
 
@@ -221,4 +227,5 @@ const handler = async (req, res) => {
 
 // 他のモジュールから参照できるようにエクスポート
 exports.slackBotTokenA = slackBotTokenA;
+exports.slackBotTokenB = slackBotTokenB;
 exports.handler = handler;
