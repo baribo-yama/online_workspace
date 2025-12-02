@@ -7,17 +7,50 @@
  * - LiveKitサーバーへの接続設定
  * - 音声・映像の品質設定
  * - 接続タイムアウトとリトライ設定
- * - アクセストークンの生成
+ * - アクセストークンの生成（Cloud Functions経由）
  * 
  * @fileoverview LiveKit統合設定
  */
+
+import { httpsCallable } from 'firebase/functions';
+import { functions } from '@/shared/services/firebase';
+
+/**
+ * Cloud Functions経由でLiveKitトークンを取得
+ * 
+ * @param {string} roomName - LiveKitルーム名（例: "room-abc123"）
+ * @param {string} identity - 参加者の識別子（例: "user-name"）
+ * @returns {Promise<string>} JWTトークン
+ * @throws {Error} トークン取得に失敗した場合
+ */
+export const fetchLivekitToken = async (roomName, identity) => {
+  try {
+    const callable = httpsCallable(functions, 'createLivekitToken');
+    const { data } = await callable({ roomName, identity });
+    
+    if (!data || !data.token) {
+      throw new Error('トークンが返されませんでした');
+    }
+    
+    return data.token;
+  } catch (error) {
+    console.error('LiveKitトークン取得失敗:', error);
+    
+    // HttpsErrorの場合はcodeプロパティを保持してそのまま再スロー
+    if (error.code) {
+      throw error;
+    }
+    
+    // その他のエラーの場合は新しいErrorをスロー
+    throw new Error(`トークン取得エラー: ${error.message}`);
+  }
+};
 
 // === LiveKit基本設定 ===
 export const LIVEKIT_CONFIG = {
   // 環境変数から取得（フォールバック付き）
   serverUrl: import.meta.env.VITE_LIVEKIT_URL || 'https://onlineworkspace-xu7dilqe.livekit.cloud',
-  apiKey: import.meta.env.VITE_LIVEKIT_API_KEY || 'dev-api-key',
-  apiSecret: import.meta.env.VITE_LIVEKIT_API_SECRET || 'dev-api-secret',
+  // 注意: apiKeyとapiSecretはクライアント側では使用しません（Cloud Functionsで管理）
   
   // デフォルト設定
   defaultOptions: {
@@ -68,55 +101,6 @@ export const generateParticipantName = (userName) => {
   return userName || 'Guest';
 };
 
-// LiveKitトークンを生成するための関数
-// 注意: Firebase Cloud Functionsでのトークン生成は使用しません
-// クライアントサイドで直接トークンを生成します
-export const generateAccessToken = async (roomName, participantName) => {
-  // クライアントサイドでJWTトークンを生成します
-  // Firebase Cloud Functionsは使用しません
-  
-  if (!LIVEKIT_CONFIG.apiKey || !LIVEKIT_CONFIG.apiSecret) {
-    console.error('LiveKit API KeyまたはSecretが設定されていません');
-    return null;
-  }
-
-  try {
-    // 設定値をログ出力（デバッグ用）
-    console.log('LiveKit設定確認:', {
-      serverUrl: LIVEKIT_CONFIG.serverUrl,
-      hasApiKey: !!LIVEKIT_CONFIG.apiKey,
-      hasApiSecret: !!LIVEKIT_CONFIG.apiSecret,
-      apiKeyLength: LIVEKIT_CONFIG.apiKey?.length,
-      apiSecretLength: LIVEKIT_CONFIG.apiSecret?.length,
-      isUsingEnvVars: !!(import.meta.env.VITE_LIVEKIT_URL && import.meta.env.VITE_LIVEKIT_API_KEY && import.meta.env.VITE_LIVEKIT_API_SECRET)
-    });
-
-    // joseライブラリを使用してJWTトークンを生成
-    const { SignJWT } = await import('jose');
-    
-    const secret = new TextEncoder().encode(LIVEKIT_CONFIG.apiSecret);
-    
-    const token = await new SignJWT({
-      video: {
-        room: roomName,
-        roomJoin: true,
-        canPublish: true,
-        canSubscribe: true,
-      },
-    })
-      .setProtectedHeader({ alg: 'HS256' })
-      .setIssuedAt()
-      .setExpirationTime('1h')
-      .setIssuer(LIVEKIT_CONFIG.apiKey)
-      .setSubject(participantName)
-      .sign(secret);
-    
-    console.log('開発用トークン生成完了:', { roomName, participantName, tokenLength: token.length });
-    return token;
-    
-  } catch (error) {
-    console.error('トークン生成エラー:', error);
-    return null;
-  }
-};
+// 注意: クライアント側でのトークン生成は非推奨です
+// Cloud Functions経由でトークンを取得するため、fetchLivekitTokenを使用してください
 
