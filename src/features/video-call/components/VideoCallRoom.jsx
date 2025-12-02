@@ -31,7 +31,7 @@ import {
   Users,
   Monitor
 } from 'lucide-react';
-import { LIVEKIT_CONFIG, generateRoomName, generateParticipantName, generateAccessToken } from '../config/livekit';
+import { LIVEKIT_CONFIG, generateRoomName, generateParticipantName, fetchLivekitToken } from '../config/livekit';
 import { TIMINGS, AUDIO } from '../constants';
 import { stopAllLocalTracks } from '../utils/streamUtils';
 import { doc, runTransaction, onSnapshot, updateDoc, getDoc } from 'firebase/firestore';
@@ -778,11 +778,30 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
         });
       }
 
-      // アクセストークンを生成
-      const token = await generateAccessToken(roomName, participantName);
-      if (!token) {
-        setError("トークンの生成に失敗しました。LiveKit設定を確認してください。");
-        throw new Error("トークンの生成に失敗しました");
+      // Cloud Functions経由でアクセストークンを取得
+      let token;
+      try {
+        token = await fetchLivekitToken(roomName, participantName);
+        if (!token) {
+          throw new Error("トークンの取得に失敗しました");
+        }
+      } catch (tokenError) {
+        console.error("LiveKitトークン取得エラー:", tokenError);
+
+        // Cloud Functionsのエラーを判定
+        let errorMessage =
+          "ビデオ通話の認証に失敗しました。もう一度お試しください。";
+        if (tokenError.code === "functions/unavailable") {
+          errorMessage =
+            "サーバーに接続できませんでした。ネットワークを確認してください。";
+        } else if (tokenError.code === "functions/invalid-argument") {
+          errorMessage = "認証情報が不正です。";
+        } else if (tokenError.code === "functions/failed-precondition") {
+          errorMessage = "サーバー設定が正しくありません。";
+        }
+
+        setError(errorMessage);
+        throw tokenError; // 外側のcatchに伝播させて処理を中断（既にsetErrorでエラー表示済み）
       }
 
       // 既存の接続を切断
