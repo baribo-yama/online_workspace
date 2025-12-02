@@ -7,7 +7,7 @@ const fetch = require("node-fetch");
 const SLACK_API_BASE = "https://slack.com/api";
 
 // シークレット定義
-const slackBotToken = defineSecret("SLACK_BOT_TOKEN");
+const slackBotTokenA = defineSecret("SLACK_BOT_TOKEN_A");
 
 /**
  * 複数ワークスペース設定
@@ -15,7 +15,7 @@ const slackBotToken = defineSecret("SLACK_BOT_TOKEN");
  */
 const WORKSPACE_CONFIG = {
   "workspace-a": {
-    secretParam: slackBotToken, // シークレットパラメータ
+    secretParam: slackBotTokenA, // シークレットパラメータ
     channelId: "C09SB7A96DU",
   },
   // 新しいワークスペースを追加する場合はここに追記
@@ -76,7 +76,7 @@ const postToSlackApi = async (endpoint, body, botToken) => {
  *   "workspace": "workspace-a"
  * }
  */
-exports.handler = async (req, res) => {
+const handler = async (req, res) => {
       // POST メソッドのみ許可
       if (req.method !== "POST") {
         res.status(405).json({
@@ -218,3 +218,7 @@ exports.handler = async (req, res) => {
         });
       }
 };
+
+// 他のモジュールから参照できるようにエクスポート
+exports.slackBotTokenA = slackBotTokenA;
+exports.handler = handler;
