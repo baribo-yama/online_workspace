@@ -6,26 +6,44 @@ const fetch = require("node-fetch");
 // Slack API エンドポイント
 const SLACK_API_BASE = "https://slack.com/api";
 
-// シークレット定義
-const slackBotTokenA = defineSecret("SLACK_BOT_TOKEN_A");
-const slackBotTokenB = defineSecret("SLACK_BOT_TOKEN_B");
-
 /**
- * 複数ワークスペース設定
- * - 各ワークスペースごとに Secret Manager のシークレット参照とチャンネルIDを管理
+ * ワークスペース設定
+ * 新しいワークスペースを追加する場合:
+ * 1. Secret Managerに SLACK_BOT_TOKEN_{WORKSPACE_ID} を作成
+ * 2. この配列に設定を追加するだけ
+ * 3. 自動的にシークレットが読み込まれる
  */
-const WORKSPACE_CONFIG = {
-  "workspace-a": {
-    secretParam: slackBotTokenA, // シークレットパラメータ
+const WORKSPACE_CONFIGS = [
+  {
+    id: "workspace-a",
+    secretName: "SLACK_BOT_TOKEN_A",
     channelId: "C09SB7A96DU",
   },
-  "workspace-b": {
-    secretParam: slackBotTokenB, // シークレットパラメータ
+  {
+    id: "workspace-b",
+    secretName: "SLACK_BOT_TOKEN_B",
     channelId: "C0A0Z510EP4",
   },
+  // 新しいワークスペースはここに追加するだけ
+  // {
+  //   id: "workspace-c",
+  //   secretName: "SLACK_BOT_TOKEN_C",
+  //   channelId: "C1234567890",
+  // },
+];
 
-  // 新しいワークスペースを追加する場合はここに追記
-};
+// シークレットを動的に定義してMapに格納
+const secretsMap = new Map();
+const secretParamsArray = [];
+
+WORKSPACE_CONFIGS.forEach((config) => {
+  const secret = defineSecret(config.secretName);
+  secretsMap.set(config.id, {
+    secretParam: secret,
+    channelId: config.channelId,
+  });
+  secretParamsArray.push(secret);
+});
 
 /**
  * Slack API への汎用POST関数
@@ -146,7 +164,7 @@ const handler = async (req, res) => {
         }
 
         // ❺ ワークスペース設定を取得
-        const config = WORKSPACE_CONFIG[workspace];
+        const config = secretsMap.get(workspace);
         if (!config) {
           logger.warn("無効なワークスペース指定", {workspace});
           res.status(400).json({
@@ -226,6 +244,5 @@ const handler = async (req, res) => {
 };
 
 // 他のモジュールから参照できるようにエクスポート
-exports.slackBotTokenA = slackBotTokenA;
-exports.slackBotTokenB = slackBotTokenB;
+exports.secrets = secretParamsArray;
 exports.handler = handler;
