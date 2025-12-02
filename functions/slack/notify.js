@@ -1,18 +1,21 @@
-const {onRequest} = require("firebase-functions/v2/https");
 const logger = require("firebase-functions/logger");
 const admin = require("firebase-admin");
+const {defineSecret} = require("firebase-functions/params");
 const fetch = require("node-fetch");
 
 // Slack API エンドポイント
 const SLACK_API_BASE = "https://slack.com/api";
 
+// シークレット定義
+const slackBotToken = defineSecret("SLACK_BOT_TOKEN");
+
 /**
  * 複数ワークスペース設定
- * - 各ワークスペースごとに Secret Manager のシークレット名とチャンネルIDを管理
+ * - 各ワークスペースごとに Secret Manager のシークレット参照とチャンネルIDを管理
  */
 const WORKSPACE_CONFIG = {
   "workspace-a": {
-    secretEnvVar: "SLACK_BOT_TOKEN", // 環境変数名（既存のシークレット名を使用）
+    secretParam: slackBotToken, // シークレットパラメータ
     channelId: "C09SB7A96DU",
   },
   // 新しいワークスペースを追加する場合はここに追記
@@ -53,7 +56,7 @@ const postToSlackApi = async (endpoint, body, botToken) => {
 };
 
 /**
- * Slack通知を送信するHTTPS関数（Firebase認証必須 + 複数ワークスペース対応）
+ * Slack通知を送信するHTTPS関数ハンドラー（Firebase認証必須 + 複数ワークスペース対応）
  * 
  * リクエストヘッダー:
  * - Authorization: Bearer <Firebase ID Token> (必須)
@@ -73,18 +76,7 @@ const postToSlackApi = async (endpoint, body, botToken) => {
  *   "workspace": "workspace-a"
  * }
  */
-exports.sendSlackNotification = onRequest(
-    {
-      cors: [
-        "https://online-workspace-1c2a4.web.app",
-        "https://online-workspace-1c2a4.firebaseapp.com",
-        /^http:\/\/localhost:\d+$/, // 開発環境（任意のポート）
-      ],
-      secrets: ["SLACK_BOT_TOKEN"],
-      region: "asia-northeast1",
-      timeoutSeconds: 10,
-    },
-    async (req, res) => {
+exports.handler = async (req, res) => {
       // POST メソッドのみ許可
       if (req.method !== "POST") {
         res.status(405).json({
@@ -159,16 +151,13 @@ exports.sendSlackNotification = onRequest(
           return;
         }
 
-        const {secretEnvVar, channelId} = config;
+        const {secretParam, channelId} = config;
 
         // ❻ Secret Manager から Bot Token を取得
-        const botToken = process.env[secretEnvVar]?.trim();
+        const botToken = secretParam.value()?.trim();
         if (!botToken) {
-          logger.error(`環境変数 ${secretEnvVar} が未設定`, {
+          logger.error("Bot Token が取得できません", {
             workspace,
-            availableSecrets: Object.keys(process.env).filter(
-                (k) => k.startsWith("SLACK"),
-            ),
           });
           res.status(500).json({
             ok: false,
@@ -228,5 +217,4 @@ exports.sendSlackNotification = onRequest(
           error: "Internal Server Error",
         });
       }
-    },
-);
+};
