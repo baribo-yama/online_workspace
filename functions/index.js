@@ -10,7 +10,10 @@ const notifyModule = require("./slack/notify");
 
 exports.sendSlackNotification = onRequest(
   {
-    secrets: [notifyModule.slackBotTokenA], // notify.jsで定義されたシークレットを使用
+    secrets: [
+        notifyModule.slackBotTokenA,
+        notifyModule.slackBotTokenB,
+    ], // notify.jsで定義されたシークレットを使用
     region: "asia-northeast1",
     timeoutSeconds: 10,
     memory: "256MiB",
