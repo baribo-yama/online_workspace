@@ -1,10 +1,22 @@
-import PropTypes from 'prop-types';
-
 /**
  * Tips表示コンポーネント
  * 休憩時間中にITエンジニア向けのTipsを表示
  * タイマーとチャットの間にインライン表示
+ * 
+ * @param {Object} props - コンポーネントのプロパティ
+ * @param {Object} props.tip - Tipsのデータ
+ * @param {string} props.tip.id - TipsのID
+ * @param {string} props.tip.category - カテゴリ
+ * @param {string} props.tip.content - Tipsの内容
+ * @param {string} props.tip.difficulty - 難易度（beginner/intermediate/advanced）
+ * @param {boolean} props.isVisible - 表示フラグ
  */
+
+// prop-typesのインポートをコメントアウト
+// 理由: React 19ではprop-typesは通常不要。また、Viteのビルドエラーを回避するため。
+// 型チェックはJSDocコメントで行う。将来的にTypeScript導入時は削除予定。
+// import PropTypes from 'prop-types';
+
 export function TipsDisplay({ tip, isVisible }) {
   // 非表示時は最小限の高さを確保してレイアウトシフトを防ぐ（相対的な高さ）
   if (!isVisible || !tip) {
@@ -90,12 +102,15 @@ export function TipsDisplay({ tip, isVisible }) {
   );
 }
 
-TipsDisplay.propTypes = {
-  tip: PropTypes.shape({
-    id: PropTypes.string.isRequired,
-    category: PropTypes.string.isRequired,
-    content: PropTypes.string.isRequired,
-    difficulty: PropTypes.string.isRequired,
-  }),
-  isVisible: PropTypes.bool.isRequired,
-};
+// prop-typesの定義をコメントアウト
+// 理由: React 19ではprop-typesは通常不要。また、Viteのビルドエラーを回避するため。
+// 型チェックはJSDocコメントで行う。将来的にTypeScript導入時は削除予定。
+// TipsDisplay.propTypes = {
+//   tip: PropTypes.shape({
+//     id: PropTypes.string.isRequired,
+//     category: PropTypes.string.isRequired,
+//     content: PropTypes.string.isRequired,
+//     difficulty: PropTypes.string.isRequired,
+//   }),
+//   isVisible: PropTypes.bool.isRequired,
+// };
