@@ -124,6 +124,9 @@ service cloud.firestore {
            request.resource.data.slackNotificationEnabled is bool) ||
           (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['slackThreadTs']) &&
            (request.resource.data.slackThreadTs is string || request.resource.data.slackThreadTs == null)) ||
+          // screenShareOwner の更新（画面共有制御）
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['screenShareOwner']) &&
+           (request.resource.data.screenShareOwner is string || request.resource.data.screenShareOwner == null)) ||
           // 複数フィールドの同時更新
           (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['hostId', 'participantsCount']) &&
            request.resource.data.hostId is string && request.resource.data.hostId.size() > 0 &&

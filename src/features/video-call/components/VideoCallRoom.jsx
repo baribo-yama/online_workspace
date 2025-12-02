@@ -17,8 +17,6 @@ import React, { useEffect, useState, useRef, useCallback, useMemo, memo } from '
 import { 
   Room, 
   RoomEvent, 
-  RemoteParticipant, 
-  LocalParticipant,
   Track,
   createLocalScreenTracks
 } from 'livekit-client';
@@ -1568,7 +1566,7 @@ function VideoCallRoom({ roomId, userName, onRoomDisconnected, onLeaveRoom }) {
       } else {
         setShareError('画面共有を開始できませんでした（通信エラーが発生しました）');
       }
-      setShareState('idle');
+      setShareState(SHARE_STATE.IDLE);
     }
   }, [roomId, shareState, clearScreenShareOwner]);
 
