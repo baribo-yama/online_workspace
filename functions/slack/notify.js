@@ -10,7 +10,7 @@ const SLACK_API_BASE = "https://slack.com/api";
  * ワークスペース設定
  * 新しいワークスペースを追加する場合:
  * 1. Secret Managerに SLACK_BOT_TOKEN_{WORKSPACE_ID} を作成
- * 2. この配列に設定を追加するだけ
+ * 2. この配列に設定を追加するだけほ
  * 3. 自動的にシークレットが読み込まれる
  */
 const WORKSPACE_CONFIGS = [
