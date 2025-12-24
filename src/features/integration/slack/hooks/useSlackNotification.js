@@ -33,6 +33,8 @@ export const useSlackNotification = () => {
    * @returns {Promise<void>}
    */
   const notifyRoomCreated = useCallback(async ({ roomId, roomTitle, hostName }) => {
+    console.log('[Integration/Slack] 部屋作成通知を開始:', { roomId, roomTitle, hostName });
+    
     try {
       const roomUrl = `${window.location.origin}/room/${roomId}`;
       
@@ -42,9 +44,12 @@ export const useSlackNotification = () => {
         roomUrl
       });
 
+      console.log('[Integration/Slack] 通知結果:', result);
+
       // Slack通知成功時、Firestoreに thread_ts を保存
       if (result.ok && result.ts) {
         await updateRoom(roomId, { slackThreadTs: result.ts });
+        console.log('[Integration/Slack] thread_ts を保存しました:', result.ts);
       }
     } catch (error) {
       console.warn('[Integration/Slack] 部屋作成通知でエラー:', error);
