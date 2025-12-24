@@ -1,8 +1,8 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // 開発環境と本番環境のルーム（dev_rooms, prod_rooms）
-    match /{prefix}_rooms/{roomId} {
+    // 開発環境のルーム（dev_rooms）
+    match /dev_rooms/{roomId} {
       // 読み取り: 誰でも可能
       // - ルーム一覧の表示
       // - ルーム詳細の取得
@@ -48,6 +48,126 @@ service cloud.firestore {
         // 更新: 誰でも可能（MVP段階）
         // - lastActivity の更新
         allow update: if true;
+        
+        // 削除: 誰でも可能
+        // - 退出処理
+        // - 古い参加者のクリーンアップ
+        // - 重複参加者の削除
+        allow delete: if true;
+      }
+
+      // チャットメッセージサブコレクション
+      // - ルーム終了時に自動削除される（02_expected-spec.md #6 より）
+      match /messages/{messageId} {
+        // 読み取り: 誰でも可能
+        // - チャット履歴の表示
+        allow read: if true;
+        
+        // 作成: 必須フィールドのチェック
+        // - userName（ユーザー名）は必須、1-20文字
+        // - text（メッセージテキスト）は必須、1-200文字
+        // - createdAt（作成日時）は必須
+        allow create: if request.resource.data.keys().hasAll(['userName', 'text', 'createdAt']) &&
+                         request.resource.data.userName is string &&
+                         request.resource.data.userName.size() > 0 &&
+                         request.resource.data.userName.size() <= 20 &&
+                         request.resource.data.text is string &&
+                         request.resource.data.text.size() > 0 &&
+                         request.resource.data.text.size() <= 200;
+        
+        // 更新: 不可（送信後の編集は許可しない）
+        allow update: if false;
+        
+        // 削除: 不可（ルーム終了時に自動削除）
+        // TODO: ルーム終了時の自動削除機能実装時に有効化
+        allow delete: if false;
+      }
+    }
+
+    // 本番環境のルーム（prod_rooms）
+    match /prod_rooms/{roomId} {
+      // 読み取り: 誰でも可能
+      // - ルーム一覧の表示
+      // - ルーム詳細の取得
+      allow read: if true;
+      
+      // 作成: 必須フィールドのチェック
+      // - title（部屋タイトル）は必須、1-50文字
+      // - createdAt（作成日時）は必須
+      allow create: if request.resource.data.keys().hasAll(['title', 'createdAt']) &&
+                       request.resource.data.title is string &&
+                       request.resource.data.title.size() > 0 &&
+                       request.resource.data.title.size() <= 50;
+      
+      // 更新: 許可されたフィールドのみ更新可能
+      // - 重要なフィールド（createdAt, title）の改ざんを防止
+      // - 更新可能なフィールドを制限
+      allow update: if 
+        // 重要なフィールドは変更不可
+        request.resource.data.createdAt == resource.data.createdAt &&
+        request.resource.data.title == resource.data.title &&
+        // 更新可能なフィールドのみ許可
+        (
+          // participantsCount の更新（数値チェック）
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['participantsCount']) &&
+           request.resource.data.participantsCount is int &&
+           request.resource.data.participantsCount >= 0) ||
+          // timer オブジェクトの更新
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['timer']) &&
+           request.resource.data.timer is map) ||
+          // hostId の更新（ホスト権限移譲時）
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['hostId']) &&
+           request.resource.data.hostId is string &&
+           request.resource.data.hostId.size() > 0) ||
+          // Slack連携フィールドの更新
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['slackNotificationEnabled']) &&
+           request.resource.data.slackNotificationEnabled is bool) ||
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['slackThreadTs']) &&
+           (request.resource.data.slackThreadTs is string || request.resource.data.slackThreadTs == null)) ||
+          // screenShareOwner の更新（画面共有制御）
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['screenShareOwner']) &&
+           (request.resource.data.screenShareOwner is string || request.resource.data.screenShareOwner == null)) ||
+          // 複数フィールドの同時更新
+          (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['hostId', 'participantsCount']) &&
+           request.resource.data.hostId is string && request.resource.data.hostId.size() > 0 &&
+           request.resource.data.participantsCount is int && request.resource.data.participantsCount >= 0)
+        );
+      
+      // 削除: 誰でも可能（MVP段階）
+      // - ルーム終了
+      // TODO: ホストのみが削除可能にする（02_expected-spec.md #2 実装時）
+      allow delete: if true;
+      
+      // 参加者サブコレクション
+      match /participants/{participantId} {
+        // 読み取り: 誰でも可能
+        // - 参加者リストの表示
+        allow read: if true;
+        
+        // 作成: 必須フィールドのチェック
+        // - name（ユーザー名）は必須、1-20文字
+        // - joinedAt（入室日時）は必須
+        // - isHost（ホスト権限）は必須
+        allow create: if request.resource.data.keys().hasAll(['name', 'joinedAt', 'isHost']) &&
+                         request.resource.data.name is string &&
+                         request.resource.data.name.size() > 0 &&
+                         request.resource.data.name.size() <= 20 &&
+                         request.resource.data.isHost is bool;
+        
+        // 更新: 許可されたフィールドのみ更新可能
+        // - 重要なフィールド（name, joinedAt）の改ざんを防止
+        allow update: if 
+          // 重要なフィールドは変更不可
+          request.resource.data.name == resource.data.name &&
+          request.resource.data.joinedAt == resource.data.joinedAt &&
+          // 更新可能なフィールドのみ許可
+          (
+            // lastActivity の更新
+            request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastActivity']) ||
+            // isHost の更新（ホスト権限移譲時）
+            (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isHost']) &&
+             request.resource.data.isHost is bool)
+          );
         
         // 削除: 誰でも可能
         // - 退出処理

@@ -23,14 +23,14 @@ export const RoomHeader = ({
   return (
     <div className="p-6 border-b border-gray-700">
       <div className="flex gap-2 mb-4">
-        {/* ゲストとホストの両方に「ルーム一覧に戻る」ボタンを表示 */}
+        {/* ゲストとホストの両方に「退出する」ボタンを表示 */}
         <button
           onClick={onLeaveRoom}
           className="flex items-center gap-2 text-blue-400 hover:text-blue-300 hover:bg-blue-900/20 px-3 py-2 rounded-lg transition-all duration-200 border border-transparent hover:border-blue-500/30"
-          aria-label="ルーム一覧に戻る"
+          aria-label="退出する"
         >
           <Home className="w-4 h-4" />
-          ルーム一覧に戻る
+          退出する
         </button>
 
         {/* ホストのみに「部屋を終了」ボタンを表示 */}
