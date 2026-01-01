@@ -69,8 +69,9 @@ function RoomPage() {
   // Slack参加通知（参加者ID取得後、1回のみ実行）
   useEffect(() => {
     if (!myParticipantId || hasNotifiedJoinRef.current) return;
-    if (!room?.slackThreadTs) return; // Slack通知が有効な部屋のみ
-    
+    // Slack通知が有効な部屋のみ
+    if (!room?.slackThreadTs && !room?.slackThreads) return;
+
     // 自分がホストの場合は通知しない（部屋作成時に既に通知済み）
     if (isHost) {
       hasNotifiedJoinRef.current = true;
@@ -80,12 +81,14 @@ function RoomPage() {
     // Slack参加通知を送信
     notifyParticipantJoined({
       threadTs: room.slackThreadTs,
+      threadTsMap: room.slackThreads,
       userName,
-      participantCount: participants.length
+      participantCount: participants.length,
+      workspaceId: room.slackWorkspaceId
     });
 
     hasNotifiedJoinRef.current = true;
-  }, [myParticipantId, room?.slackThreadTs, isHost, userName, participants.length, notifyParticipantJoined]);
+  }, [myParticipantId, room?.slackThreadTs, room?.slackThreads, isHost, userName, participants.length, notifyParticipantJoined]);
 
   // ホスト権限昇格の通知
   useEffect(() => {
