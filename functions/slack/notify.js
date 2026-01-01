@@ -7,49 +7,43 @@ const cors = require("cors")({ origin: true });
 // Slack API エンドポイント
 const SLACK_API_BASE = "https://slack.com/api";
 
-/**
- * ワークスペース設定
- * 新しいワークスペースを追加する場合:
- * 1. Secret Managerに SLACK_BOT_TOKEN_{WORKSPACE_ID} を作成
- * 2. この配列に設定を追加するだけほ
- * 3. 自動的にシークレットが読み込まれる
- */
-const WORKSPACE_CONFIGS = [
-  {
-    id: "workspace-a",//MOKUテスト用
-    secretName: "SLACK_BOT_TOKEN_A",
-    channelId: "C09SB7A96DU",
-  },
-  {
-    id: "workspace-b",//MOKUテスト用2
-    secretName: "SLACK_BOT_TOKEN_B",
-    channelId: "C0A0Z510EP4",
-  },
-  {
-    id: "workspace-c",//おかやまテックガレージ、雑談チャンネル
-    secretName: "SLACK_BOT_TOKEN_C",
-    channelId: "C08DDJ3SQCU",
-  },
-  // 新しいワークスペースはここに追加するだけ
-  // {
-  //   id: "workspace-c",
-  //   secretName: "SLACK_BOT_TOKEN_C",
-  //   channelId: "C1234567890",
-  // },
-];
+// =================================================================
+// 1. シークレット（Bot Token）の定義
+// =================================================================
+const SECRETS = {
+  A: defineSecret("SLACK_BOT_TOKEN_A"),
+  B: defineSecret("SLACK_BOT_TOKEN_B"),
+  C: defineSecret("SLACK_BOT_TOKEN_C"),
+};
 
-// シークレットを動的に定義してMapに格納
-const secretsMap = new Map();
-const secretParamsArray = [];
+// Cloud Functionsに登録するための配列（exports用）
+const secretParamsArray = Object.values(SECRETS);
 
-WORKSPACE_CONFIGS.forEach((config) => {
-  const secret = defineSecret(config.secretName);
-  secretsMap.set(config.id, {
-    secretParam: secret,
-    channelId: config.channelId,
-  });
-  secretParamsArray.push(secret);
-});
+// =================================================================
+// 2. 通知ルートの定義
+// =================================================================
+// フロントエンドから指定される "workspace" (ID) に対して、
+// 「どのToken」を使って「どのChannel」に送るかをマッピング
+const NOTIFICATION_ROUTES = {
+  "workspace-a": [
+    { secret: SECRETS.A, channelId: "C09SB7A96DU" } // MOKUテスト用
+  ],
+  "workspace-b": [
+    { secret: SECRETS.B, channelId: "C0A0Z510EP4" } // MOKUテスト用2
+  ],
+  "workspace-c": [
+    { secret: SECRETS.C, channelId: "C08DDJ3SQCU" } // 雑談チャンネル
+  ],
+  // 複数ワークスペースへの一斉配信
+  "workspace-a_b": [
+    { secret: SECRETS.A, channelId: "C09SB7A96DU" },
+    { secret: SECRETS.B, channelId: "C0A0Z510EP4" }
+  ],
+  "workspace-a_c": [
+    { secret: SECRETS.A, channelId: "C09SB7A96DU" },
+    { secret: SECRETS.C, channelId: "C08DDJ3SQCU" }
+  ]
+};
 
 /**
  * Slack API への汎用POST関数
@@ -95,14 +89,16 @@ const postToSlackApi = async (endpoint, body, botToken) => {
  * {
  *   "workspace": "workspace-a",  // ワークスペース指定（省略時はworkspace-a）
  *   "text": "メッセージ内容",
- *   "thread_ts": "1234567890.123456" (オプション)
+ *   "thread_ts": "1234567890.123456" (オプション: レガシー互換)
+ *   "thread_ts_map": { "CHANNEL_ID": "TS", ... } (オプション: 複数チャンネル返信用)
  * }
  * 
  * レスポンス:
  * {
  *   "ok": true,
- *   "ts": "1234567890.123456",
- *   "channel": "C09SB7A96DU",
+ *   "results": { "CHANNEL_ID": "TS", ... },
+ *   "ts": "...", // レガシー互換
+ *   "channel": "...", // レガシー互換
  *   "workspace": "workspace-a"
  * }
  */
@@ -158,7 +154,8 @@ const handler = async (req, res) => {
       }
 
       // ❸ リクエストボディを取得
-      const { workspace = "workspace-a", text, thread_ts } = req.body;
+      // thread_ts_map: { "CHANNEL_ID": "TS", ... } の形式で来ることを想定
+      const { workspace = "workspace-a", text, thread_ts, thread_ts_map } = req.body;
 
       // ❹ バリデーション
       if (!text) {
@@ -170,9 +167,9 @@ const handler = async (req, res) => {
         return;
       }
 
-      // ❺ ワークスペース設定を取得
-      const config = secretsMap.get(workspace);
-      if (!config) {
+      // ❺ 通知ルート(targets)を取得
+      const targets = NOTIFICATION_ROUTES[workspace];
+      if (!targets) {
         logger.warn("無効なワークスペース指定", { workspace });
         res.status(400).json({
           ok: false,
@@ -182,63 +179,91 @@ const handler = async (req, res) => {
         return;
       }
 
-      const { secretParam, channelId } = config;
-
-      // ❻ Secret Manager から Bot Token を取得
-      const botToken = secretParam.value()?.trim();
-      if (!botToken) {
-        logger.error("Bot Token が取得できません", {
-          workspace,
-        });
-        res.status(500).json({
-          ok: false,
-          error: "Internal Server Error",
-          message: "サーバー設定エラー",
-        });
-        return;
-      }
-
       logger.info("Slack通知送信開始", {
         workspace,
-        channel: channelId,
+        targetCount: targets.length,
         textPreview: text.substring(0, 50),
-        hasThread: !!thread_ts,
+        hasThreadMap: !!thread_ts_map,
+        threadMapKeys: thread_ts_map ? Object.keys(thread_ts_map) : [], // デバッグ用
+        legacyThreadTs: thread_ts,
         userId: decodedToken.uid,
       });
 
-      // ❼ Slack API 呼び出し
-      const result = await postToSlackApi(
-        "chat.postMessage",
-        {
-          channel: channelId,
-          text,
-          ...(thread_ts && { thread_ts }),
-        },
-        botToken,
-      );
+      // ❼ Slack API 呼び出し（全ターゲットへループ）
+      const results = {};
+      const errors = [];
 
-      if (result.ok) {
-        logger.info("Slack通知成功", {
-          ts: result.ts,
-          channel: channelId,
+      await Promise.all(targets.map(async (target) => {
+        const { secret, channelId } = target;
+
+        // Bot Token取得
+        const botToken = secret.value()?.trim();
+        if (!botToken) {
+          logger.error(`Bot Token 未設定 for channel ${channelId}`, { workspace });
+          errors.push({ channel: channelId, error: "Configuration Error: Token missing" });
+          return;
+        }
+
+        // スレッドTS決定
+        const targetTs = thread_ts_map?.[channelId] || thread_ts;
+        const isReplyIntent = !!thread_ts_map || !!thread_ts;
+
+        // デバッグログ: 各チャンネルの判定状況
+        logger.debug(`[Channel: ${channelId}] 判定`, {
+          targetTs,
+          isReplyIntent,
+          inMap: thread_ts_map ? (channelId in thread_ts_map) : false
+        });
+
+        if (isReplyIntent && !targetTs) {
+          logger.warn(`[Channel: ${channelId}] スレッドTSが見つからないためスキップします`);
+          return;
+        }
+
+        const result = await postToSlackApi(
+          "chat.postMessage",
+          {
+            channel: channelId,
+            text,
+            ...(targetTs && { thread_ts: targetTs }),
+          },
+          botToken,
+        );
+
+        if (result.ok) {
+          results[channelId] = result.ts;
+        } else {
+          errors.push({ channel: channelId, error: result.error });
+        }
+      }));
+
+      // 結果応答
+      const successCount = Object.keys(results).length;
+
+      if (successCount > 0) {
+        logger.info("Slack通知完了", {
+          successCount,
+          failCount: errors.length,
           workspace,
         });
 
         res.status(200).json({
           ok: true,
-          ts: result.ts,
-          channel: channelId,
+          results, // { "Cxxxx": "1234.5678", ... }
+          ts: Object.values(results)[0],
+          channel: Object.keys(results)[0],
           workspace,
         });
       } else {
-        logger.warn("Slack API エラー", {
-          error: result.error,
+        logger.warn("全宛先で送信失敗", {
+          errors,
           workspace,
         });
 
         res.status(400).json({
           ok: false,
-          error: result.error,
+          error: "All targets failed",
+          details: errors
         });
       }
     } catch (error) {
