@@ -40,7 +40,7 @@ const sendViaCloudFunction = async (payload) => {
   try {
     // ❶ Firebase認証済みユーザーのID Tokenを取得
     const user = auth.currentUser;
-    
+
     if (!user) {
       console.error('[Integration/Slack] ユーザーが認証されていません');
       console.error('[Integration/Slack] App.jsx で signInAnonymously() が実行されているか確認してください');
@@ -58,7 +58,7 @@ const sendViaCloudFunction = async (payload) => {
         'Authorization': `Bearer ${idToken}`,
       },
       body: JSON.stringify({
-        workspace: SLACK_CONFIG.activeWorkspace, // ワークスペース指定
+        workspace: payload.workspaceId || SLACK_CONFIG.activeWorkspace, // 指定があればそれを使う、なければデフォルト
         ...payload
       }),
       signal: AbortSignal.timeout(SLACK_CONFIG.timeout)
@@ -75,11 +75,11 @@ const sendViaCloudFunction = async (payload) => {
     }
 
     const data = await response.json();
-    
+
     if (!data.ok) {
       console.warn('[Integration/Slack] Slack API エラー:', data.error);
     }
-    
+
     return data;
 
   } catch (error) {
@@ -105,7 +105,10 @@ const sendViaCloudFunction = async (payload) => {
  */
 export const postRoomCreated = async (roomData) => {
   const message = buildRoomCreatedMessage(roomData);
-  return sendViaCloudFunction({ text: message });
+  return sendViaCloudFunction({
+    text: message,
+    workspaceId: roomData.workspaceId
+  });
 };
 
 /**
@@ -116,11 +119,13 @@ export const postRoomCreated = async (roomData) => {
  * @param {number} data.participantCount - 現在の参加者数
  * @returns {Promise<{ok: boolean}>}
  */
-export const postParticipantJoined = async ({ threadTs, userName, participantCount }) => {
+export const postParticipantJoined = async ({ threadTs, threadTsMap, userName, participantCount, workspaceId }) => {
   const message = buildParticipantJoinedMessage({ userName, participantCount });
   return sendViaCloudFunction({
     text: message,
-    thread_ts: threadTs
+    thread_ts: threadTs,
+    thread_ts_map: threadTsMap,
+    workspaceId
   });
 };
 
@@ -130,10 +135,12 @@ export const postParticipantJoined = async ({ threadTs, userName, participantCou
  * @param {string} data.threadTs - Slackスレッド識別子
  * @returns {Promise<{ok: boolean}>}
  */
-export const postRoomEnded = async ({ threadTs }) => {
+export const postRoomEnded = async ({ threadTs, threadTsMap, workspaceId }) => {
   const message = buildRoomEndedMessage();
   return sendViaCloudFunction({
     text: message,
-    thread_ts: threadTs
+    thread_ts: threadTs,
+    thread_ts_map: threadTsMap,
+    workspaceId
   });
 };
