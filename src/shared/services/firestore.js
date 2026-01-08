@@ -52,6 +52,8 @@ export const defaultRoom = {
   // Slack連携関連フィールド
   slackNotificationEnabled: false, // Slack通知の有効/無効
   slackThreadTs: null,            // Slackスレッド識別子
+  // 画面共有関連フィールド
+  screenShareOwner: null,          // 画面共有中のユーザーID（null = 誰も共有していない）
 };
 
 // participants の初期形

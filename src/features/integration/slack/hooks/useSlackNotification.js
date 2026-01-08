@@ -32,19 +32,40 @@ export const useSlackNotification = () => {
    * @param {string} params.hostName - ホスト名
    * @returns {Promise<void>}
    */
-  const notifyRoomCreated = useCallback(async ({ roomId, roomTitle, hostName }) => {
+  const notifyRoomCreated = useCallback(async ({ roomId, roomTitle, hostName, workspaceId }) => {
+    console.log('[Integration/Slack] 部屋作成通知を開始:', { roomId, roomTitle, hostName });
+
     try {
       const roomUrl = `${window.location.origin}/room/${roomId}`;
-      
+
       const result = await postRoomCreated({
         hostName,
         roomTitle,
-        roomUrl
+        roomUrl,
+        workspaceId // 修正: params.workspaceId -> workspaceId
       });
 
+      console.log('[Integration/Slack] 通知結果:', result);
+
       // Slack通知成功時、Firestoreに thread_ts を保存
-      if (result.ok && result.ts) {
-        await updateRoom(roomId, { slackThreadTs: result.ts });
+      // Slack通知成功時、Firestoreに thread_ts を保存
+      if (result.ok) {
+        const updates = {};
+
+        // 複数チャンネル対応: 結果マップを保存
+        if (result.results) {
+          updates.slackThreads = result.results;
+        }
+
+        // レガシー互換: 単一TSも保存
+        if (result.ts) {
+          updates.slackThreadTs = result.ts;
+        }
+
+        if (Object.keys(updates).length > 0) {
+          await updateRoom(roomId, updates);
+          console.log('[Integration/Slack] 通知情報を保存しました:', updates);
+        }
       }
     } catch (error) {
       console.warn('[Integration/Slack] 部屋作成通知でエラー:', error);
@@ -59,16 +80,19 @@ export const useSlackNotification = () => {
    * @param {string} params.threadTs - Slackスレッド識別子
    * @param {string} params.userName - 参加者名
    * @param {number} params.participantCount - 現在の参加者数
+   * @param {string} params.workspaceId - 通知先ワークスペースID (部屋データから取得)
    * @returns {Promise<void>}
    */
-  const notifyParticipantJoined = useCallback(async ({ threadTs, userName, participantCount }) => {
-    if (!threadTs) return; // スレッドIDがない場合は何もしない
+  const notifyParticipantJoined = useCallback(async ({ threadTs, threadTsMap, userName, participantCount, workspaceId }) => {
+    if (!threadTs && !threadTsMap) return; // スレッド情報がない場合は何もしない
 
     try {
       await postParticipantJoined({
         threadTs,
+        threadTsMap,
         userName,
-        participantCount
+        participantCount,
+        workspaceId
       });
     } catch (error) {
       console.warn('[Integration/Slack] 参加通知でエラー:', error);
@@ -82,11 +106,11 @@ export const useSlackNotification = () => {
    * @param {string} params.threadTs - Slackスレッド識別子
    * @returns {Promise<void>}
    */
-  const notifyRoomEnded = useCallback(async ({ threadTs }) => {
-    if (!threadTs) return; // スレッドIDがない場合は何もしない
+  const notifyRoomEnded = useCallback(async ({ threadTs, threadTsMap, workspaceId }) => {
+    if (!threadTs && !threadTsMap) return; // スレッド情報がない場合は何もしない
 
     try {
-      await postRoomEnded({ threadTs });
+      await postRoomEnded({ threadTs, threadTsMap, workspaceId });
     } catch (error) {
       console.warn('[Integration/Slack] 終了通知でエラー:', error);
     }
