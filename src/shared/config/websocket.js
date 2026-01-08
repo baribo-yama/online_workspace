@@ -37,8 +37,9 @@ export function getDefaultWebSocketUrl() {
     if (prodUrl && validateWebSocketUrl(prodUrl)) {
       return prodUrl;
     }
-    // RenderのWebSocketサーバーURL（HTTPSをWSSに変更）
-    return "wss://online-workspace.onrender.com";
+    // 本番環境では環境変数が必須
+    console.error('本番環境では VITE_WEBSOCKET_URL または VITE_WEBSOCKET_URL_PROD の設定が必要です');
+    return "ws://localhost:8080"; // フォールバック（実際には接続できない）
   } else {
     return "ws://localhost:8080";
   }

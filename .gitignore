@@ -19,6 +19,7 @@ dist-ssr
 .env.development.local
 .env.test.local
 .env.production.local
+.env.production
 # Note: .env.production is included for deployment reference
 
 # Firebase
@@ -36,5 +37,3 @@ dist-ssr
 *.sln
 *.sw?
 *.backup
-
-
