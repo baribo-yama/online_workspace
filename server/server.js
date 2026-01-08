@@ -22,7 +22,7 @@ console.log(`   - Node.js環境: ${process.env.NODE_ENV || 'development'}`);
 console.log(`   - プロセスID: ${process.pid}`);
 console.log(`   - 起動時刻: ${new Date().toISOString()}`);
 if (process.env.NODE_ENV === 'production') {
-  console.log(`   - 本番環境サーバーURL: wss://online-workspace.onrender.com`);
+  console.log(`   - 本番環境モード`);
 } else {
   console.log(`   - サーバーURL: ws://localhost:${PORT}`);
 }
