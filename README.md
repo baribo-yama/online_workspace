@@ -43,9 +43,9 @@ Online Workspaceは、LiveKitを使用したリアルタイムビデオ通話機
 
 ### 開発・デプロイ
 - **Node.js**: サーバーサイド
-- **WebSocket Server**: リアルタイム通信
 - **Firebase Hosting**: フロントエンドのホスティング
-- **Render.com**: WebSocketサーバーのデプロイ
+- **firestore**: データベース
+- **firefunctions**: バックエンド
 
 ## セットアップ
 
