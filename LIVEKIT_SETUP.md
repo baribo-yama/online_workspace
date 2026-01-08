@@ -93,6 +93,18 @@ firebase deploy --only functions:createLivekitToken
 - ✅ Secret Manager による安全な管理
 - ✅ トークンは1時間の有効期限（短期間のみ有効）
 
+## 実装詳細
+
+**詳細な実装方法とコード例については、以下のドキュメントを参照してください：**
+
+📖 [LiveKit トークン生成実装ガイド](./docs/LIVEKIT_TOKEN_GENERATION.md)
+
+このドキュメントには以下が含まれています：
+- クライアント側とCloud Functions側の実装コード
+- クライアント側トークン生成からの移行方法
+- エラーハンドリングの実装例
+- セキュリティ上の利点の詳細説明
+
 ## トラブルシューティング
 
 ### Secret Manager の確認

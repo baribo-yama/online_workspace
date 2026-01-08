@@ -30,6 +30,7 @@ import { defaultRoom, defaultParticipant } from "../../../../shared/services/fir
 import { ROOM_LIMITS, ROOM_ERRORS } from "../../constants";
 import { validateRoomTitle, validateUserName } from "../../utils";
 import { useSlackNotification } from "../../../integration/slack/hooks/useSlackNotification";
+import { SLACK_CONFIG } from "../../../integration/slack/constants/config";
 
 export const useRoomCreation = () => {
   const navigate = useNavigate();
@@ -68,6 +69,7 @@ export const useRoomCreation = () => {
         createdBy: userName.trim(),  // 作成者名を設定
         slackNotificationEnabled,    // Slack通知設定を保存
         slackThreadTs: null,         // 初期値null
+        slackWorkspaceId: slackNotificationEnabled ? SLACK_CONFIG.activeWorkspace : null // 通知ルート(Workspace ID)を保存
       });
 
       console.log("部屋作成成功:", roomRef.id);
@@ -102,7 +104,8 @@ export const useRoomCreation = () => {
         notifyRoomCreated({
           roomId: roomRef.id,
           roomTitle: title.trim(),
-          hostName: userName.trim()
+          hostName: userName.trim(),
+          workspaceId: SLACK_CONFIG.activeWorkspace // 部屋作成時は自分の環境設定を使う
         });
         // エラーハンドリングはuseSlackNotification内で完結
       }
